@@ -17,7 +17,6 @@ struct SettingsView: View {
     @AppStorage("dataLimitEnabled") private var dataLimitEnabled: Bool = false
     @AppStorage("dataLimitGB") private var dataLimitGB: Double = 5.0
     @AppStorage("dataLimitResetDay") private var dataLimitResetDay: Int = 1
-    @AppStorage("notificationsEnabled") private var notificationsEnabled: Bool = true
 
     var body: some View {
         NavigationStack {
@@ -99,15 +98,16 @@ struct SettingsView: View {
                         }
                     }
 
-                    settingsRow(icon: "bell.badge.fill", iconColor: .red) {
-                        Toggle("Bildirimler", isOn: $notificationsEnabled)
-                            .tint(.red)
-                            .foregroundStyle(.white)
-                    }
                 } header: {
                     sectionHeader("Veri Limiti")
                 }
                 .animation(.easeInOut(duration: 0.25), value: dataLimitEnabled)
+
+                Section {
+                    NotificationsSettingsView()
+                } header: {
+                    sectionHeader("Bildirimler")
+                }
 
                 Section {
                     settingsRow(icon: "app.badge.fill", iconColor: .cyan) {
@@ -170,11 +170,6 @@ struct SettingsView: View {
                 } else {
                     monitor.stopLiveActivity()
                 }
-            }
-        }
-        .onChange(of: speedUnit) { _, _ in
-            withAnimation(.easeInOut(duration: 0.2)) {
-                monitor.objectWillChange.send()
             }
         }
     }

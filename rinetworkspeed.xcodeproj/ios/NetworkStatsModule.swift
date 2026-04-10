@@ -45,8 +45,8 @@ final class NetworkStatsModule: RCTEventEmitter {
     }
 
     @objc(startTimer:)
-    func startTimer(_ interval: NSNumber) {
-        let requestedInterval = interval.doubleValue
+    func startTimer(_ interval: NSNumber?) {
+        let requestedInterval = interval?.doubleValue ?? 0.5
         let effectiveInterval = requestedInterval > 0 ? requestedInterval : 0.5
 
         stopTimer()

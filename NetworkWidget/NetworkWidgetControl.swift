@@ -10,7 +10,7 @@ import SwiftUI
 import WidgetKit
 
 struct NetworkWidgetControl: ControlWidget {
-    static let kind: String = "com.eray.rinetworkspeed.NetworkWidget"
+    static let kind: String = "com.rinetworkspeed.NetworkWidget"
 
     var body: some ControlWidgetConfiguration {
         AppIntentControlConfiguration(

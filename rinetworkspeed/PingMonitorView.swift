@@ -46,7 +46,7 @@ private struct PingStat: Identifiable {
 }
 
 struct PingMonitorView: View {
-    @StateObject private var monitor = PingMonitor()
+    @ObservedObject var monitor: PingMonitor
     @State private var selectedHost: PingHostOption = .cloudflare
     @State private var customHost: String = ""
     @State private var pulseScale: Double = 1
@@ -357,12 +357,12 @@ private struct PingCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
             .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
     }
@@ -375,5 +375,5 @@ private extension View {
 }
 
 #Preview {
-    PingMonitorView()
+    PingMonitorView(monitor: PingMonitor())
 }

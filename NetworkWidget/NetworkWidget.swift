@@ -15,7 +15,7 @@ struct NetworkEntry: TimelineEntry {
 }
 
 struct NetworkTimelineProvider: TimelineProvider {
-    private let suiteName = "com.eray.rinetworkspeed"
+    private let suiteName = "group.com.rinetworkspeed"
 
     func placeholder(in context: Context) -> NetworkEntry {
         NetworkEntry(date: .now, downloadSpeed: 12_500_000, uploadSpeed: 840_000)
@@ -55,7 +55,7 @@ struct NetworkWidgetEntryView: View {
                 endPoint: .bottomTrailing
             )
 
-            if entry.downloadSpeed <= 0 && entry.uploadSpeed <= 0 {
+            if entry.downloadSpeed < 0 && entry.uploadSpeed < 0 {
                 VStack(spacing: 8) {
                     Image(systemName: "wifi.slash")
                         .font(.system(size: family == .systemSmall ? 22 : 26, weight: .semibold))
@@ -101,7 +101,7 @@ struct NetworkWidgetEntryView: View {
 
             Spacer(minLength: 4)
 
-            Text(speed > 0 ? formatSpeed(speed) : "No Data")
+            Text(formatSpeed(speed))
                 .font(.system(size: family == .systemSmall ? 13 : 16, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.white)
@@ -111,8 +111,8 @@ struct NetworkWidgetEntryView: View {
     }
 
     private func formatSpeed(_ bytesPerSec: Double) -> String {
-        guard bytesPerSec.isFinite, bytesPerSec > 0 else {
-            return "No Data"
+        guard bytesPerSec.isFinite, bytesPerSec >= 0 else {
+            return "0 B/s"
         }
 
         let units = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"]
@@ -133,7 +133,7 @@ struct NetworkWidgetEntryView: View {
 }
 
 struct NetworkWidget: Widget {
-    let kind: String = "NetworkWidget"
+    let kind: String = "com.rinetworkspeed.NetworkWidget"
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: NetworkTimelineProvider()) { entry in

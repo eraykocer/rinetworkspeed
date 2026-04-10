@@ -34,6 +34,7 @@ final class DataUsageMonitor: ObservableObject {
     private let defaults = UserDefaults.standard
     private let baselineKey = "dataUsageBaselineSnapshot"
     private let dailyTotalsKey = "dataUsageDailyTotals"
+    private let notificationManager = NotificationManager.shared
     private var dailyTotals: DailyTotals = [:]
     private var timer: Timer?
     private var calendar: Calendar = .current
@@ -77,6 +78,63 @@ final class DataUsageMonitor: ObservableObject {
         return formatter.string(fromByteCount: Int64(bytes))
     }
 
+    func usageForCurrentMonth() -> [DailyUsageSample] {
+        let now = Date()
+        guard let monthRange = calendar.dateInterval(of: .month, for: now) else { return [] }
+
+        return dailyTotals.compactMap { key, usage in
+            guard let date = date(from: key), monthRange.contains(date) else { return nil }
+            return DailyUsageSample(date: date, wifiBytes: usage.wifi, cellularBytes: usage.cellular)
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    func monthlySummary() -> (wifi: UInt64, cellular: UInt64, dailyAverage: UInt64, projectedMonthly: UInt64) {
+        let samples = usageForCurrentMonth()
+        let wifi = samples.reduce(0) { $0 + $1.wifiBytes }
+        let cellular = samples.reduce(0) { $0 + $1.cellularBytes }
+        let total = wifi + cellular
+        let daysElapsed = max(1, samples.count)
+        let dailyAverage = total / UInt64(daysElapsed)
+        let projectedMonthly = dailyAverage * 30
+
+        return (wifi, cellular, dailyAverage, projectedMonthly)
+    }
+
+    func resetToday() {
+        let currentUsage = currentCumulativeUsage()
+        let todayKey = dateKey(for: Date())
+        let baseline = BaselineSnapshot(
+            dateKey: todayKey,
+            wifiBytes: currentUsage.wifiBytes,
+            cellularBytes: currentUsage.cellularBytes
+        )
+        saveBaseline(baseline)
+        dailyTotals[todayKey] = (wifi: 0, cellular: 0)
+        todayWifiBytes = 0
+        todayCellularBytes = 0
+        saveDailyTotals()
+        recalculateWeeklyTotals()
+    }
+
+    func daysUntilReset(resetDay: Int) -> Int {
+        let today = calendar.startOfDay(for: Date())
+        let currentDay = calendar.component(.day, from: today)
+
+        if currentDay < resetDay {
+            return resetDay - currentDay
+        }
+
+        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: today) else { return 0 }
+        let range = calendar.range(of: .day, in: .month, for: nextMonth) ?? 1..<29
+        let clampedDay = min(resetDay, range.count)
+        var components = calendar.dateComponents([.year, .month], from: nextMonth)
+        components.day = clampedDay
+        let resetDate = calendar.date(from: components) ?? nextMonth
+
+        return max(0, calendar.dateComponents([.day], from: today, to: resetDate).day ?? 0)
+    }
+
     private func refreshUsage() {
         let currentUsage = currentCumulativeUsage()
         let baseline = ensureBaseline(for: currentUsage)
@@ -90,6 +148,12 @@ final class DataUsageMonitor: ObservableObject {
         let todayKey = dateKey(for: Date())
         dailyTotals[todayKey] = (wifi: todayWifi, cellular: todayCellular)
         saveDailyTotals()
+
+        if defaults.bool(forKey: "dataLimitEnabled") {
+            let totalUsedGB = Double(todayWifi + todayCellular) / 1_073_741_824
+            let limitGB = max(defaults.double(forKey: "dataLimitGB"), 0)
+            notificationManager.checkDataLimit(usedGB: totalUsedGB, limitGB: limitGB)
+        }
 
         recalculateWeeklyTotals()
     }
@@ -158,6 +222,15 @@ final class DataUsageMonitor: ObservableObject {
         return formatter.string(from: date)
     }
 
+    private func date(from key: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: key)
+    }
+
     private func currentCumulativeUsage() -> (wifiBytes: UInt64, cellularBytes: UInt64) {
         var addrs: UnsafeMutablePointer<ifaddrs>?
         var wifiBytes: UInt64 = 0
@@ -200,4 +273,3 @@ final class DataUsageMonitor: ObservableObject {
         return (wifiBytes, cellularBytes)
     }
 }
-

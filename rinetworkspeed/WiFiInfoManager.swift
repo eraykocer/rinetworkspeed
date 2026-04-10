@@ -298,14 +298,17 @@ final class WiFiInfoManager: NSObject, ObservableObject {
     }
 
     private func currentDNSServers() -> [String] {
-        guard
-            let dnsConfiguration = __SCPreferencesPathGetValue(nil, "/Network/Global/DNS") as? [String: Any],
-            let servers = dnsConfiguration["ServerAddresses"] as? [String]
-        else {
+        guard let contents = try? String(contentsOfFile: "/etc/resolv.conf", encoding: .utf8) else {
             return []
         }
 
-        return servers
+        return contents
+            .split(separator: "\n")
+            .compactMap { line -> String? in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard trimmed.hasPrefix("nameserver ") else { return nil }
+                return trimmed.replacingOccurrences(of: "nameserver ", with: "")
+            }
     }
 
     private func fetchExternalIP() async -> String? {
@@ -369,6 +372,9 @@ extension WiFiInfoManager: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor [weak self] in
             self?.authorizationStatus = manager.authorizationStatus
+            if self?.hasLocationPermission == true {
+                await self?.refresh()
+            }
         }
     }
 }

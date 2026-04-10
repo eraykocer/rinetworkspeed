@@ -8,8 +8,10 @@
 import SwiftUI
 
 struct SpeedTestView: View {
-    @StateObject private var manager = SpeedTestManager()
+    @ObservedObject var manager: SpeedTestManager
+    @StateObject private var wifiInfoManager = WiFiInfoManager()
     @State private var animatePulse = false
+    @State private var isNetworkDetailsExpanded = true
 
     private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
     private let pingColor = Color(red: 168 / 255, green: 85 / 255, blue: 247 / 255)
@@ -30,6 +32,7 @@ struct SpeedTestView: View {
 
                     if manager.state == .finished {
                         resultCards
+                        networkDetailsSection
                     }
 
                     historySection
@@ -43,6 +46,9 @@ struct SpeedTestView: View {
         .background(backgroundColor.ignoresSafeArea())
         .onAppear {
             animatePulse = isTesting
+        }
+        .task {
+            await wifiInfoManager.refresh()
         }
         .onChange(of: isTesting) { _, newValue in
             animatePulse = newValue
@@ -120,6 +126,93 @@ struct SpeedTestView: View {
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
         .animation(.spring(response: 0.45, dampingFraction: 0.85), value: manager.state)
+    }
+
+    private var networkDetailsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("📡 Ag Detaylari")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Spacer()
+
+                Button {
+                    Task {
+                        await wifiInfoManager.refresh()
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if wifiInfoManager.isRefreshing {
+                            ProgressView()
+                                .tint(.white)
+                                .scaleEffect(0.85)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+
+                        Text("Yenile")
+                    }
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.84))
+                }
+                .buttonStyle(.plain)
+            }
+
+            DisclosureGroup(isExpanded: $isNetworkDetailsExpanded) {
+                if wifiInfoManager.hasLocationPermission {
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.flexible(), spacing: 14, alignment: .top),
+                            GridItem(.flexible(), spacing: 14, alignment: .top)
+                        ],
+                        alignment: .leading,
+                        spacing: 14
+                    ) {
+                        networkDetailsColumn(title: "WiFi") {
+                            detailTile(title: "SSID", value: wifiInfoManager.ssid ?? "Bilinmiyor")
+                            detailTile(title: "BSSID", value: wifiInfoManager.bssid ?? "Bilinmiyor")
+                            detailTile(title: "Frekans", value: wifiInfoManager.frequencyBand)
+                            signalStrengthTile
+                        }
+
+                        networkDetailsColumn(title: "Adresleme") {
+                            detailTile(title: "IP", value: wifiInfoManager.ipAddress ?? "--")
+                            detailTile(title: "Router", value: wifiInfoManager.routerIP ?? "--")
+                            detailTile(title: "DNS", value: wifiInfoManager.dnsServers.isEmpty ? "--" : wifiInfoManager.dnsServers.joined(separator: ", "))
+                            detailTile(title: "External IP", value: wifiInfoManager.externalIP ?? "--")
+                            detailTile(title: "ISP", value: wifiInfoManager.ispName ?? "--")
+                            detailTile(title: "NAT", value: wifiInfoManager.natType ?? "--")
+                        }
+                    }
+                    .padding(.top, 14)
+                } else {
+                    ContentUnavailableView {
+                        Label("Konum Izni Gerekli", systemImage: "location.slash.fill")
+                    } description: {
+                        Text("SSID ve BSSID bilgilerini gostermek icin konum izni vermeniz gerekiyor.")
+                    } actions: {
+                        Button("Ayarlari Ac") {
+                            wifiInfoManager.openAppSettings()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.top, 14)
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "wifi")
+                        .foregroundStyle(downloadColor)
+                    Text("Bagli oldugun WiFi agina ait detaylar")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.72))
+                }
+            }
+            .tint(.white)
+        }
+        .padding(18)
+        .speedTestCardStyle()
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     private var historySection: some View {
@@ -315,6 +408,103 @@ struct SpeedTestView: View {
     private func formatRateValue(_ bytesPerSecond: Double) -> String {
         String(format: "%.1f", bytesPerSecond / (1024 * 1024))
     }
+
+    private var signalStrengthTile: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Sinyal Gucu")
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.55))
+
+            HStack(spacing: 10) {
+                WiFiStrengthIcon(color: wifiInfoManager.signalStrength.color, level: signalBarLevel)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(wifiInfoManager.signalStrength.title)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("\(wifiInfoManager.rssi) dBm")
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(wifiInfoManager.signalStrength.color)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func networkDetailsColumn<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.84))
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func detailTile(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.55))
+            Text(value)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.white.opacity(0.04))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private var signalBarLevel: Int {
+        switch wifiInfoManager.signalStrength {
+        case .excellent:
+            return 4
+        case .good:
+            return 3
+        case .fair:
+            return 2
+        case .poor:
+            return 1
+        }
+    }
+}
+
+private struct WiFiStrengthIcon: View {
+    let color: Color
+    let level: Int
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 6) {
+            Image(systemName: "wifi")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(color)
+
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach(0..<4, id: \.self) { index in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(index < level ? color : Color.white.opacity(0.14))
+                        .frame(width: 5, height: CGFloat(8 + (index * 5)))
+                }
+            }
+        }
+    }
 }
 
 private struct HalfGaugeView: View {
@@ -381,5 +571,5 @@ private extension View {
 }
 
 #Preview {
-    SpeedTestView()
+    SpeedTestView(manager: SpeedTestManager())
 }

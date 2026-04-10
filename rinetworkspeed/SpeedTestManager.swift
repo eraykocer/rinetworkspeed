@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Combine
 
 enum SpeedTestState {
     case idle
@@ -61,12 +62,12 @@ final class SpeedTestManager: NSObject, ObservableObject {
     private var downloadStartDate: Date?
     private var downloadLastChunkDate: Date?
     private var downloadBytesReceived: Int64 = 0
-    private var downloadExpectedBytes: Int64 = 25_000_000
+    private var downloadExpectedBytes: Int64 = 250_000_000
 
     private var uploadStartDate: Date?
     private var uploadLastCallbackDate: Date?
     private var uploadBytesSent: Int64 = 0
-    private var uploadExpectedBytes: Int64 = 10_000_000
+    private var uploadExpectedBytes: Int64 = 50_000_000
 
     override init() {
         super.init()
@@ -126,7 +127,9 @@ final class SpeedTestManager: NSObject, ObservableObject {
     }
 
     func deleteHistory(at offsets: IndexSet) {
-        history.remove(atOffsets: offsets)
+        for index in offsets.sorted(by: >) {
+            history.remove(at: index)
+        }
         saveHistory()
     }
 
@@ -148,12 +151,12 @@ final class SpeedTestManager: NSObject, ObservableObject {
         downloadStartDate = nil
         downloadLastChunkDate = nil
         downloadBytesReceived = 0
-        downloadExpectedBytes = 25_000_000
+        downloadExpectedBytes = 250_000_000
 
         uploadStartDate = nil
         uploadLastCallbackDate = nil
         uploadBytesSent = 0
-        uploadExpectedBytes = 10_000_000
+        uploadExpectedBytes = 50_000_000
     }
 
     private func measurePing() async throws -> Double {
@@ -178,13 +181,13 @@ final class SpeedTestManager: NSObject, ObservableObject {
     }
 
     private func runDownloadTest() async throws {
-        let url = URL(string: "https://speed.cloudflare.com/__down?bytes=25000000")!
+        let url = URL(string: "https://speed.cloudflare.com/__down?bytes=250000000")!
         let request = URLRequest(url: url)
 
         downloadStartDate = Date()
         downloadLastChunkDate = downloadStartDate
         downloadBytesReceived = 0
-        downloadExpectedBytes = 25_000_000
+        downloadExpectedBytes = 250_000_000
         downloadProgress = 0
         downloadSpeed = 0
 

@@ -43,7 +43,8 @@ final class PingMonitor: ObservableObject {
     private var currentHost: String = "1.1.1.1"
 
     deinit {
-        stop()
+        timer?.invalidate()
+        timer = nil
     }
 
     func start(host: String) {

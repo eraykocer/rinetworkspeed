@@ -11,9 +11,13 @@ import Charts
 struct ContentView: View {
     @ObservedObject var monitor: NetworkStatsMonitor
     @ObservedObject var dataUsage: DataUsageMonitor
+    @ObservedObject var speedTestManager: SpeedTestManager
+    @ObservedObject var pingMonitor: PingMonitor
     @Binding var selectedTab: Int
     @AppStorage("speedUnit") private var speedUnit: String = "bytes"
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = true
+    @State private var showingSpeedTest = false
+    @State private var showingPingMonitor = false
 
     private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
     private let downloadColor = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
@@ -27,6 +31,7 @@ struct ContentView: View {
                 miniChartCard
                 todayUsageCard
                 connectionDetailsCard
+                toolsCard
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
@@ -40,6 +45,42 @@ struct ContentView: View {
                     monitor.stopLiveActivity()
                 }
             }
+        }
+    }
+
+    private var toolsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Araclar")
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+
+            HStack(spacing: 14) {
+                toolButton(
+                    title: "Speed Test",
+                    subtitle: "Gercek indirme ve yukleme olcumu",
+                    systemImage: "bolt.fill",
+                    color: downloadColor
+                ) {
+                    showingSpeedTest = true
+                }
+
+                toolButton(
+                    title: "Ping Monitor",
+                    subtitle: "Canli gecikme ve paket kaybi",
+                    systemImage: "dot.radiowaves.left.and.right",
+                    color: uploadColor
+                ) {
+                    showingPingMonitor = true
+                }
+            }
+        }
+        .padding(18)
+        .premiumCardStyle()
+        .sheet(isPresented: $showingSpeedTest) {
+            SpeedTestView(manager: speedTestManager)
+        }
+        .sheet(isPresented: $showingPingMonitor) {
+            PingMonitorView(monitor: pingMonitor)
         }
     }
 
@@ -263,6 +304,42 @@ struct ContentView: View {
         }
     }
 
+    private func toolButton(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        color: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(color)
+
+                Text(title)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text(subtitle)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.52))
+                    .multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, minHeight: 132, alignment: .leading)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color.white.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var activeConnectionIcon: String {
         switch monitor.activeInterface {
         case .wifi:
@@ -391,19 +468,16 @@ private struct CompactSpeedChart: View {
 
 private struct PremiumCardModifier: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color.white.opacity(0.05))
-                )
-                .glassEffect()
-                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
-        } else {
-            content
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
-        }
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
     }
 }
 
@@ -417,6 +491,8 @@ private extension View {
     ContentView(
         monitor: NetworkStatsMonitor(),
         dataUsage: DataUsageMonitor(),
+        speedTestManager: SpeedTestManager(),
+        pingMonitor: PingMonitor(),
         selectedTab: .constant(0)
     )
 }

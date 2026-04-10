@@ -122,14 +122,7 @@ struct GraphView: View {
                         .padding(.vertical, 16)
                     }
                     .buttonStyle(.plain)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
+                    .graphCardStyle()
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -270,15 +263,7 @@ struct GraphView: View {
             }
         }
         .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(.ultraThinMaterial)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
-        )
-        .shadow(color: downloadColor.opacity(0.15), radius: 20, x: 0, y: 10)
+        .graphCardStyle(highlighted: true)
     }
 
     private var statsGrid: some View {
@@ -305,14 +290,7 @@ struct GraphView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(.ultraThinMaterial)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                )
+                .graphCardStyle()
             }
         }
     }
@@ -390,6 +368,30 @@ struct GraphView: View {
             return "\(hours)s \(remainingMinutes)dk"
         }
         return "\(minutes) dk"
+    }
+}
+
+private struct GraphCardModifier: ViewModifier {
+    let highlighted: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(Color.white.opacity(0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
+            .shadow(color: highlighted ? Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255).opacity(0.15) : .clear, radius: 20, x: 0, y: 10)
+    }
+}
+
+private extension View {
+    func graphCardStyle(highlighted: Bool = false) -> some View {
+        modifier(GraphCardModifier(highlighted: highlighted))
     }
 }
 
