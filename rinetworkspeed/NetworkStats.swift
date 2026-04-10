@@ -40,19 +40,19 @@ struct NetworkSpeedAttributes: ActivityAttributes {
     var title: String = "Network Speed"
 }
 
-enum NetworkInterface {
+enum NetworkInterface: String {
     case wifi
     case cellular
     case none
 }
 
 final class NetworkStatsMonitor: ObservableObject {
-    @Published var downloadSpeed: Double = 0
-    @Published var uploadSpeed: Double = 0
-    @Published var wifiDownloadSpeed: Double = 0
-    @Published var wifiUploadSpeed: Double = 0
-    @Published var cellularDownloadSpeed: Double = 0
-    @Published var cellularUploadSpeed: Double = 0
+    var downloadSpeed: Double = 0
+    var uploadSpeed: Double = 0
+    var wifiDownloadSpeed: Double = 0
+    var wifiUploadSpeed: Double = 0
+    var cellularDownloadSpeed: Double = 0
+    var cellularUploadSpeed: Double = 0
     @Published var activeInterface: NetworkInterface = .none
     @Published var history: [SpeedSample] = []
     @Published var connectionName: String = "Offline"
@@ -77,6 +77,7 @@ final class NetworkStatsMonitor: ObservableObject {
     private var lastAppliedSpeedUnit: String = "bytes"
     private var lastAppliedLiveActivityEnabled: Bool = true
     private var lastDetailsRefreshDate: Date = .distantPast
+    private var lastLiveActivityUpdateDate: Date = .distantPast
     private var monitorStartDate: Date?
     @available(iOS 16.1, *)
     private var liveActivity: Activity<NetworkSpeedAttributes>?
@@ -110,6 +111,7 @@ final class NetworkStatsMonitor: ObservableObject {
         timer = nil
         pushTokenTask?.cancel()
         pushTokenTask = nil
+        objectWillChange.send()
         downloadSpeed = 0
         uploadSpeed = 0
         wifiDownloadSpeed = 0
@@ -359,6 +361,10 @@ final class NetworkStatsMonitor: ObservableObject {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         guard isLiveActivityEnabled else { return }
 
+        let now = Date()
+        guard now.timeIntervalSince(lastLiveActivityUpdateDate) >= 0.5 else { return }
+        lastLiveActivityUpdateDate = now
+
         if liveActivity == nil {
             liveActivity = Activity<NetworkSpeedAttributes>.activities.first
         }
@@ -382,23 +388,30 @@ final class NetworkStatsMonitor: ObservableObject {
 
     func stopLiveActivity() {
         guard #available(iOS 16.1, *) else { return }
-        guard let activity = liveActivity else { return }
+
+        let allActivities = Activity<NetworkSpeedAttributes>.activities
+        guard !allActivities.isEmpty || liveActivity != nil else { return }
 
         let finalState = NetworkSpeedAttributes.ContentState(
             downloadSpeed: downloadSpeed,
             uploadSpeed: uploadSpeed
         )
 
+        pushTokenTask?.cancel()
+        pushTokenTask = nil
+        liveActivity = nil
+
         Task {
             if #available(iOS 16.2, *) {
                 let content = ActivityContent(state: finalState, staleDate: nil)
-                await activity.end(content, dismissalPolicy: .immediate)
+                for activity in allActivities {
+                    await activity.end(content, dismissalPolicy: .immediate)
+                }
             } else {
-                await activity.end(using: finalState, dismissalPolicy: .immediate)
+                for activity in allActivities {
+                    await activity.end(using: finalState, dismissalPolicy: .immediate)
+                }
             }
-            pushTokenTask?.cancel()
-            pushTokenTask = nil
-            liveActivity = nil
         }
     }
 
@@ -466,6 +479,7 @@ final class NetworkStatsMonitor: ObservableObject {
             ? snapshot.cellularBytesOut - previousSnapshot.cellularBytesOut
             : 0
 
+        objectWillChange.send()
         downloadSpeed = Double(bytesInDelta) / elapsed
         uploadSpeed = Double(bytesOutDelta) / elapsed
         wifiDownloadSpeed = Double(wifiBytesInDelta) / elapsed
@@ -481,6 +495,13 @@ final class NetworkStatsMonitor: ObservableObject {
         refreshConnectionDetailsIfNeeded(at: now)
         saveLatestSpeedsToSharedDefaults()
         updateLiveActivity()
+        #if os(iOS)
+        WatchConnectivityManager.shared.updateSpeeds(
+            download: downloadSpeed,
+            upload: uploadSpeed,
+            activeInterface: activeInterface
+        )
+        #endif
 
         lastSnapshot = snapshot
         lastSampleDate = now

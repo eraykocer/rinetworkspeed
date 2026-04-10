@@ -50,28 +50,30 @@ struct ContentView: View {
 
     private var toolsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Araclar")
+            Text("Tools")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
             HStack(spacing: 14) {
                 toolButton(
                     title: "Speed Test",
-                    subtitle: "Gercek indirme ve yukleme olcumu",
+                    subtitle: "Real download & upload measurement",
                     systemImage: "bolt.fill",
                     color: downloadColor
                 ) {
                     showingSpeedTest = true
                 }
+                .proGated(feature: .speedTest)
 
                 toolButton(
                     title: "Ping Monitor",
-                    subtitle: "Canli gecikme ve paket kaybi",
+                    subtitle: "Live latency & packet loss",
                     systemImage: "dot.radiowaves.left.and.right",
                     color: uploadColor
                 ) {
                     showingPingMonitor = true
                 }
+                .proGated(feature: .pingMonitor)
             }
         }
         .padding(18)
@@ -111,6 +113,7 @@ struct ContentView: View {
                     .foregroundStyle(liveActivityEnabled ? .red : .green)
             }
             .buttonStyle(.plain)
+            .proGated(feature: .widget)
         }
         .padding(18)
         .premiumCardStyle()
@@ -137,7 +140,7 @@ struct ContentView: View {
     private var miniChartCard: some View {
         VStack(spacing: 12) {
             HStack {
-                Text("Son 60 sn")
+                Text("Last 60 sec")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.86))
 
@@ -157,7 +160,7 @@ struct ContentView: View {
                 }
             } label: {
                 HStack {
-                    Text("Detayli Grafik")
+                    Text("Detailed Graph")
                     Spacer()
                     Text("->")
                 }
@@ -173,7 +176,7 @@ struct ContentView: View {
     private var todayUsageCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Bugunku Kullanim")
+                Text("Today's Usage")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
 
@@ -184,7 +187,7 @@ struct ContentView: View {
                         selectedTab = 2
                     }
                 } label: {
-                    Text("Detaylar ->")
+                    Text("Details ->")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.72))
                 }
@@ -211,13 +214,13 @@ struct ContentView: View {
 
     private var connectionDetailsCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Baglanti Detaylari")
+            Text("Connection Details")
                 .font(.system(size: 18, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
             detailRow(title: "Ping / Latency", value: latencyText)
             detailRow(title: "WiFi RSSI", value: monitor.wifiSignalDescription)
-            detailRow(title: "IP Adresi", value: monitor.ipAddress)
+            detailRow(title: "IP Address", value: monitor.ipAddress)
         }
         .padding(18)
         .premiumCardStyle()
@@ -248,9 +251,9 @@ struct ContentView: View {
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.58))
                 }
-                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: components.value)
+                .animation(.easeOut(duration: 0.2), value: components.value)
 
-                Text(speedUnit == "bits" ? "Megabit hiz formatı" : "Byte hiz formatı")
+                Text(speedUnit == "bits" ? "Megabit speed format" : "Byte speed format")
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.white.opacity(0.42))
             }
@@ -396,7 +399,8 @@ struct ContentView: View {
     }
 
     private var chartMaxSpeed: Double {
-        monitor.history.reduce(0) { partialResult, sample in
+        let cutoff = Date().addingTimeInterval(-60)
+        return monitor.history.lazy.filter { $0.timestamp >= cutoff }.reduce(0) { partialResult, sample in
             max(partialResult, sample.downloadSpeed, sample.uploadSpeed)
         }
     }
@@ -413,8 +417,13 @@ private struct CompactSpeedChart: View {
     private let downloadColor = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
     private let uploadColor = Color(red: 249 / 255, green: 115 / 255, blue: 22 / 255)
 
+    private var recentHistory: [SpeedSample] {
+        let cutoff = Date().addingTimeInterval(-60)
+        return monitor.history.filter { $0.timestamp >= cutoff }
+    }
+
     var body: some View {
-        Chart(monitor.history) { sample in
+        Chart(recentHistory) { sample in
             AreaMark(
                 x: .value("Time", sample.timestamp),
                 y: .value("Download", sample.downloadSpeed)

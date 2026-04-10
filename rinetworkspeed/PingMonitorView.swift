@@ -22,7 +22,7 @@ private enum PingHostOption: String, CaseIterable, Identifiable {
         case .google:
             return "Google"
         case .custom:
-            return "Ozel"
+            return "Custom"
         }
     }
 
@@ -52,16 +52,24 @@ struct PingMonitorView: View {
     @State private var pulseScale: Double = 1
     @State private var pulseOpacity: Double = 0.5
 
+    init(monitor: PingMonitor, initialHost: String = "") {
+        _monitor = ObservedObject(wrappedValue: monitor)
+        if !initialHost.isEmpty {
+            _selectedHost = State(initialValue: .custom)
+            _customHost   = State(initialValue: initialHost)
+        }
+    }
+
     private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
 
     private var stats: [PingStat] {
         [
             PingStat(title: "Min Ping", value: formatPing(monitor.minPing), color: .green),
             PingStat(title: "Max Ping", value: formatPing(monitor.maxPing), color: .orange),
-            PingStat(title: "Ortalama Ping", value: formatPing(monitor.avgPing), color: .yellow),
-            PingStat(title: "Gonderilen", value: "\(monitor.packetsSent)", color: .white),
-            PingStat(title: "Kayip", value: "\(monitor.packetsLost)", color: .red),
-            PingStat(title: "Paket Kaybi", value: String(format: "%.0f%%", monitor.packetLossPercent), color: .pink)
+            PingStat(title: "Avg Ping", value: formatPing(monitor.avgPing), color: .yellow),
+            PingStat(title: "Sent", value: "\(monitor.packetsSent)", color: .white),
+            PingStat(title: "Lost", value: "\(monitor.packetsLost)", color: .red),
+            PingStat(title: "Packet Loss", value: String(format: "%.0f%%", monitor.packetLossPercent), color: .pink)
         ]
     }
 
@@ -136,7 +144,7 @@ struct PingMonitorView: View {
 
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Canli Grafik")
+            Text("Live Chart")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
@@ -222,7 +230,7 @@ struct PingMonitorView: View {
 
     private var hostSelectorCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Host Secici")
+            Text("Host Selector")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
@@ -237,7 +245,7 @@ struct PingMonitorView: View {
             }
 
             if selectedHost == .custom {
-                TextField("Host girin", text: $customHost)
+                TextField("Enter host", text: $customHost)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .padding(14)
@@ -264,7 +272,7 @@ struct PingMonitorView: View {
                     startIfNeeded()
                 }
             } label: {
-                Text(monitor.isRunning ? "Durdur" : "Baslat")
+                Text(monitor.isRunning ? "Stop" : "Start")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -280,7 +288,7 @@ struct PingMonitorView: View {
             }
             .buttonStyle(.plain)
 
-            Text("\(activeHostText) adresine ping atiliyor...")
+            Text("Pinging \(activeHostText)...")
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.55))
         }
@@ -304,15 +312,15 @@ struct PingMonitorView: View {
     private var statusLabel: String {
         switch monitor.status {
         case .excellent:
-            return "Mukemmel"
+            return "Excellent"
         case .good:
-            return "Iyi"
+            return "Good"
         case .fair:
-            return "Orta"
+            return "Fair"
         case .poor:
-            return "Zayif"
+            return "Poor"
         case .timeout:
-            return "Zaman Asimi"
+            return "Timeout"
         }
     }
 

@@ -59,7 +59,7 @@ struct SplashScreenView: View {
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
 
-                    Text("Anlik hiz, ping ve kullanim takibi")
+                    Text("Real-time speed, ping & usage monitoring")
                         .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.72))
                 }

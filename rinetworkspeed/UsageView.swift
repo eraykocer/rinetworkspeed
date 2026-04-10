@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Charts
+import UIKit
 
 private struct UsageChartBar: Identifiable {
     let id = UUID()
@@ -19,12 +20,16 @@ private struct UsageChartBar: Identifiable {
 
 struct UsageView: View {
     @ObservedObject var dataUsage: DataUsageMonitor
+    @ObservedObject var speedTestManager: SpeedTestManager
     @AppStorage("dataLimitEnabled") private var dataLimitEnabled: Bool = false
     @AppStorage("dataLimitGB") private var dataLimitGB: Double = 5.0
     @AppStorage("dataLimitResetDay") private var dataLimitResetDay: Int = 1
 
     @State private var selectedDay: DailyUsageSample?
     @State private var showingResetAlert = false
+    @State private var showPDFSheet = false
+    @State private var selectedReportMonth: Date = Date()
+    @State private var isGeneratingPDF = false
 
     private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
     private let wifiColor = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
@@ -84,20 +89,21 @@ struct UsageView: View {
                         weeklyChartCard
                         monthlySummaryCard
                         resetInfoCard
+                        pdfReportCard
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
             .background(backgroundColor.ignoresSafeArea())
-            .navigationTitle("Veri Kullanimi")
-            .alert("Bugunku sayac sifirlansin mi?", isPresented: $showingResetAlert) {
-                Button("Iptal", role: .cancel) {}
-                Button("Sifirla", role: .destructive) {
+            .navigationTitle("Data Usage")
+            .alert("Reset today's counter?", isPresented: $showingResetAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Reset", role: .destructive) {
                     dataUsage.resetToday()
                 }
             } message: {
-                Text("Bugunku WiFi ve Cellular sayaclari sifirlanacak.")
+                Text("Today's WiFi and Cellular counters will be reset.")
             }
         }
         .background(backgroundColor.ignoresSafeArea())
@@ -130,7 +136,7 @@ struct UsageView: View {
                         .foregroundStyle(.white)
                         .contentTransition(.numericText())
 
-                    Text("Bugunku Toplam")
+                    Text("Today's Total")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.54))
                 }
@@ -157,7 +163,7 @@ struct UsageView: View {
 
     private var weeklyChartCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Haftalik Grafik")
+            Text("Weekly Chart")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
@@ -257,14 +263,14 @@ struct UsageView: View {
 
     private var monthlySummaryCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Aylik Ozet")
+            Text("Monthly Summary")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
-            summaryRow(title: "Bu ay WiFi", value: dataUsage.formatBytes(monthlySummary.wifi), color: wifiColor)
-            summaryRow(title: "Bu ay Cellular", value: dataUsage.formatBytes(monthlySummary.cellular), color: cellularColor)
-            summaryRow(title: "Gunluk ortalama", value: dataUsage.formatBytes(monthlySummary.dailyAverage), color: .white)
-            summaryRow(title: "Tahmini aylik toplam", value: dataUsage.formatBytes(monthlySummary.projectedMonthly), color: .white)
+            summaryRow(title: "This month WiFi", value: dataUsage.formatBytes(monthlySummary.wifi), color: wifiColor)
+            summaryRow(title: "This month Cellular", value: dataUsage.formatBytes(monthlySummary.cellular), color: cellularColor)
+            summaryRow(title: "Daily average", value: dataUsage.formatBytes(monthlySummary.dailyAverage), color: .white)
+            summaryRow(title: "Projected monthly total", value: dataUsage.formatBytes(monthlySummary.projectedMonthly), color: .white)
         }
         .padding(18)
         .usageCardStyle()
@@ -272,18 +278,18 @@ struct UsageView: View {
 
     private var resetInfoCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Sifirlama Bilgisi")
+            Text("Reset Info")
                 .font(.system(size: 20, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
-            Text("Sayac \(dataUsage.daysUntilReset(resetDay: dataLimitResetDay)) gun sonra sifirlanacak")
+            Text("Counter resets in \(dataUsage.daysUntilReset(resetDay: dataLimitResetDay)) days")
                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.78))
 
             Button {
                 showingResetAlert = true
             } label: {
-                Text("Sifirla")
+                Text("Reset")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
@@ -303,12 +309,119 @@ struct UsageView: View {
         .usageCardStyle()
     }
 
+    // MARK: – PDF Report Card
+
+    private var last6Months: [Date] {
+        let cal = Calendar.current
+        return (0..<6).compactMap { cal.date(byAdding: .month, value: -$0, to: Date()) }
+    }
+
+    private var pdfReportCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.richtext.fill")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(Color(red: 59/255, green: 130/255, blue: 246/255))
+                Text("PDF Rapor")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+
+            // Month picker
+            Picker("Ay", selection: $selectedReportMonth) {
+                ForEach(last6Months, id: \.self) { date in
+                    Text(date.formatted(.dateTime.month(.wide).year()))
+                        .tag(date)
+                }
+            }
+            .pickerStyle(.menu)
+            .tint(Color(red: 59/255, green: 130/255, blue: 246/255))
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    )
+            )
+
+            // Generate button
+            Button {
+                generatePDFReport()
+            } label: {
+                HStack(spacing: 10) {
+                    if isGeneratingPDF {
+                        ProgressView().tint(.white).scaleEffect(0.9)
+                    } else {
+                        Image(systemName: "arrow.down.doc.fill")
+                    }
+                    Text(isGeneratingPDF ? "Oluşturuluyor..." : "Rapor Oluştur")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color(red: 59/255,  green: 130/255, blue: 246/255),
+                                    Color(red: 168/255, green: 85/255,  blue: 247/255)
+                                ],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isGeneratingPDF)
+        }
+        .padding(18)
+        .usageCardStyle()
+    }
+
+    private func generatePDFReport() {
+        isGeneratingPDF = true
+        Task {
+            let samples = dataUsage.usageForMonth(selectedReportMonth)
+            let history = speedTestManager.history
+            let generator = PDFReportGenerator()
+            let url = generator.generateReport(
+                month: selectedReportMonth,
+                dailySamples: samples,
+                speedHistory: history,
+                formatBytes: dataUsage.formatBytes
+            )
+            isGeneratingPDF = false
+            guard let url else { return }
+            presentShare(items: [url])
+        }
+    }
+
+    private func presentShare(items: [Any]) {
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+              let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return }
+
+        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = rootVC.view
+            popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        rootVC.present(activityVC, animated: true)
+    }
+
     private var placeholderCard: some View {
         VStack(spacing: 14) {
             ProgressView()
                 .tint(.white.opacity(0.7))
                 .scaleEffect(1.2)
-            Text("Veri toplaniyor...")
+            Text("Collecting data...")
                 .font(.system(size: 18, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.8))
         }
@@ -320,7 +433,7 @@ struct UsageView: View {
 
     private var limitMessage: String {
         let usedGB = Double(todayTotal) / (1024 * 1024 * 1024)
-        return String(format: "%.1f GB limitin %.1f GB'ini kullandin", dataLimitGB, usedGB)
+        return String(format: "Used %.1f GB of your %.1f GB limit", usedGB, dataLimitGB)
     }
 
     private func usageRow(title: String, value: String, color: Color) -> some View {
@@ -351,7 +464,7 @@ struct UsageView: View {
 
     private func weekdayLabel(for date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "EEE"
         return formatter.string(from: date)
     }
@@ -393,5 +506,5 @@ private extension View {
 }
 
 #Preview {
-    UsageView(dataUsage: DataUsageMonitor())
+    UsageView(dataUsage: DataUsageMonitor(), speedTestManager: SpeedTestManager())
 }

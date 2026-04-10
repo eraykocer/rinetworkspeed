@@ -10,6 +10,7 @@ import Combine
 
 enum SpeedTestState {
     case idle
+    case pingTesting
     case downloadTesting
     case uploadTesting
     case finished
@@ -82,11 +83,25 @@ final class SpeedTestManager: NSObject, ObservableObject {
             guard let self else { return }
 
             do {
+                self.state = .pingTesting
                 self.ping = try await self.measurePing()
                 try Task.checkCancellation()
 
+                // Pause after ping so the user can see the result
+                try await Task.sleep(nanoseconds: 1_800_000_000)
+                try Task.checkCancellation()
+
                 self.state = .downloadTesting
+                // ── 1 MB probe to pick an adaptive test file size ────────
+                let estimatedBps = (try? await self.probeDownloadSpeed()) ?? 50_000_000
+                self.downloadExpectedBytes = Self.adaptiveDownloadBytes(estimatedBps: estimatedBps)
+                self.uploadExpectedBytes   = Self.adaptiveUploadBytes(estimatedBps: estimatedBps)
+                // ────────────────────────────────────────────────────────
                 try await self.runDownloadTest()
+                try Task.checkCancellation()
+
+                // Pause after download so the user can see the result
+                try await Task.sleep(nanoseconds: 1_800_000_000)
                 try Task.checkCancellation()
 
                 self.state = .uploadTesting
@@ -164,7 +179,7 @@ final class SpeedTestManager: NSObject, ObservableObject {
         let pingSession = URLSession(configuration: .ephemeral)
         var results: [Double] = []
 
-        for _ in 0..<5 {
+        for _ in 0..<3 {
             try Task.checkCancellation()
 
             var request = URLRequest(url: url)
@@ -180,14 +195,45 @@ final class SpeedTestManager: NSObject, ObservableObject {
         return results.reduce(0, +) / Double(max(results.count, 1))
     }
 
+    /// Downloads 1 MB from Cloudflare to estimate line speed (bytes/second).
+    /// Uses a dedicated ephemeral session so progress callbacks are not triggered.
+    private func probeDownloadSpeed() async throws -> Double {
+        let probeSize: Int64 = 1_000_000
+        guard let url = URL(string: "https://speed.cloudflare.com/__down?bytes=\(probeSize)") else {
+            return 50_000_000
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 20
+        let probeSession = URLSession(configuration: .ephemeral)
+        let start = Date()
+        _ = try await probeSession.data(for: request)
+        let elapsed = max(Date().timeIntervalSince(start), 0.001)
+        return Double(probeSize) / elapsed
+    }
+
+    /// Target ~8 s of download, clamped to 10 MB – 500 MB.
+    private static func adaptiveDownloadBytes(estimatedBps: Double) -> Int64 {
+        Int64(min(max(estimatedBps * 8.0, 10_000_000), 500_000_000))
+    }
+
+    /// Use a more aggressive upload size on fast lines so upload testing
+    /// does not finish too quickly after the download phase.
+    /// Targets ~8 s and allows substantially larger payloads, while still
+    /// keeping the in-memory body bounded.
+    private static func adaptiveUploadBytes(estimatedBps: Double) -> Int64 {
+        Int64(min(max(estimatedBps * 0.65 * 8.0, 10_000_000), 350_000_000))
+    }
+
     private func runDownloadTest() async throws {
-        let url = URL(string: "https://speed.cloudflare.com/__down?bytes=250000000")!
+        // downloadExpectedBytes was already set by probe (or by resetMetrics fallback)
+        guard let url = URL(string: "https://speed.cloudflare.com/__down?bytes=\(downloadExpectedBytes)") else {
+            throw URLError(.badURL)
+        }
         let request = URLRequest(url: url)
 
         downloadStartDate = Date()
         downloadLastChunkDate = downloadStartDate
         downloadBytesReceived = 0
-        downloadExpectedBytes = 250_000_000
         downloadProgress = 0
         downloadSpeed = 0
 
@@ -252,11 +298,9 @@ final class SpeedTestManager: NSObject, ObservableObject {
     }
 
     private func randomData(length: Int) -> Data {
-        var bytes = [UInt8](repeating: 0, count: length)
-        for index in bytes.indices {
-            bytes[index] = UInt8.random(in: .min ... .max)
-        }
-        return Data(bytes)
+        // Zero-filled payload is identical for upload speed testing and
+        // avoids a 50-million-iteration main-thread loop that froze the UI.
+        Data(count: length)
     }
 }
 

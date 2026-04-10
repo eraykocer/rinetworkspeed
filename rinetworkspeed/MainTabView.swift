@@ -17,6 +17,7 @@ struct MainTabView: View {
     @State private var isShowingSplash = true
     @State private var didStartSplashSequence = false
     @AppStorage("appTheme") private var appTheme: String = "system"
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -44,10 +45,14 @@ struct MainTabView: View {
                 }
 
                 Tab("Usage", systemImage: "arrow.up.arrow.down.circle.fill", value: 2) {
-                    UsageTabScreen(monitor: dataUsageMonitor)
+                    UsageTabScreen(monitor: dataUsageMonitor, speedTestManager: speedTestManager)
                 }
 
-                Tab("Settings", systemImage: "gearshape.fill", value: 3) {
+                Tab("Tools", systemImage: "wrench.and.screwdriver.fill", value: 3) {
+                    NetworkToolsView()
+                }
+
+                Tab("Settings", systemImage: "gearshape.fill", value: 4) {
                     SettingsView(monitor: monitor)
                 }
             }
@@ -64,10 +69,22 @@ struct MainTabView: View {
             }
         }
         .preferredColorScheme(preferredColorScheme)
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { !hasCompletedOnboarding },
+                set: { _ in }
+            )
+        ) {
+            OnboardingView()
+        }
         .onAppear {
             monitor.start()
             dataUsageMonitor.start()
-            notificationManager.requestPermission()
+            // Only request notification permission after onboarding;
+            // during first launch the onboarding page 4 handles it.
+            if hasCompletedOnboarding {
+                notificationManager.requestPermission()
+            }
         }
         .task {
             guard !didStartSplashSequence else { return }
@@ -82,7 +99,11 @@ struct MainTabView: View {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 monitor.start()
+                monitor.applyLiveActivitySetting()
                 dataUsageMonitor.start()
+                if hasCompletedOnboarding {
+                    notificationManager.requestPermission()
+                }
                 Task {
                     await notificationManager.refreshAuthorizationStatus()
                 }
@@ -106,9 +127,10 @@ struct MainTabView: View {
 
 private struct UsageTabScreen: View {
     @ObservedObject var monitor: DataUsageMonitor
+    @ObservedObject var speedTestManager: SpeedTestManager
 
     var body: some View {
-        UsageView(dataUsage: monitor)
+        UsageView(dataUsage: monitor, speedTestManager: speedTestManager)
     }
 }
 

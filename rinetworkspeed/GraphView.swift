@@ -18,11 +18,11 @@ private enum GraphRange: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .lastMinute:
-            return "60sn"
+            return "60s"
         case .lastFiveMinutes:
-            return "5dk"
+            return "5m"
         case .lastThirtyMinutes:
-            return "30dk"
+            return "30m"
         }
     }
 
@@ -87,12 +87,12 @@ struct GraphView: View {
         }
 
         return [
-            GraphStat(title: "Maks Download", value: formatRate(maxDownload), icon: "arrow.down.circle.fill", color: downloadColor),
-            GraphStat(title: "Maks Upload", value: formatRate(maxUpload), icon: "arrow.up.circle.fill", color: uploadColor),
-            GraphStat(title: "Ortalama Download", value: formatRate(avgDownload), icon: "arrow.down.and.line.horizontal.and.arrow.up", color: downloadColor),
-            GraphStat(title: "Ortalama Upload", value: formatRate(avgUpload), icon: "arrow.up.and.line.horizontal.and.arrow.down", color: uploadColor),
-            GraphStat(title: "Toplam Transfer", value: formatTransfer(totalTransferBytes), icon: "chart.bar.fill", color: .white),
-            GraphStat(title: "Aktif Sure", value: formatDuration(monitor.activeDuration()), icon: "timer", color: .white)
+            GraphStat(title: "Max Download", value: formatRate(maxDownload), icon: "arrow.down.circle.fill", color: downloadColor),
+            GraphStat(title: "Max Upload", value: formatRate(maxUpload), icon: "arrow.up.circle.fill", color: uploadColor),
+            GraphStat(title: "Avg Download", value: formatRate(avgDownload), icon: "arrow.down.and.line.horizontal.and.arrow.up", color: downloadColor),
+            GraphStat(title: "Avg Upload", value: formatRate(avgUpload), icon: "arrow.up.and.line.horizontal.and.arrow.down", color: uploadColor),
+            GraphStat(title: "Total Transfer", value: formatTransfer(totalTransferBytes), icon: "chart.bar.fill", color: .white),
+            GraphStat(title: "Active Duration", value: formatDuration(monitor.activeDuration()), icon: "timer", color: .white)
         ]
     }
 
@@ -114,7 +114,7 @@ struct GraphView: View {
                     ShareLink(item: csvExport, preview: SharePreview("NetworkHistory.csv")) {
                         HStack {
                             Image(systemName: "square.and.arrow.up.fill")
-                            Text("CSV Olarak Disa Aktar")
+                            Text("Export as CSV")
                         }
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
@@ -128,7 +128,7 @@ struct GraphView: View {
                 .padding(.vertical, 16)
             }
             .background(backgroundColor.ignoresSafeArea())
-            .navigationTitle("Grafik")
+            .navigationTitle("Graph")
         }
         .background(backgroundColor.ignoresSafeArea())
         .animation(.easeInOut, value: selectedRange)
@@ -137,14 +137,14 @@ struct GraphView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Hiz Gecmisi")
+                Text("Speed History")
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
 
                 Spacer()
             }
 
-            Picker("Zaman Araligi", selection: $selectedRange) {
+            Picker("Time Range", selection: $selectedRange) {
                 ForEach(GraphRange.allCases) { range in
                     Text(range.title).tag(range)
                 }
@@ -365,9 +365,9 @@ struct GraphView: View {
         if minutes >= 60 {
             let hours = minutes / 60
             let remainingMinutes = minutes % 60
-            return "\(hours)s \(remainingMinutes)dk"
+            return "\(hours)h \(remainingMinutes)m"
         }
-        return "\(minutes) dk"
+        return "\(minutes) m"
     }
 }
 

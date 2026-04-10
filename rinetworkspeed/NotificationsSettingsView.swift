@@ -17,7 +17,7 @@ struct NotificationsSettingsView: View {
                 .notificationSettingsRowStyle()
             notificationToggleRow(
                 title: "Speed Drop",
-                subtitle: "Hiz esik altina indiginde bildir",
+                subtitle: "Notify when speed drops below threshold",
                 isOn: $manager.notifyOnSpeedDrop,
                 tint: .blue
             )
@@ -37,7 +37,7 @@ struct NotificationsSettingsView: View {
 
             notificationToggleRow(
                 title: "Disconnect",
-                subtitle: "Baglanti kesildiginde bildir",
+                subtitle: "Notify when disconnected",
                 isOn: $manager.notifyOnDisconnect,
                 tint: .red
             )
@@ -45,7 +45,7 @@ struct NotificationsSettingsView: View {
 
             notificationToggleRow(
                 title: "Data Limit",
-                subtitle: "Veri limitine yaklasinca bildir",
+                subtitle: "Notify when approaching data limit",
                 isOn: $manager.notifyOnDataLimit,
                 tint: .orange
             )
@@ -65,7 +65,7 @@ struct NotificationsSettingsView: View {
 
             notificationToggleRow(
                 title: "Speed Peak",
-                subtitle: "Yuksek hiz tepesinde bildir",
+                subtitle: "Notify on speed peak",
                 isOn: $manager.notifyOnSpeedPeak,
                 tint: .green
             )
@@ -91,7 +91,7 @@ struct NotificationsSettingsView: View {
     private var permissionRow: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Toggle("Bildirim Izni", isOn: permissionBinding)
+                Toggle("Notification Permission", isOn: permissionBinding)
                     .tint(permissionTint)
                     .disabled(manager.authorizationStatus == .authorized || manager.authorizationStatus == .provisional)
                     .foregroundStyle(.white)
@@ -102,7 +102,7 @@ struct NotificationsSettingsView: View {
             }
 
             if shouldShowSettingsButton {
-                Button("Ayarlari Ac") {
+                Button("Open Settings") {
                     manager.openAppSettings()
                 }
                 .buttonStyle(.borderedProminent)
@@ -172,17 +172,17 @@ struct NotificationsSettingsView: View {
     private var permissionDescription: String {
         switch manager.authorizationStatus {
         case .authorized:
-            return "Bildirimler etkin."
+            return "Notifications enabled."
         case .provisional:
-            return "Gecici bildirim izni etkin."
+            return "Provisional notification permission enabled."
         case .denied:
-            return "Bildirim izni kapali."
+            return "Notification permission denied."
         case .notDetermined:
-            return "Henuz izin verilmedi."
+            return "Permission not yet granted."
         case .ephemeral:
-            return "Gecici oturum izni etkin."
+            return "Ephemeral session permission active."
         @unknown default:
-            return "Bildirim durumu bilinmiyor."
+            return "Notification status unknown."
         }
     }
 
@@ -202,7 +202,7 @@ struct NotificationsSettingsView: View {
 
 #Preview {
     List {
-        Section("Bildirimler") {
+        Section("Notifications") {
             NotificationsSettingsView()
         }
     }

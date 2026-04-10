@@ -79,8 +79,11 @@ final class DataUsageMonitor: ObservableObject {
     }
 
     func usageForCurrentMonth() -> [DailyUsageSample] {
-        let now = Date()
-        guard let monthRange = calendar.dateInterval(of: .month, for: now) else { return [] }
+        usageForMonth(Date())
+    }
+
+    func usageForMonth(_ monthDate: Date) -> [DailyUsageSample] {
+        guard let monthRange = calendar.dateInterval(of: .month, for: monthDate) else { return [] }
 
         return dailyTotals.compactMap { key, usage in
             guard let date = date(from: key), monthRange.contains(date) else { return nil }
@@ -148,6 +151,18 @@ final class DataUsageMonitor: ObservableObject {
         let todayKey = dateKey(for: Date())
         dailyTotals[todayKey] = (wifi: todayWifi, cellular: todayCellular)
         saveDailyTotals()
+
+        #if os(iOS)
+        WatchConnectivityManager.shared.updateDataUsage(
+            todayWifi: todayWifi,
+            todayCellular: todayCellular
+        )
+        // Persist today's totals to the shared App Group so AppIntents can
+        // read them even when the main app process is not running.
+        let intentDefaults = UserDefaults(suiteName: "group.com.rinetworkspeed")
+        intentDefaults?.set(Int(todayWifi),     forKey: "intentTodayWifi")
+        intentDefaults?.set(Int(todayCellular), forKey: "intentTodayCellular")
+        #endif
 
         if defaults.bool(forKey: "dataLimitEnabled") {
             let totalUsedGB = Double(todayWifi + todayCellular) / 1_073_741_824
