@@ -276,8 +276,8 @@ private struct PhaseStepperView: View {
     private func label(for phase: Phase) -> String {
         switch phase {
         case .ping:     return "PING"
-        case .download: return "İNDİRME"
-        case .upload:   return "YÜKLEME"
+        case .download: return "DOWNLOAD"
+        case .upload:   return "UPLOAD"
         }
     }
 
@@ -402,7 +402,7 @@ struct SpeedTestView: View {
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: manager.state)
             }
             .background(backgroundColor.ignoresSafeArea())
-            .navigationTitle("Hız Testi")
+            .navigationTitle("Speed Test")
         }
         .background(backgroundColor.ignoresSafeArea())
         .sheet(isPresented: $showShareSheet) {
@@ -428,11 +428,16 @@ struct SpeedTestView: View {
                 needleProgress = 0
             }
         }
-        .onChange(of: manager.downloadSpeed) { _, _ in updateNeedle() }
-        .onChange(of: manager.uploadSpeed)   { _, _ in updateNeedle() }
+        .onChange(of: manager.displayDownloadSpeed) { _, _ in updateNeedle() }
+        .onChange(of: manager.displayUploadSpeed)   { _, _ in updateNeedle() }
         .onChange(of: manager.state) { _, newState in
             if newState == .finished {
                 // Return needle to 0 smoothly
+                withAnimation(.interpolatingSpring(stiffness: 20, damping: 8)) {
+                    needleProgress = 0
+                }
+            } else if newState == .transitionToUpload {
+                // Force needle to zero during download→upload transition
                 withAnimation(.interpolatingSpring(stiffness: 20, damping: 8)) {
                     needleProgress = 0
                 }
@@ -484,8 +489,8 @@ struct SpeedTestView: View {
                 .frame(height: 36)
                 .background(Color.white.opacity(0.08))
             liveMetricCell(
-                label: "İndirme",
-                value: manager.downloadSpeed > 0 ? formatMbps(manager.downloadSpeed) : (manager.finalDownload > 0 ? formatMbps(manager.finalDownload) : "--"),
+                label: "Download",
+                value: manager.displayDownloadSpeed > 0 ? formatMbps(manager.displayDownloadSpeed) : (manager.finalDownload > 0 ? formatMbps(manager.finalDownload) : "--"),
                 unit: "Mbps",
                 color: downloadColor
             )
@@ -493,8 +498,8 @@ struct SpeedTestView: View {
                 .frame(height: 36)
                 .background(Color.white.opacity(0.08))
             liveMetricCell(
-                label: "Yükleme",
-                value: manager.uploadSpeed > 0 ? formatMbps(manager.uploadSpeed) : (manager.finalUpload > 0 ? formatMbps(manager.finalUpload) : "--"),
+                label: "Upload",
+                value: manager.displayUploadSpeed > 0 ? formatMbps(manager.displayUploadSpeed) : (manager.finalUpload > 0 ? formatMbps(manager.finalUpload) : "--"),
                 unit: "Mbps",
                 color: uploadColor
             )
@@ -588,7 +593,7 @@ struct SpeedTestView: View {
                             value: animatePulse
                         )
                 }
-                Text(isTesting ? "İptal Et" : "Testi Başlat")
+                Text(isTesting ? "Cancel" : "Start Test")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -616,14 +621,14 @@ struct SpeedTestView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 resultCard(title: "Ping",      value: String(format: "%.0f", manager.ping),    unit: "ms",   icon: "timer",               color: pingColor)
-                resultCard(title: "İndirme",   value: formatMbps(manager.finalDownload),        unit: "Mbps", icon: "arrow.down.circle.fill", color: downloadColor)
-                resultCard(title: "Yükleme",   value: formatMbps(manager.finalUpload),          unit: "Mbps", icon: "arrow.up.circle.fill",   color: uploadColor)
+                resultCard(title: "Download",   value: formatMbps(manager.finalDownload),        unit: "Mbps", icon: "arrow.down.circle.fill", color: downloadColor)
+                resultCard(title: "Upload",   value: formatMbps(manager.finalUpload),          unit: "Mbps", icon: "arrow.up.circle.fill",   color: uploadColor)
             }
 
             // Quality score card
             HStack(spacing: 18) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Ağ Kalite Skoru")
+                    Text("Network Quality Score")
                         .font(.system(size: 15, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.7))
                     Text(networkGrade)
@@ -654,7 +659,7 @@ struct SpeedTestView: View {
             HStack(spacing: 10) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 16, weight: .semibold))
-                Text("Paylaş")
+                Text("Share")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
             }
             .foregroundStyle(.white)
@@ -739,22 +744,22 @@ struct SpeedTestView: View {
                             detailTile(title: "Frekans", value: wifiInfoManager.frequencyBand)
                             signalStrengthTile
                         }
-                        networkDetailsColumn(title: "Adres Bilgisi") {
+                        networkDetailsColumn(title: "Address Info") {
                             detailTile(title: "IP", value: wifiInfoManager.ipAddress ?? "--")
-                            detailTile(title: "Ağ Geçidi", value: wifiInfoManager.routerIP ?? "--")
+                            detailTile(title: "Gateway", value: wifiInfoManager.routerIP ?? "--")
                             detailTile(title: "DNS", value: wifiInfoManager.dnsServers.isEmpty ? "--" : wifiInfoManager.dnsServers.joined(separator: ", "))
-                            detailTile(title: "Harici IP", value: wifiInfoManager.externalIP ?? "--")
+                            detailTile(title: "External IP", value: wifiInfoManager.externalIP ?? "--")
                             detailTile(title: "ISP", value: wifiInfoManager.ispName ?? "--")
                             detailTile(title: "NAT", value: wifiInfoManager.natType ?? "--")
                         }
                     }
                 } else {
                     ContentUnavailableView {
-                        Label("Konum İzni Gerekli", systemImage: "location.slash.fill")
+                        Label("Location Permission Required", systemImage: "location.slash.fill")
                     } description: {
-                        Text("SSID ve BSSID bilgilerini görmek için konum izni gereklidir.")
+                        Text("Location permission is required to view SSID and BSSID information.")
                     } actions: {
-                        Button("Ayarları Aç") { wifiInfoManager.openAppSettings() }
+                        Button("Open Settings") { wifiInfoManager.openAppSettings() }
                             .buttonStyle(.borderedProminent)
                     }
                     .padding(.top, 14)
@@ -765,7 +770,7 @@ struct SpeedTestView: View {
             HStack(spacing: 10) {
                 Image(systemName: "wifi")
                     .foregroundStyle(downloadColor)
-                Text("📡 WiFi Ağ Detayları")
+                Text("📡 WiFi Network Details")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
             }
@@ -781,7 +786,7 @@ struct SpeedTestView: View {
         DisclosureGroup(isExpanded: $isHistoryExpanded) {
             VStack(spacing: 10) {
                 if manager.history.isEmpty {
-                    Text("Henüz kayıtlı hız testi yok.")
+                    Text("No recorded speed tests yet.")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.55))
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -818,7 +823,7 @@ struct SpeedTestView: View {
                     .padding(.top, 8)
                 }
                 if !manager.history.isEmpty {
-                    Button("Geçmişi Temizle") { manager.clearHistory() }
+                    Button("Clear History") { manager.clearHistory() }
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.5))
                         .buttonStyle(.plain)
@@ -829,7 +834,7 @@ struct SpeedTestView: View {
             HStack(spacing: 8) {
                 Image(systemName: "clock.fill")
                     .foregroundStyle(downloadColor)
-                Text("Geçmiş Testler")
+                Text("Past Tests")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
             }
@@ -888,8 +893,9 @@ struct SpeedTestView: View {
 
     private var currentSpeedMbps: Double {
         switch manager.state {
-        case .downloadTesting: return manager.downloadSpeed / 1_000_000
-        case .uploadTesting:   return manager.uploadSpeed   / 1_000_000
+        case .downloadTesting: return manager.displayDownloadSpeed / 1_000_000
+        case .transitionToUpload: return 0
+        case .uploadTesting:   return manager.displayUploadSpeed   / 1_000_000
         case .finished:        return max(manager.finalDownload, manager.finalUpload) / 1_000_000
         default:               return 0
         }
@@ -901,39 +907,43 @@ struct SpeedTestView: View {
 
     private var glowColor: Color {
         switch manager.state {
-        case .pingTesting:     return pingColor
-        case .downloadTesting: return downloadColor
-        case .uploadTesting:   return uploadColor
-        case .finished:        return downloadColor
-        default:               return pingColor
+        case .pingTesting:        return pingColor
+        case .downloadTesting:    return downloadColor
+        case .transitionToUpload: return downloadColor
+        case .uploadTesting:      return uploadColor
+        case .finished:           return downloadColor
+        default:                  return pingColor
         }
     }
 
     private var gaugeSubtitle: String {
         switch manager.state {
-        case .idle:            return "Hazır"
-        case .pingTesting:     return "Ping ölçülüyor..."
-        case .downloadTesting: return "İndirme Testi..."
-        case .uploadTesting:   return "Yükleme Testi..."
-        case .finished:        return "Test Tamamlandı"
-        case .failed:          return "Test Başarısız"
+        case .idle:               return "Ready"
+        case .pingTesting:        return "Measuring Ping..."
+        case .downloadTesting:    return "Download Test..."
+        case .transitionToUpload: return "Preparing Upload..."
+        case .uploadTesting:      return "Upload Test..."
+        case .finished:           return "Test Completed"
+        case .failed:             return "Test Failed"
         }
     }
 
     private var isTesting: Bool {
         manager.state == .pingTesting ||
         manager.state == .downloadTesting ||
+        manager.state == .transitionToUpload ||
         manager.state == .uploadTesting
     }
 
     private var currentPhase: PhaseStepperView.Phase? {
         switch manager.state {
-        case .idle:            return nil
-        case .pingTesting:     return .ping
-        case .downloadTesting: return .download
-        case .uploadTesting:   return .upload
-        case .finished:        return nil
-        case .failed:          return nil
+        case .idle:               return nil
+        case .pingTesting:        return .ping
+        case .downloadTesting:    return .download
+        case .transitionToUpload: return .download
+        case .uploadTesting:      return .upload
+        case .finished:           return nil
+        case .failed:             return nil
         }
     }
 
@@ -997,7 +1007,7 @@ struct SpeedTestView: View {
 
     private var signalStrengthTile: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Sinyal Gücü")
+            Text("Signal Strength")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.55))
             HStack(spacing: 10) {

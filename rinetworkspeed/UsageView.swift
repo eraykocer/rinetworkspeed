@@ -322,7 +322,7 @@ struct UsageView: View {
                 Image(systemName: "doc.richtext.fill")
                     .font(.system(size: 18, weight: .bold))
                     .foregroundStyle(Color(red: 59/255, green: 130/255, blue: 246/255))
-                Text("PDF Rapor")
+                Text("PDF Report")
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
             }
@@ -357,7 +357,7 @@ struct UsageView: View {
                     } else {
                         Image(systemName: "arrow.down.doc.fill")
                     }
-                    Text(isGeneratingPDF ? "Oluşturuluyor..." : "Rapor Oluştur")
+                    Text(isGeneratingPDF ? "Generating..." : "Generate Report")
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                 }
                 .foregroundStyle(.white)

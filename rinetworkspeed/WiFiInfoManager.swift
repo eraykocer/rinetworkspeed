@@ -24,9 +24,9 @@ enum SignalStrength {
         case .excellent:
             return "Mukemmel"
         case .good:
-            return "Iyi"
+            return "Good"
         case .fair:
-            return "Orta"
+            return "Fair"
         case .poor:
             return "Zayif"
         }

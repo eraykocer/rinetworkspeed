@@ -77,8 +77,8 @@ struct NetworkToolsView: View {
             tag: 5
         ),
         .init(
-            name: "Ağ Haritası",
-            description: "Yerel ağdaki cihazları görsel olarak keşfet",
+            name: "Network Map",
+            description: "Visually discover devices on the local network",
             icon: "circle.hexagongrid.fill",
             gradientColors: [Color(red: 0.20, green: 0.80, blue: 0.65),
                              Color(red: 0.06, green: 0.46, blue: 0.38)],

@@ -77,8 +77,16 @@ final class NetworkStatsMonitor: ObservableObject {
     private var lastAppliedSpeedUnit: String = "bytes"
     private var lastAppliedLiveActivityEnabled: Bool = true
     private var lastDetailsRefreshDate: Date = .distantPast
-    private var lastLiveActivityUpdateDate: Date = .distantPast
     private var monitorStartDate: Date?
+    /// Flag to prevent concurrent startLiveActivity calls while the async
+    /// request is still in flight.
+    private var isStartingLiveActivity: Bool = false
+    /// Dedicated timer that pushes speed updates to the Live Activity at
+    /// a cadence ActivityKit can handle (~1 update/second).
+    private var liveActivityTimer: Timer?
+    /// The currently in-flight Live Activity update task. Cancelled before
+    /// a new update is dispatched so we never pile up concurrent updates.
+    private var pendingLiveActivityUpdate: Task<Void, Never>?
     @available(iOS 16.1, *)
     private var liveActivity: Activity<NetworkSpeedAttributes>?
 
@@ -97,18 +105,45 @@ final class NetworkStatsMonitor: ObservableObject {
     func start() {
         guard timer == nil else { return }
 
-        history = []
-        monitorStartDate = Date()
+        let isResume = monitorStartDate != nil
+
+        if !isResume {
+            history = []
+            monitorStartDate = Date()
+        }
+
+        // Always take a fresh snapshot so the first sample after resume
+        // doesn't produce a huge spike from the accumulated background delta.
         lastSnapshot = currentSnapshot()
         lastSampleDate = Date()
         startPathMonitor()
         applyLiveActivitySetting()
         restartSamplingTimer()
+        startLiveActivityTimer()
     }
 
+    /// Lightweight pause: stops only the sampling timer and path monitor.
+    /// The Live Activity stays alive so the Dynamic Island keeps showing
+    /// the last known speeds instead of disappearing.
+    /// Call `start()` to resume — it will detect the existing session and
+    /// skip resetting history / monitorStartDate.
+    func stopSampling() {
+        timer?.invalidate()
+        timer = nil
+        stopLiveActivityTimer()
+        stopPathMonitor()
+        saveLatestSpeedsToSharedDefaults()
+        // Keep lastSnapshot nil so start() takes a fresh baseline and avoids
+        // a giant spike from bytes accumulated while suspended.
+        lastSnapshot = nil
+        lastSampleDate = nil
+    }
+
+    /// Full stop: tears down everything including the Live Activity.
     func stop() {
         timer?.invalidate()
         timer = nil
+        stopLiveActivityTimer()
         pushTokenTask?.cancel()
         pushTokenTask = nil
         objectWillChange.send()
@@ -129,6 +164,7 @@ final class NetworkStatsMonitor: ObservableObject {
         stopLiveActivity()
         lastSnapshot = nil
         lastSampleDate = nil
+        monitorStartDate = nil
     }
 
     func applyUpdateInterval() {
@@ -139,11 +175,12 @@ final class NetworkStatsMonitor: ObservableObject {
     func applyLiveActivitySetting() {
         guard isLiveActivityEnabled else {
             stopLiveActivity()
+            stopLiveActivityTimer()
             return
         }
 
         startLiveActivity()
-        updateLiveActivity()
+        startLiveActivityTimer()
     }
 
     func activeDuration() -> TimeInterval {
@@ -248,6 +285,24 @@ final class NetworkStatsMonitor: ObservableObject {
         return settingsDefaults.bool(forKey: "liveActivityEnabled")
     }
 
+    /// Returns the download speed for the currently active interface.
+    private var activeDownloadSpeed: Double {
+        switch activeInterface {
+        case .wifi:     return wifiDownloadSpeed
+        case .cellular: return cellularDownloadSpeed
+        case .none:     return downloadSpeed
+        }
+    }
+
+    /// Returns the upload speed for the currently active interface.
+    private var activeUploadSpeed: Double {
+        switch activeInterface {
+        case .wifi:     return wifiUploadSpeed
+        case .cellular: return cellularUploadSpeed
+        case .none:     return uploadSpeed
+        }
+    }
+
     private func restartSamplingTimer() {
         timer?.invalidate()
         lastAppliedUpdateInterval = currentUpdateInterval
@@ -304,15 +359,31 @@ final class NetworkStatsMonitor: ObservableObject {
         guard #available(iOS 16.1, *) else { return }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         guard isLiveActivityEnabled else { return }
-        guard liveActivity == nil else { return }
+
+        // If we already have a live activity or one is being started, skip.
+        if liveActivity != nil { return }
+        guard !isStartingLiveActivity else { return }
+
+        // Try to reclaim an orphaned activity from a previous session first.
+        if let existing = Activity<NetworkSpeedAttributes>.activities.first {
+            liveActivity = existing
+            observePushTokenUpdates()
+            // Immediately push current speeds to the reclaimed activity.
+            updateLiveActivity()
+            return
+        }
+
+        isStartingLiveActivity = true
 
         let attributes = NetworkSpeedAttributes()
         let initialState = NetworkSpeedAttributes.ContentState(
-            downloadSpeed: downloadSpeed,
-            uploadSpeed: uploadSpeed
+            downloadSpeed: activeDownloadSpeed,
+            uploadSpeed: activeUploadSpeed
         )
 
         Task {
+            defer { isStartingLiveActivity = false }
+
             do {
                 if #available(iOS 16.2, *) {
                     let content = ActivityContent(state: initialState, staleDate: nil)
@@ -347,6 +418,7 @@ final class NetworkStatsMonitor: ObservableObject {
                             pushType: nil
                         )
                     }
+                    observePushTokenUpdates()
                     print("Live Activity started without push token fallback.")
                 } catch {
                     print("Live Activity request failed: \(error.localizedDescription)")
@@ -356,27 +428,55 @@ final class NetworkStatsMonitor: ObservableObject {
         }
     }
 
-    func updateLiveActivity() {
+    /// Starts a dedicated 1-second timer that pushes current speeds to the
+    /// Live Activity. Using a separate cadence from the sampling timer
+    /// prevents overwhelming ActivityKit with too-frequent updates.
+    private func startLiveActivityTimer() {
+        guard liveActivityTimer == nil else { return }
+        liveActivityTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.pushLiveActivityUpdate()
+        }
+    }
+
+    private func stopLiveActivityTimer() {
+        liveActivityTimer?.invalidate()
+        liveActivityTimer = nil
+        pendingLiveActivityUpdate?.cancel()
+        pendingLiveActivityUpdate = nil
+    }
+
+    /// Called by the dedicated Live Activity timer (~1 Hz). Cancels any
+    /// in-flight update task first so we never pile up concurrent requests.
+    private func pushLiveActivityUpdate() {
         guard #available(iOS 16.1, *) else { return }
-        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         guard isLiveActivityEnabled else { return }
 
-        let now = Date()
-        guard now.timeIntervalSince(lastLiveActivityUpdateDate) >= 0.5 else { return }
-        lastLiveActivityUpdateDate = now
-
+        // If we don't have a reference yet, try to find an existing activity.
         if liveActivity == nil {
             liveActivity = Activity<NetworkSpeedAttributes>.activities.first
         }
 
         guard let activity = liveActivity else { return }
 
+        // Check the activity is still active; if it ended, clean up reference.
+        if #available(iOS 16.2, *) {
+            if activity.activityState == .ended || activity.activityState == .dismissed {
+                liveActivity = nil
+                // Try to restart the activity on the next timer tick.
+                isStartingLiveActivity = false
+                startLiveActivity()
+                return
+            }
+        }
+
         let updatedState = NetworkSpeedAttributes.ContentState(
-            downloadSpeed: downloadSpeed,
-            uploadSpeed: uploadSpeed
+            downloadSpeed: activeDownloadSpeed,
+            uploadSpeed: activeUploadSpeed
         )
 
-        Task {
+        // Cancel the previous in-flight update to avoid piling up Tasks.
+        pendingLiveActivityUpdate?.cancel()
+        pendingLiveActivityUpdate = Task {
             if #available(iOS 16.2, *) {
                 let content = ActivityContent(state: updatedState, staleDate: nil)
                 await activity.update(content)
@@ -386,6 +486,12 @@ final class NetworkStatsMonitor: ObservableObject {
         }
     }
 
+    /// Public convenience kept for call-sites that need a single immediate
+    /// push (e.g. right after reclaiming an orphaned activity).
+    func updateLiveActivity() {
+        pushLiveActivityUpdate()
+    }
+
     func stopLiveActivity() {
         guard #available(iOS 16.1, *) else { return }
 
@@ -393,13 +499,14 @@ final class NetworkStatsMonitor: ObservableObject {
         guard !allActivities.isEmpty || liveActivity != nil else { return }
 
         let finalState = NetworkSpeedAttributes.ContentState(
-            downloadSpeed: downloadSpeed,
-            uploadSpeed: uploadSpeed
+            downloadSpeed: activeDownloadSpeed,
+            uploadSpeed: activeUploadSpeed
         )
 
         pushTokenTask?.cancel()
         pushTokenTask = nil
         liveActivity = nil
+        isStartingLiveActivity = false
 
         Task {
             if #available(iOS 16.2, *) {
@@ -438,7 +545,8 @@ final class NetworkStatsMonitor: ObservableObject {
             lastSampleDate = Date()
             appendHistorySample(at: Date())
             saveLatestSpeedsToSharedDefaults()
-            updateLiveActivity()
+            // Live Activity is updated by its own dedicated timer;
+            // no need to call updateLiveActivity() here.
             return
         }
 
@@ -449,7 +557,6 @@ final class NetworkStatsMonitor: ObservableObject {
             lastSampleDate = now
             appendHistorySample(at: now)
             saveLatestSpeedsToSharedDefaults()
-            updateLiveActivity()
             return
         }
 
@@ -494,7 +601,7 @@ final class NetworkStatsMonitor: ObservableObject {
         appendHistorySample(at: now)
         refreshConnectionDetailsIfNeeded(at: now)
         saveLatestSpeedsToSharedDefaults()
-        updateLiveActivity()
+        // Live Activity is updated by its own dedicated 1 Hz timer.
         #if os(iOS)
         WatchConnectivityManager.shared.updateSpeeds(
             download: downloadSpeed,

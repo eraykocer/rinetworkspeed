@@ -108,6 +108,7 @@ struct MainTabView: View {
                     await notificationManager.refreshAuthorizationStatus()
                 }
             } else if newPhase == .background {
+                monitor.stopSampling()
                 dataUsageMonitor.stop()
             }
         }

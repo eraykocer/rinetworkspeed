@@ -11,7 +11,7 @@ import UIKit
 // MARK: - Format
 
 enum ShareCardFormat: String, CaseIterable {
-    case square = "Kare (1:1)"
+    case square = "Square (1:1)"
     case story  = "Story (9:16)"
 
     var size: CGSize {
@@ -376,7 +376,7 @@ struct SpeedSharePreviewSheet: View {
                                 } else {
                                     Image(systemName: "square.and.arrow.up")
                                 }
-                                Text(isSharing ? "Hazırlanıyor..." : "Paylaş")
+                                Text(isSharing ? "Preparing..." : "Share")
                                     .fontWeight(.bold)
                             }
                             .font(.system(size: 17, weight: .semibold, design: .rounded))
@@ -403,11 +403,11 @@ struct SpeedSharePreviewSheet: View {
                     .padding(.vertical, 20)
                 }
             }
-            .navigationTitle("Hız Paylaşım Kartı")
+            .navigationTitle("Speed Share Card")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("İptal") { dismiss() }
+                    Button("Cancel") { dismiss() }
                         .foregroundStyle(.white.opacity(0.75))
                 }
             }

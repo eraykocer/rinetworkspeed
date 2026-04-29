@@ -2,7 +2,7 @@
 //  RunSpeedTestIntent.swift
 //  rinetworkspeed
 //
-//  "Hız testi yap" — Runs a full download / upload test and reports results.
+//  "Run speed test" — Runs a full download / upload test and reports results.
 //  Delegates to SpeedTestManager which is @MainActor. The full test can take
 //  up to ~60 s; it completes reliably in the Shortcuts app. Siri may time out
 //  for very slow connections but the result is saved to SpeedTestManager.history.

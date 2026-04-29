@@ -76,7 +76,7 @@ struct OnboardingView: View {
                         Spacer()
                         Button(action: handleNext) {
                             HStack(spacing: 7) {
-                                Text(currentPage == totalPages - 1 ? "Başlayalım" : "İleri")
+                                Text(currentPage == totalPages - 1 ? "Let's Start" : "Next")
                                     .font(.system(size: 16, weight: .semibold))
                                 Image(
                                     systemName: currentPage == totalPages - 1
@@ -195,7 +195,7 @@ struct OnboardingWelcomePage: View {
 
                 // ── Text ─────────────────────────────────────────────────
                 VStack(spacing: 16) {
-                    Text("Ağınızı Kontrol Edin")
+                    Text("Monitor Your Network")
                         .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
@@ -203,7 +203,7 @@ struct OnboardingWelcomePage: View {
                         .offset(y: appeared ? 0 : 22)
                         .animation(.easeOut(duration: 0.55).delay(0.38), value: appeared)
 
-                    Text("Anlık hız, veri kullanımı ve ağ araçları\ntek uygulamada")
+                    Text("Real-time speed, data usage and network tools\nin a single app")
                         .font(.system(size: 17))
                         .foregroundStyle(.white.opacity(0.66))
                         .multilineTextAlignment(.center)
@@ -303,12 +303,12 @@ struct OnboardingSpeedPage: View {
                 }
 
                 VStack(spacing: 14) {
-                    Text("Gerçek Zamanlı İzleme")
+                    Text("Real-time Monitoring")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
 
-                    Text("Download ve upload hızınızı\n0.5 saniyede bir takip edin")
+                    Text("Monitor your download and upload speeds\nevery 0.5 seconds")
                         .font(.system(size: 16))
                         .foregroundStyle(.white.opacity(0.64))
                         .multilineTextAlignment(.center)
@@ -403,12 +403,12 @@ struct OnboardingWidgetPage: View {
                     )
 
                 VStack(spacing: 14) {
-                    Text("Her Zaman Görünür")
+                    Text("Always Visible")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
 
-                    Text("Widget ve Live Activity ile\nhızınızı her an görün")
+                    Text("See your speed anytime with\nWidgets and Live Activities")
                         .font(.system(size: 16))
                         .foregroundStyle(.white.opacity(0.64))
                         .multilineTextAlignment(.center)
@@ -597,12 +597,12 @@ struct OnboardingNotificationPage: View {
                     .symbolEffect(.bounce, value: symbolBounce)
 
                 VStack(spacing: 14) {
-                    Text("Sizi Haberdar Edelim")
+                    Text("Stay Informed")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
 
-                    Text("Hız düşünce, bağlantı kesilince\nanında bildiri alın")
+                    Text("Get instant notifications when speed drops\nor connection is lost")
                         .font(.system(size: 16))
                         .foregroundStyle(.white.opacity(0.64))
                         .multilineTextAlignment(.center)
@@ -611,9 +611,9 @@ struct OnboardingNotificationPage: View {
                 .padding(.horizontal, 36)
 
                 VStack(spacing: 13) {
-                    permissionFeatureRow("bolt.fill", .yellow, "Hız uyarıları")
-                    permissionFeatureRow("wifi.exclamationmark", .orange, "Bağlantı kesilme bildirimleri")
-                    permissionFeatureRow("chart.bar.fill", .red, "Günlük veri özeti")
+                    permissionFeatureRow("bolt.fill", .yellow, "Speed alerts")
+                    permissionFeatureRow("wifi.exclamationmark", .orange, "Disconnection notifications")
+                    permissionFeatureRow("chart.bar.fill", .red, "Daily data summary")
                 }
                 .padding(.horizontal, 44)
 
@@ -624,7 +624,7 @@ struct OnboardingNotificationPage: View {
                     Button(action: requestNotification) {
                         HStack(spacing: 8) {
                             Image(systemName: permissionGranted ? "checkmark.circle.fill" : "bell.fill")
-                            Text(permissionGranted ? "İzin Verildi" : "İzin Ver")
+                            Text(permissionGranted ? "Granted" : "Allow")
                                 .font(.system(size: 16, weight: .semibold))
                         }
                         .foregroundStyle(.black)
@@ -635,7 +635,7 @@ struct OnboardingNotificationPage: View {
                     }
                     .disabled(permissionGranted)
 
-                    Button("Şimdi Değil", action: onNext)
+                    Button("Not Now", action: onNext)
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white.opacity(0.48))
                 }
@@ -725,12 +725,12 @@ struct OnboardingLocationPage: View {
                     .symbolEffect(.bounce, value: symbolBounce)
 
                 VStack(spacing: 14) {
-                    Text("WiFi Detayları İçin")
+                    Text("For WiFi Details")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
 
-                    Text("SSID ve ağ detaylarını görmek için\nkonum iznine ihtiyacımız var")
+                    Text("We need location permission to\nview SSID and network details")
                         .font(.system(size: 16))
                         .foregroundStyle(.white.opacity(0.64))
                         .multilineTextAlignment(.center)
@@ -739,9 +739,9 @@ struct OnboardingLocationPage: View {
                 .padding(.horizontal, 36)
 
                 VStack(spacing: 13) {
-                    locationFeatureRow("wifi", .green, "WiFi ağ adı (SSID)")
-                    locationFeatureRow("info.circle.fill", .teal, "Ağ güvenlik bilgisi")
-                    locationFeatureRow("lock.shield.fill", .mint, "Bağlı ağ detayları")
+                    locationFeatureRow("wifi", .green, "WiFi network name (SSID)")
+                    locationFeatureRow("info.circle.fill", .teal, "Network security info")
+                    locationFeatureRow("lock.shield.fill", .mint, "Connected network details")
                 }
                 .padding(.horizontal, 44)
 
@@ -755,7 +755,7 @@ struct OnboardingLocationPage: View {
                                 systemName: permissionRequested
                                     ? "checkmark.circle.fill" : "location.fill"
                             )
-                            Text(permissionRequested ? "İzin İstendi" : "İzin Ver")
+                            Text(permissionRequested ? "Requested" : "Allow")
                                 .font(.system(size: 16, weight: .semibold))
                         }
                         .foregroundStyle(.black)
@@ -766,7 +766,7 @@ struct OnboardingLocationPage: View {
                     }
                     .disabled(permissionRequested)
 
-                    Button("Şimdi Değil", action: onComplete)
+                    Button("Not Now", action: onComplete)
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white.opacity(0.48))
                 }

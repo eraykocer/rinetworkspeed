@@ -70,7 +70,7 @@ struct NetworkSpeedLiveActivityView: View {
 
     private func formatSpeed(_ bytesPerSec: Double) -> String {
         guard bytesPerSec.isFinite, bytesPerSec > 0 else {
-            return "No Data"
+            return "0 B/s"
         }
 
         let units = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"]
@@ -171,7 +171,7 @@ struct NetworkWidgetLiveActivity: Widget {
 
     private func formatSpeed(_ bytesPerSec: Double) -> String {
         guard bytesPerSec.isFinite, bytesPerSec > 0 else {
-            return "No Data"
+            return "0 B/s"
         }
 
         let units = ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"]

@@ -2,8 +2,8 @@
 //  GetPingIntent.swift
 //  rinetworkspeed
 //
-//  "Ping değerim ne?" — Measures round-trip latency to 1.1.1.1 and returns a
-//  quality classification (Mükemmel / İyi / Orta / Zayıf).
+//  "What is my ping?" — Measures round-trip latency to 1.1.1.1 and returns a
+//  quality classification (Excellent / Good / Fair / Poor).
 //
 
 import AppIntents

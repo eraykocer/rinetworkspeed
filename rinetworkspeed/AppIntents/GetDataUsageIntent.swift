@@ -2,7 +2,7 @@
 //  GetDataUsageIntent.swift
 //  rinetworkspeed
 //
-//  "Bugün ne kadar veri kullandım?" — Reports today's WiFi + Cellular usage via Siri.
+//  "How much data did I use today?" — Reports today's WiFi + Cellular usage via Siri.
 //  DataUsageMonitor writes current-day totals to the shared App Group defaults
 //  (keys "intentTodayWifi" / "intentTodayCellular") so this intent works even
 //  when the main app is closed.

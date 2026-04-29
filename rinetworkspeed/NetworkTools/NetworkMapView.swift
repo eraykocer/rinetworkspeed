@@ -46,7 +46,7 @@ struct NetworkMapView: View {
 
                 bottomBar
             }
-            .navigationTitle("Ağ Haritası")
+            .navigationTitle("Network Map")
             .navigationBarTitleDisplayMode(.large)
             .sheet(item: $selectedDevice) { device in
                 MapDeviceDetailSheet(device: device, manager: manager)
@@ -115,10 +115,10 @@ struct NetworkMapView: View {
                     Image(systemName: "wifi.slash")
                         .font(.system(size: 42, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.3))
-                    Text("Tarama yapılmadı")
+                    Text("No scan performed")
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.35))
-                    Text("Yeniden Tara'ya dokun")
+                    Text("Tap Rescan")
                         .font(.system(size: 14, design: .rounded))
                         .foregroundStyle(.white.opacity(0.22))
                 }
@@ -146,11 +146,11 @@ struct NetworkMapView: View {
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                 if let date = manager.lastScanDate {
-                    Text("Son tarama: " + date.formatted(date: .omitted, time: .shortened))
+                    Text("Last scan: " + date.formatted(date: .omitted, time: .shortened))
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.45))
                 } else if manager.isScanning {
-                    Text("Taranıyor… \(Int(manager.progress * 100))%")
+                    Text("Scanning… \(Int(manager.progress * 100))%")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.55))
                         .contentTransition(.numericText())
@@ -459,9 +459,9 @@ private struct NetworkMapListView: View {
             VStack(spacing: 0) {
                 if manager.devices.isEmpty {
                     ContentUnavailableView(
-                        "Cihaz Bulunamadı",
+                        "No Devices Found",
                         systemImage: "network",
-                        description: Text("Yeniden Tara'ya dokun")
+                        description: Text("Tap Rescan")
                     )
                     .foregroundStyle(.white)
                     .padding(.top, 40)
@@ -517,7 +517,7 @@ private struct MapListRow: View {
                         .foregroundStyle(.white.opacity(0.45))
                 }
                 if device.isCurrentDevice {
-                    Text("Bu cihaz")
+                    Text("This device")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(device.deviceType.nodeColor)
                 }
@@ -562,28 +562,28 @@ private struct MapDeviceDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                Section("Cihaz Bilgisi") {
-                    infoRow("IP Adresi", value: device.ip)
+                Section("Device Info") {
+                    infoRow("IP Address", value: device.ip)
                     if let h = device.hostname {
                         infoRow("Hostname", value: h)
                     }
                     if let mac = device.macAddress {
-                        infoRow("MAC Adresi", value: mac)
+                        infoRow("MAC Address", value: mac)
                     }
-                    infoRow("Cihaz Tipi", value: device.deviceType.displayName)
+                    infoRow("Device Type", value: device.deviceType.displayName)
                     if device.responseTime > 0 {
-                        infoRow("Yanıt Süresi", value: String(format: "%.1f ms", device.responseTime))
+                        infoRow("Response Time", value: String(format: "%.1f ms", device.responseTime))
                     }
                     if device.isCurrentDevice {
-                        infoRow("Durum", value: "Bu Cihaz")
+                        infoRow("Durum", value: "This Device")
                     }
                 }
 
-                Section("İşlemler") {
+                Section("Actions") {
                     NavigationLink {
                         PortScannerView(initialHost: device.ip)
                     } label: {
-                        Label("Port Tara", systemImage: "door.left.hand.open")
+                        Label("Scan Ports", systemImage: "door.left.hand.open")
                     }
 
                     NavigationLink {
@@ -592,7 +592,7 @@ private struct MapDeviceDetailSheet: View {
                             initialHost: device.ip
                         )
                     } label: {
-                        Label("Ping İzle", systemImage: "timer")
+                        Label("Monitor Ping", systemImage: "timer")
                     }
                 }
             }

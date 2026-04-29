@@ -12,6 +12,7 @@ enum SpeedTestState {
     case idle
     case pingTesting
     case downloadTesting
+    case transitionToUpload
     case uploadTesting
     case finished
     case failed
@@ -33,11 +34,71 @@ struct SpeedTestResult: Codable, Identifiable {
     }
 }
 
+// MARK: - Transfer Delegate
+
+/// Dedicated URLSession delegate for a single transfer phase (download or upload).
+/// Each phase creates its own delegate + session, avoiding shared‐state bugs.
+/// Closures are immutable after init — no cross‐thread data races.
+private final class TransferDelegate: NSObject,
+                                       URLSessionDataDelegate,
+                                       URLSessionTaskDelegate,
+                                       @unchecked Sendable {
+    let onDataReceived: ((Int64) -> Void)?
+    let onBytesSent: ((Int64, Int64, Int64) -> Void)?
+    let onComplete: ((Error?) -> Void)?
+
+    init(onDataReceived: ((Int64) -> Void)? = nil,
+         onBytesSent: ((Int64, Int64, Int64) -> Void)? = nil,
+         onComplete: ((Error?) -> Void)? = nil) {
+        self.onDataReceived = onDataReceived
+        self.onBytesSent = onBytesSent
+        self.onComplete = onComplete
+        super.init()
+    }
+
+    // Allow download data to stream through (don't buffer the entire response).
+    func urlSession(_ session: URLSession,
+                    dataTask: URLSessionDataTask,
+                    didReceive response: URLResponse,
+                    completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
+        // Reject non-2xx HTTP responses early so the test fails fast.
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            completionHandler(.cancel)
+            return
+        }
+        completionHandler(.allow)
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        onDataReceived?(Int64(data.count))
+    }
+
+    func urlSession(_ session: URLSession,
+                    task: URLSessionTask,
+                    didSendBodyData bytesSent: Int64,
+                    totalBytesSent: Int64,
+                    totalBytesExpectedToSend: Int64) {
+        onBytesSent?(bytesSent, totalBytesSent, totalBytesExpectedToSend)
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        onComplete?(error)
+    }
+}
+
+// MARK: - SpeedTestManager
+
 @MainActor
-final class SpeedTestManager: NSObject, ObservableObject {
+final class SpeedTestManager: ObservableObject {
+
+    // MARK: Published properties
+
     @Published var state: SpeedTestState = .idle
     @Published var downloadSpeed: Double = 0
     @Published var uploadSpeed: Double = 0
+    /// Smoothed speed values that animate towards the real values for better UX.
+    @Published var displayDownloadSpeed: Double = 0
+    @Published var displayUploadSpeed: Double = 0
     @Published var downloadProgress: Double = 0
     @Published var uploadProgress: Double = 0
     @Published var finalDownload: Double = 0
@@ -45,96 +106,124 @@ final class SpeedTestManager: NSObject, ObservableObject {
     @Published var ping: Double = 0
     @Published var history: [SpeedTestResult] = []
 
+    // MARK: Private properties
+
     private let historyKey = "speedTestHistory"
-    private lazy var session: URLSession = {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.waitsForConnectivity = true
-        configuration.timeoutIntervalForRequest = 60
-        configuration.timeoutIntervalForResource = 120
-        return URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
-    }()
-
-    private var activeTask: URLSessionTask?
     private var testTask: Task<Void, Never>?
+    /// Monotonically increasing counter; stale catch‐blocks check this to avoid
+    /// corrupting a newer test run.
+    private var testGeneration: Int = 0
 
-    private var downloadContinuation: CheckedContinuation<Void, Error>?
-    private var uploadContinuation: CheckedContinuation<Void, Error>?
+    // Active transfer resources — exactly one phase uses these at a time.
+    private var activeSession: URLSession?
+    private var activeDelegate: TransferDelegate?
+    private var activeURLTask: URLSessionTask?
+    private var activeContinuation: CheckedContinuation<Void, Error>?
 
+    // Download metrics
     private var downloadStartDate: Date?
-    private var downloadLastChunkDate: Date?
     private var downloadBytesReceived: Int64 = 0
-    private var downloadExpectedBytes: Int64 = 250_000_000
+    private var downloadExpectedBytes: Int64 = 100_000_000
+    /// Rolling window of (timestamp, chunkBytes) for smooth speed averaging.
+    private var downloadChunks: [(date: Date, bytes: Int64)] = []
 
+    // Upload metrics
     private var uploadStartDate: Date?
-    private var uploadLastCallbackDate: Date?
     private var uploadBytesSent: Int64 = 0
     private var uploadExpectedBytes: Int64 = 50_000_000
+    /// Rolling window of (timestamp, deltaBytes) for smooth speed averaging.
+    private var uploadChunks: [(date: Date, bytes: Int64)] = []
 
-    override init() {
-        super.init()
+    /// How many seconds the rolling‐average window covers.
+    private let rollingWindowDuration: TimeInterval = 2.0
+
+    /// Timer that smoothly interpolates display speeds towards actual measured speeds.
+    private var displayTimer: Timer?
+    /// Interpolation factor per tick — lower = smoother/slower animation.
+    private let smoothingFactor: Double = 0.15
+
+    // MARK: Init
+
+    init() {
         loadHistory()
     }
 
+    // MARK: - Public API
+
+    /// Runs a full speed test: ping → download → (2 s pause) → upload.
     func startTest() async {
         cancelTest()
         resetMetrics()
+
+        testGeneration += 1
+        let generation = testGeneration
 
         testTask = Task { [weak self] in
             guard let self else { return }
 
             do {
+                // ── Phase 1: Ping ──────────────────────────────────────
                 self.state = .pingTesting
                 self.ping = try await self.measurePing()
                 try Task.checkCancellation()
 
-                // Pause after ping so the user can see the result
-                try await Task.sleep(nanoseconds: 1_800_000_000)
-                try Task.checkCancellation()
-
-                self.state = .downloadTesting
-                // ── 1 MB probe to pick an adaptive test file size ────────
-                let estimatedBps = (try? await self.probeDownloadSpeed()) ?? 50_000_000
+                // Probe to determine adaptive file sizes (UI still shows "ping" state).
+                let estimatedBps = (try? await self.probeDownloadSpeed()) ?? 10_000_000
                 self.downloadExpectedBytes = Self.adaptiveDownloadBytes(estimatedBps: estimatedBps)
                 self.uploadExpectedBytes   = Self.adaptiveUploadBytes(estimatedBps: estimatedBps)
-                // ────────────────────────────────────────────────────────
+                try Task.checkCancellation()
+
+                // Brief pause so the user can read the ping result.
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                try Task.checkCancellation()
+
+                // ── Phase 2: Download ──────────────────────────────────
+                self.state = .downloadTesting
                 try await self.runDownloadTest()
                 try Task.checkCancellation()
 
-                // Pause after download so the user can see the result
-                try await Task.sleep(nanoseconds: 1_800_000_000)
+                // ── Phase 3: Transition (needle → 0, 2 s pause) ───────
+                self.state = .transitionToUpload
+                self.downloadSpeed = 0
+                try await Task.sleep(nanoseconds: 2_000_000_000)
                 try Task.checkCancellation()
 
+                // ── Phase 4: Upload ────────────────────────────────────
                 self.state = .uploadTesting
                 try await self.runUploadTest()
                 try Task.checkCancellation()
 
+                // ── Done ───────────────────────────────────────────────
+                self.stopDisplayTimer()
                 self.state = .finished
                 self.appendHistory()
+
             } catch is CancellationError {
-                self.state = .idle
+                // Only touch shared state if we are still the active generation.
+                // A newer startTest() may already be running; touching state here
+                // would corrupt the new test.
+                if generation == self.testGeneration {
+                    self.stopDisplayTimer()
+                    self.state = .idle
+                }
             } catch {
-                self.state = .failed
+                if generation == self.testGeneration {
+                    self.cleanupActiveTransfer()
+                    self.stopDisplayTimer()
+                    self.state = .failed
+                }
             }
         }
 
         await testTask?.value
     }
 
+    /// Cancels any in-progress test.
     func cancelTest() {
         testTask?.cancel()
         testTask = nil
-        activeTask?.cancel()
-        activeTask = nil
-
-        if let downloadContinuation {
-            self.downloadContinuation = nil
-            downloadContinuation.resume(throwing: CancellationError())
-        }
-
-        if let uploadContinuation {
-            self.uploadContinuation = nil
-            uploadContinuation.resume(throwing: CancellationError())
-        }
+        cleanupActiveTransfer()
+        stopDisplayTimer()
 
         if state != .finished {
             state = .idle
@@ -153,10 +242,14 @@ final class SpeedTestManager: NSObject, ObservableObject {
         saveHistory()
     }
 
+    // MARK: - Private: Reset / Cleanup
+
     private func resetMetrics() {
         state = .idle
         downloadSpeed = 0
         uploadSpeed = 0
+        displayDownloadSpeed = 0
+        displayUploadSpeed = 0
         downloadProgress = 0
         uploadProgress = 0
         finalDownload = 0
@@ -164,19 +257,39 @@ final class SpeedTestManager: NSObject, ObservableObject {
         ping = 0
 
         downloadStartDate = nil
-        downloadLastChunkDate = nil
         downloadBytesReceived = 0
-        downloadExpectedBytes = 250_000_000
+        downloadExpectedBytes = 100_000_000
+        downloadChunks = []
 
         uploadStartDate = nil
-        uploadLastCallbackDate = nil
         uploadBytesSent = 0
         uploadExpectedBytes = 50_000_000
+        uploadChunks = []
+
+        startDisplayTimer()
     }
+
+    /// Tears down the active URLSession, task, and continuation.
+    private func cleanupActiveTransfer() {
+        activeURLTask?.cancel()
+        activeURLTask = nil
+        activeSession?.invalidateAndCancel()
+        activeSession = nil
+        activeDelegate = nil
+
+        if let continuation = activeContinuation {
+            activeContinuation = nil
+            continuation.resume(throwing: CancellationError())
+        }
+    }
+
+    // MARK: - Private: Ping
 
     private func measurePing() async throws -> Double {
         let url = URL(string: "https://www.google.com")!
         let pingSession = URLSession(configuration: .ephemeral)
+        defer { pingSession.invalidateAndCancel() }
+
         var results: [Double] = []
 
         for _ in 0..<3 {
@@ -195,78 +308,271 @@ final class SpeedTestManager: NSObject, ObservableObject {
         return results.reduce(0, +) / Double(max(results.count, 1))
     }
 
-    /// Downloads 1 MB from Cloudflare to estimate line speed (bytes/second).
-    /// Uses a dedicated ephemeral session so progress callbacks are not triggered.
+    // MARK: - Private: Probe
+
+    /// Downloads 1 MB to estimate line speed (bytes/second).
     private func probeDownloadSpeed() async throws -> Double {
         let probeSize: Int64 = 1_000_000
         guard let url = URL(string: "https://speed.cloudflare.com/__down?bytes=\(probeSize)") else {
-            return 50_000_000
+            return 10_000_000
         }
         var request = URLRequest(url: url)
-        request.timeoutInterval = 20
+        request.timeoutInterval = 5
         let probeSession = URLSession(configuration: .ephemeral)
+        defer { probeSession.invalidateAndCancel() }
         let start = Date()
         _ = try await probeSession.data(for: request)
         let elapsed = max(Date().timeIntervalSince(start), 0.001)
         return Double(probeSize) / elapsed
     }
 
-    /// Target ~8 s of download, clamped to 10 MB – 500 MB.
+    /// Target ~10 s of download. Clamped to 10 MB – 200 MB.
     private static func adaptiveDownloadBytes(estimatedBps: Double) -> Int64 {
-        Int64(min(max(estimatedBps * 8.0, 10_000_000), 500_000_000))
+        Int64(min(max(estimatedBps * 10.0, 10_000_000), 200_000_000))
     }
 
-    /// Use a more aggressive upload size on fast lines so upload testing
-    /// does not finish too quickly after the download phase.
-    /// Targets ~8 s and allows substantially larger payloads, while still
-    /// keeping the in-memory body bounded.
+    /// Target ~8 s of upload. Clamped to 5 MB – 100 MB.
     private static func adaptiveUploadBytes(estimatedBps: Double) -> Int64 {
-        Int64(min(max(estimatedBps * 0.65 * 8.0, 10_000_000), 350_000_000))
+        Int64(min(max(estimatedBps * 0.65 * 8.0, 5_000_000), 100_000_000))
     }
+
+    // MARK: - Private: Download Test
 
     private func runDownloadTest() async throws {
-        // downloadExpectedBytes was already set by probe (or by resetMetrics fallback)
         guard let url = URL(string: "https://speed.cloudflare.com/__down?bytes=\(downloadExpectedBytes)") else {
             throw URLError(.badURL)
         }
-        let request = URLRequest(url: url)
 
+        // Reset download tracking
         downloadStartDate = Date()
-        downloadLastChunkDate = downloadStartDate
         downloadBytesReceived = 0
+        downloadChunks = []
         downloadProgress = 0
         downloadSpeed = 0
 
+        // Create a dedicated delegate + session for this phase.
+        let delegate = TransferDelegate(
+            onDataReceived: { [weak self] chunkBytes in
+                let now = Date()
+                Task { @MainActor [weak self] in
+                    self?.handleDownloadChunk(bytes: chunkBytes, date: now)
+                }
+            },
+            onComplete: { [weak self] error in
+                Task { @MainActor [weak self] in
+                    self?.handleTransferComplete(phase: .download, error: error)
+                }
+            }
+        )
+
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 120
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+
+        activeDelegate = delegate
+        activeSession = session
+
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            self.downloadContinuation = continuation
-            let task = self.session.dataTask(with: request)
-            self.activeTask = task
+            self.activeContinuation = continuation
+            let task = session.dataTask(with: URLRequest(url: url))
+            self.activeURLTask = task
             task.resume()
         }
     }
 
+    private func handleDownloadChunk(bytes: Int64, date: Date) {
+        guard state == .downloadTesting else { return }
+
+        downloadBytesReceived += bytes
+        downloadChunks.append((date: date, bytes: bytes))
+        let cutoff = date.addingTimeInterval(-rollingWindowDuration)
+        downloadChunks.removeAll { $0.date < cutoff }
+
+        if let first = downloadChunks.first {
+            let windowDuration = date.timeIntervalSince(first.date)
+            let windowBytes = downloadChunks.reduce(Int64(0)) { $0 + $1.bytes }
+            if windowDuration > 0.05 {
+                downloadSpeed = Double(windowBytes) / windowDuration
+            }
+        }
+
+        let expected = max(Double(downloadExpectedBytes), 1)
+        downloadProgress = min(1, Double(downloadBytesReceived) / expected)
+    }
+
+    // MARK: - Private: Upload Test
+
     private func runUploadTest() async throws {
-        let url = URL(string: "https://speed.cloudflare.com/__up")!
+        guard let url = URL(string: "https://speed.cloudflare.com/__up") else {
+            throw URLError(.badURL)
+        }
+
+        // Zero-filled payload avoids an expensive random-data generation loop.
+        let payload = Data(count: Int(uploadExpectedBytes))
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-
-        let payload = randomData(length: Int(uploadExpectedBytes))
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
         request.setValue(String(payload.count), forHTTPHeaderField: "Content-Length")
 
+        // Reset upload tracking
         uploadStartDate = Date()
-        uploadLastCallbackDate = uploadStartDate
         uploadBytesSent = 0
+        uploadChunks = []
         uploadProgress = 0
         uploadSpeed = 0
 
+        // Create a dedicated delegate + session for this phase.
+        let delegate = TransferDelegate(
+            onBytesSent: { [weak self] _, totalSent, totalExpected in
+                let now = Date()
+                Task { @MainActor [weak self] in
+                    self?.handleUploadProgress(totalSent: totalSent, totalExpected: totalExpected, date: now)
+                }
+            },
+            onComplete: { [weak self] error in
+                Task { @MainActor [weak self] in
+                    self?.handleTransferComplete(phase: .upload, error: error)
+                }
+            }
+        )
+
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = 60
+        config.timeoutIntervalForResource = 120
+        let session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+
+        activeDelegate = delegate
+        activeSession = session
+
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            self.uploadContinuation = continuation
-            let task = self.session.uploadTask(with: request, from: payload)
-            self.activeTask = task
+            self.activeContinuation = continuation
+            let task = session.uploadTask(with: request, from: payload)
+            self.activeURLTask = task
             task.resume()
         }
     }
+
+    private func handleUploadProgress(totalSent: Int64, totalExpected: Int64, date: Date) {
+        guard state == .uploadTesting else { return }
+
+        let delta = totalSent - uploadBytesSent
+        if delta > 0 {
+            uploadChunks.append((date: date, bytes: delta))
+        }
+        let cutoff = date.addingTimeInterval(-rollingWindowDuration)
+        uploadChunks.removeAll { $0.date < cutoff }
+
+        if let first = uploadChunks.first {
+            let windowDuration = date.timeIntervalSince(first.date)
+            let windowBytes = uploadChunks.reduce(Int64(0)) { $0 + $1.bytes }
+            if windowDuration > 0.05 {
+                uploadSpeed = Double(windowBytes) / windowDuration
+            }
+        }
+
+        uploadBytesSent = totalSent
+        let expected = max(Double(totalExpected > 0 ? totalExpected : uploadExpectedBytes), 1)
+        uploadProgress = min(1, Double(totalSent) / expected)
+    }
+
+    // MARK: - Private: Transfer Completion
+
+    private enum TransferPhase { case download, upload }
+
+    private func handleTransferComplete(phase: TransferPhase, error: Error?) {
+        guard let continuation = activeContinuation else { return }
+        activeContinuation = nil
+
+        // Release session resources for this phase
+        activeURLTask = nil
+        activeSession?.finishTasksAndInvalidate()
+        activeSession = nil
+        activeDelegate = nil
+
+        if let error {
+            continuation.resume(throwing: error)
+            return
+        }
+
+        switch phase {
+        case .download:
+            let duration = max(Date().timeIntervalSince(downloadStartDate ?? Date()), 0.001)
+            finalDownload = Double(downloadBytesReceived) / duration
+            downloadSpeed = finalDownload
+            displayDownloadSpeed = finalDownload
+            downloadProgress = 1
+
+        case .upload:
+            let duration = max(Date().timeIntervalSince(uploadStartDate ?? Date()), 0.001)
+            finalUpload = Double(uploadBytesSent) / duration
+            uploadSpeed = finalUpload
+            displayUploadSpeed = finalUpload
+            uploadProgress = 1
+        }
+
+        continuation.resume()
+    }
+
+    // MARK: - Display interpolation timer
+
+    /// Starts a 30-fps timer that smoothly interpolates `displayDownloadSpeed`
+    /// and `displayUploadSpeed` towards the raw measured values.
+    private func startDisplayTimer() {
+        stopDisplayTimer()
+        displayTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.tickDisplaySpeeds()
+            }
+        }
+    }
+
+    private func stopDisplayTimer() {
+        displayTimer?.invalidate()
+        displayTimer = nil
+    }
+
+    /// Each tick moves the display values a fraction closer to the real values.
+    private func tickDisplaySpeeds() {
+        let dlTarget: Double
+        let ulTarget: Double
+
+        switch state {
+        case .downloadTesting:
+            dlTarget = downloadSpeed
+            ulTarget = 0
+        case .transitionToUpload:
+            // Keep showing final download in the live metrics row.
+            // The speedometer needle is forced to zero by the view's
+            // onChange(of: state) handler — not by the display speed.
+            dlTarget = finalDownload
+            ulTarget = 0
+        case .uploadTesting:
+            dlTarget = finalDownload > 0 ? finalDownload : downloadSpeed
+            ulTarget = uploadSpeed
+        case .finished:
+            dlTarget = finalDownload
+            ulTarget = finalUpload
+        default:
+            dlTarget = 0
+            ulTarget = 0
+        }
+
+        displayDownloadSpeed += (dlTarget - displayDownloadSpeed) * smoothingFactor
+        displayUploadSpeed  += (ulTarget - displayUploadSpeed)  * smoothingFactor
+
+        // Snap to target when close enough to avoid endless tiny deltas.
+        if abs(displayDownloadSpeed - dlTarget) < 100 {
+            displayDownloadSpeed = dlTarget
+        }
+        if abs(displayUploadSpeed - ulTarget) < 100 {
+            displayUploadSpeed = ulTarget
+        }
+    }
+
+    // MARK: - History
 
     private func appendHistory() {
         let result = SpeedTestResult(
@@ -295,107 +601,5 @@ final class SpeedTestManager: NSObject, ObservableObject {
             return
         }
         history = stored
-    }
-
-    private func randomData(length: Int) -> Data {
-        // Zero-filled payload is identical for upload speed testing and
-        // avoids a 50-million-iteration main-thread loop that froze the UI.
-        Data(count: length)
-    }
-}
-
-extension SpeedTestManager: URLSessionDataDelegate, URLSessionTaskDelegate {
-    nonisolated func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive response: URLResponse, completionHandler: @escaping (URLSession.ResponseDisposition) -> Void) {
-        completionHandler(.allow)
-    }
-
-    nonisolated func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        Task { @MainActor [weak self] in
-            guard let self, dataTask == self.activeTask, self.state == .downloadTesting else { return }
-
-            let now = Date()
-            let bytes = Int64(data.count)
-            self.downloadBytesReceived += bytes
-
-            if let lastDate = self.downloadLastChunkDate {
-                let delta = now.timeIntervalSince(lastDate)
-                if delta > 0 {
-                    self.downloadSpeed = Double(bytes) / delta
-                }
-            }
-
-            self.downloadLastChunkDate = now
-
-            let expected = max(Double(self.downloadExpectedBytes), 1)
-            self.downloadProgress = min(1, Double(self.downloadBytesReceived) / expected)
-        }
-    }
-
-    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
-        Task { @MainActor [weak self] in
-            guard let self, task == self.activeTask, self.state == .uploadTesting else { return }
-
-            let now = Date()
-
-            if let lastDate = self.uploadLastCallbackDate {
-                let delta = now.timeIntervalSince(lastDate)
-                let sentDelta = totalBytesSent - self.uploadBytesSent
-                if delta > 0, sentDelta > 0 {
-                    self.uploadSpeed = Double(sentDelta) / delta
-                }
-            }
-
-            self.uploadLastCallbackDate = now
-            self.uploadBytesSent = totalBytesSent
-
-            let expected = max(Double(totalBytesExpectedToSend > 0 ? totalBytesExpectedToSend : self.uploadExpectedBytes), 1)
-            self.uploadProgress = min(1, Double(totalBytesSent) / expected)
-        }
-    }
-
-    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        Task { @MainActor [weak self] in
-            guard let self, task == self.activeTask else { return }
-
-            defer {
-                self.activeTask = nil
-            }
-
-            if let error {
-                if let downloadContinuation = self.downloadContinuation {
-                    self.downloadContinuation = nil
-                    downloadContinuation.resume(throwing: error)
-                    return
-                }
-
-                if let uploadContinuation = self.uploadContinuation {
-                    self.uploadContinuation = nil
-                    uploadContinuation.resume(throwing: error)
-                }
-                return
-            }
-
-            if self.state == .downloadTesting {
-                let duration = max(Date().timeIntervalSince(self.downloadStartDate ?? Date()), 0.001)
-                self.finalDownload = Double(self.downloadBytesReceived) / duration
-                self.downloadSpeed = self.finalDownload
-                self.downloadProgress = 1
-
-                if let downloadContinuation = self.downloadContinuation {
-                    self.downloadContinuation = nil
-                    downloadContinuation.resume()
-                }
-            } else if self.state == .uploadTesting {
-                let duration = max(Date().timeIntervalSince(self.uploadStartDate ?? Date()), 0.001)
-                self.finalUpload = Double(self.uploadBytesSent) / duration
-                self.uploadSpeed = self.finalUpload
-                self.uploadProgress = 1
-
-                if let uploadContinuation = self.uploadContinuation {
-                    self.uploadContinuation = nil
-                    uploadContinuation.resume()
-                }
-            }
-        }
     }
 }

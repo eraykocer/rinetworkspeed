@@ -2,7 +2,7 @@
 //  GetNetworkSpeedIntent.swift
 //  rinetworkspeed
 //
-//  "İnternet hızım ne?" — Returns the current download / upload speed via Siri.
+//  "What is my internet speed?" — Returns the current download / upload speed via Siri.
 //  Prefers cached values written by NetworkStatsMonitor (shared UserDefaults,
 //  updated every ~0.5 s while the app is running). Falls back to a live 1-second
 //  kernel measurement when the cache is older than 10 s.
