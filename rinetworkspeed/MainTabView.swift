@@ -98,8 +98,7 @@ struct MainTabView: View {
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                monitor.start()
-                monitor.applyLiveActivitySetting()
+                monitor.resumeFromBackground()
                 dataUsageMonitor.start()
                 if hasCompletedOnboarding {
                     notificationManager.requestPermission()
@@ -108,7 +107,7 @@ struct MainTabView: View {
                     await notificationManager.refreshAuthorizationStatus()
                 }
             } else if newPhase == .background {
-                monitor.stopSampling()
+                monitor.prepareForBackground()
                 dataUsageMonitor.stop()
             }
         }

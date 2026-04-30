@@ -10,6 +10,9 @@ import Combine
 import Darwin
 import ActivityKit
 import Network
+#if canImport(UIKit)
+import UIKit
+#endif
 #if canImport(WidgetKit)
 import WidgetKit
 #endif
@@ -87,6 +90,9 @@ final class NetworkStatsMonitor: ObservableObject {
     /// The currently in-flight Live Activity update task. Cancelled before
     /// a new update is dispatched so we never pile up concurrent updates.
     private var pendingLiveActivityUpdate: Task<Void, Never>?
+    private var backgroundTaskIdentifier: UIBackgroundTaskIdentifier = .invalid
+    private var backgroundExpirationWorkItem: DispatchWorkItem?
+    private let backgroundLiveActivityGracePeriod: TimeInterval = 25
     @available(iOS 16.1, *)
     private var liveActivity: Activity<NetworkSpeedAttributes>?
 
@@ -128,9 +134,10 @@ final class NetworkStatsMonitor: ObservableObject {
     /// Call `start()` to resume — it will detect the existing session and
     /// skip resetting history / monitorStartDate.
     func stopSampling() {
+        updateLiveActivity()
         timer?.invalidate()
         timer = nil
-        stopLiveActivityTimer()
+        stopLiveActivityTimer(cancelPendingUpdate: false)
         stopPathMonitor()
         saveLatestSpeedsToSharedDefaults()
         // Keep lastSnapshot nil so start() takes a fresh baseline and avoids
@@ -144,6 +151,7 @@ final class NetworkStatsMonitor: ObservableObject {
         timer?.invalidate()
         timer = nil
         stopLiveActivityTimer()
+        endBackgroundLiveActivityTask()
         pushTokenTask?.cancel()
         pushTokenTask = nil
         objectWillChange.send()
@@ -165,6 +173,29 @@ final class NetworkStatsMonitor: ObservableObject {
         lastSnapshot = nil
         lastSampleDate = nil
         monitorStartDate = nil
+    }
+
+    func prepareForBackground() {
+        guard isLiveActivityEnabled else {
+            stopSampling()
+            return
+        }
+
+        guard timer != nil || liveActivityTimer != nil else {
+            saveLatestSpeedsToSharedDefaults()
+            updateLiveActivity()
+            return
+        }
+
+        saveLatestSpeedsToSharedDefaults()
+        updateLiveActivity()
+        startBackgroundLiveActivityTaskIfNeeded()
+    }
+
+    func resumeFromBackground() {
+        endBackgroundLiveActivityTask()
+        start()
+        applyLiveActivitySetting()
     }
 
     func applyUpdateInterval() {
@@ -432,17 +463,61 @@ final class NetworkStatsMonitor: ObservableObject {
     /// Live Activity. Using a separate cadence from the sampling timer
     /// prevents overwhelming ActivityKit with too-frequent updates.
     private func startLiveActivityTimer() {
+        guard isLiveActivityEnabled else { return }
         guard liveActivityTimer == nil else { return }
         liveActivityTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.pushLiveActivityUpdate()
         }
     }
 
-    private func stopLiveActivityTimer() {
+    private func stopLiveActivityTimer(cancelPendingUpdate: Bool = true) {
         liveActivityTimer?.invalidate()
         liveActivityTimer = nil
-        pendingLiveActivityUpdate?.cancel()
-        pendingLiveActivityUpdate = nil
+        if cancelPendingUpdate {
+            pendingLiveActivityUpdate?.cancel()
+            pendingLiveActivityUpdate = nil
+        }
+    }
+
+    private func startBackgroundLiveActivityTaskIfNeeded() {
+        guard backgroundTaskIdentifier == .invalid else { return }
+
+        backgroundTaskIdentifier = UIApplication.shared.beginBackgroundTask(
+            withName: "Network speed Live Activity updates"
+        ) { [weak self] in
+            DispatchQueue.main.async {
+                self?.finishBackgroundLiveActivityUpdates()
+            }
+        }
+
+        guard backgroundTaskIdentifier != .invalid else {
+            stopSampling()
+            return
+        }
+
+        let expirationWorkItem = DispatchWorkItem { [weak self] in
+            self?.finishBackgroundLiveActivityUpdates()
+        }
+        backgroundExpirationWorkItem = expirationWorkItem
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + backgroundLiveActivityGracePeriod,
+            execute: expirationWorkItem
+        )
+    }
+
+    private func finishBackgroundLiveActivityUpdates() {
+        updateLiveActivity()
+        stopSampling()
+        endBackgroundLiveActivityTask()
+    }
+
+    private func endBackgroundLiveActivityTask() {
+        backgroundExpirationWorkItem?.cancel()
+        backgroundExpirationWorkItem = nil
+
+        guard backgroundTaskIdentifier != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTaskIdentifier)
+        backgroundTaskIdentifier = .invalid
     }
 
     /// Called by the dedicated Live Activity timer (~1 Hz). Cancels any
