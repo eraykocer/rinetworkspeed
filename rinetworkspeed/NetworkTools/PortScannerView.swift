@@ -272,6 +272,7 @@ struct PortScannerView: View {
         .scrollDismissesKeyboard(.interactively)
         .appPageBackground()
         .navigationTitle("Port Scanner")
+        .toolReport(vm) { $0.reportText }
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { hostFocused = false }
     }
@@ -287,7 +288,7 @@ struct PortScannerView: View {
             )
 
             VStack(spacing: 10) {
-                AppInputField(icon: "server.rack", placeholder: "Host or IP (e.g. 192.168.1.1)", text: $vm.targetHost)
+                AppInputField(icon: "server.rack", placeholder: "Host or IP (e.g. 192.168.1.1)", text: $vm.targetHost, showsFavorites: true)
                     .focused($hostFocused)
                     .heroInset()
 

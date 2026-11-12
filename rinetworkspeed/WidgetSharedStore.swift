@@ -16,6 +16,7 @@ import WidgetKit
 enum WidgetSharedStore {
     static let suiteName = "group.rinetworkspeedapp"
     static let statusWidgetKind = "NetworkStatusWidget"
+    static let usageWidgetKind = "DataUsageWidget"
 
     enum Key {
         static let lastTestDate = "widgetLastTestDate"
@@ -26,6 +27,10 @@ enum WidgetSharedStore {
         static let todayWifi = "intentTodayWifi"
         static let todayCellular = "intentTodayCellular"
         static let usageUpdatedAt = "widgetUsageUpdatedAt"
+        static let periodCellular = "widgetPeriodCellular"
+        static let periodEnd = "widgetPeriodEnd"
+        static let limitGB = "widgetLimitGB"
+        static let limitEnabled = "widgetLimitEnabled"
     }
 
     private static var defaults: UserDefaults? {
@@ -48,9 +53,19 @@ enum WidgetSharedStore {
         defaults.set(Date().timeIntervalSince1970, forKey: Key.usageUpdatedAt)
     }
 
+    /// Cellular usage in the current billing period and the limit it is measured against.
+    static func savePeriodUsage(cellular: UInt64, periodEnd: Date, limitGB: Double, limitEnabled: Bool) {
+        guard let defaults else { return }
+        defaults.set(Int(clamping: cellular), forKey: Key.periodCellular)
+        defaults.set(periodEnd.timeIntervalSince1970, forKey: Key.periodEnd)
+        defaults.set(limitGB, forKey: Key.limitGB)
+        defaults.set(limitEnabled, forKey: Key.limitEnabled)
+    }
+
     /// Usage is written every few seconds, so widgets are reloaded only when
     /// the app goes to the background instead of on every write.
     static func reloadWidgets() {
         WidgetCenter.shared.reloadTimelines(ofKind: statusWidgetKind)
+        WidgetCenter.shared.reloadTimelines(ofKind: usageWidgetKind)
     }
 }

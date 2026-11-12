@@ -132,11 +132,20 @@ struct SpeedTestHistoryView: View {
 
     @AppStorage("historyConnectionFilter") private var connectionFilter: ConnectionFilter = .all
     @AppStorage("historyRangeFilter") private var rangeFilter: RangeFilter = .month
+    /// Wi-Fi name to show; empty means all networks.
+    @AppStorage("historyNetworkFilter") private var networkFilter: String = ""
     @State private var showingClearConfirmation = false
+
+    /// Wi-Fi names seen in the history, most recently tested first.
+    private var networkNames: [String] {
+        var seen = Set<String>()
+        return manager.history.compactMap(\.ssid).filter { seen.insert($0).inserted }
+    }
 
     private var filtered: [SpeedTestResult] {
         manager.history.filter { result in
             if let start = rangeFilter.startDate, result.date < start { return false }
+            if !networkFilter.isEmpty, result.ssid != networkFilter { return false }
             switch connectionFilter {
             case .all: return true
             case .wifi: return result.connection == .wifi
@@ -150,12 +159,17 @@ struct SpeedTestHistoryView: View {
             VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
                 filterBar
 
+                if networkFilter.isEmpty && !networkNames.isEmpty {
+                    networksSection
+                }
+
                 if filtered.isEmpty {
                     AppEmptyState(icon: "line.3.horizontal.decrease.circle", title: "No tests match these filters.")
                         .appCard(padding: nil)
                 } else {
                     trendSection
                     averagesSection
+                    planSection
                     listSection
                 }
             }
@@ -165,6 +179,14 @@ struct SpeedTestHistoryView: View {
         }
         .appPageBackground()
         .navigationTitle("Test History")
+        #if DEBUG
+        .task {
+            // Layout review helper: launch with `-debugWriteISPReport YES`.
+            guard UserDefaults.standard.bool(forKey: "debugWriteISPReport"), let plan = InternetPlan.load() else { return }
+            let url = URL.documentsDirectory.appending(path: "isp-report.pdf")
+            try? ISPReportGenerator().makePDF(plan: plan, results: filtered).write(to: url)
+        }
+        #endif
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Delete all speed test results?", isPresented: $showingClearConfirmation, titleVisibility: .visible) {
             Button("Delete All", role: .destructive) { manager.clearHistory() }
@@ -189,6 +211,59 @@ struct SpeedTestHistoryView: View {
             }
             .pickerStyle(.menu)
             .tint(AppTheme.primaryText)
+
+            if !networkNames.isEmpty {
+                Picker("Network", selection: $networkFilter) {
+                    Text("All Networks").tag("")
+                    ForEach(networkNames, id: \.self) { name in
+                        Text(verbatim: name).tag(name)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(AppTheme.primaryText)
+            }
+        }
+        .onAppear {
+            // A saved network that no longer has tests would hide everything.
+            if !networkFilter.isEmpty && !networkNames.contains(networkFilter) {
+                networkFilter = ""
+            }
+        }
+    }
+
+    // MARK: Networks
+
+    /// One row per Wi-Fi network with its own averages, e.g. "Home" against "Office".
+    private var networksSection: some View {
+        AppSection("Networks", footer: "Wi-Fi names are recorded when location access is allowed. Tap a network to see only its tests.") {
+            ForEach(networkNames, id: \.self) { name in
+                let results = manager.history.filter { $0.ssid == name }
+                let count = Double(results.count)
+                let download = results.reduce(0) { $0 + $1.downloadSpeed } / count
+                let ping = results.reduce(0) { $0 + $1.ping } / count
+
+                Button {
+                    networkFilter = name
+                } label: {
+                    AppRow(icon: "wifi", tint: AppTheme.download, verbatimTitle: name, subtitle: "\(results.count) tests") {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(verbatim: "↓ \(SpeedTestHistoryRow.mbps(download)) Mbps")
+                                .appFont(size: 14, weight: .semibold, design: .rounded)
+                                .foregroundStyle(AppTheme.primaryText)
+                            Text(verbatim: "\(ping.fixed(0)) ms")
+                                .appFont(size: 12, weight: .medium, design: .rounded)
+                                .foregroundStyle(AppTheme.secondaryText)
+                        }
+                        .monospacedDigit()
+                        AppChevron()
+                    }
+                }
+                .buttonStyle(AppRowButtonStyle())
+
+                if name != networkNames.last {
+                    AppRowDivider()
+                }
+            }
         }
     }
 
@@ -268,6 +343,79 @@ struct SpeedTestHistoryView: View {
             .padding(.vertical, 14)
             .appCard(padding: nil)
         }
+    }
+
+    // MARK: Plan Comparison
+
+    @ViewBuilder
+    private var planSection: some View {
+        if let plan = InternetPlan.load(), let comparison = PlanComparison(plan: plan, results: filtered) {
+            VStack(alignment: .leading, spacing: 10) {
+                AppSectionHeader("Compared with Your Plan")
+
+                VStack(spacing: 0) {
+                    planRow(
+                        title: "Average download",
+                        value: comparison.averageDownloadRatio.formatted(.percent.precision(.fractionLength(0))),
+                        isGood: comparison.averageDownloadRatio >= PlanComparison.meetsThreshold
+                    )
+                    if let upload = comparison.averageUploadRatio {
+                        AppRowDivider(leadingInset: 16)
+                        planRow(
+                            title: "Average upload",
+                            value: upload.formatted(.percent.precision(.fractionLength(0))),
+                            isGood: upload >= PlanComparison.meetsThreshold
+                        )
+                    }
+                    AppRowDivider(leadingInset: 16)
+                    planRow(
+                        title: "Tests reaching 80% of plan",
+                        value: comparison.meetsPlanShare.formatted(.percent.precision(.fractionLength(0))),
+                        isGood: comparison.meetsPlanShare >= 0.8
+                    )
+
+                    AppRowDivider(leadingInset: 0)
+
+                    ShareLink(
+                        item: ISPReportExport(plan: plan, results: filtered),
+                        preview: SharePreview("Internet Speed Report")
+                    ) {
+                        Label("ISP Report (PDF)", systemImage: "doc.text.fill")
+                            .appFont(size: 15, weight: .semibold, design: .rounded)
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 13)
+                    }
+                    .buttonStyle(AppRowButtonStyle())
+                }
+                .appCard(padding: nil)
+
+                Text("The report uses the tests shown with the current filters. Wi-Fi or wired tests reflect your home connection best.")
+                    .appFont(size: 12, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.tertiaryText)
+                    .padding(.horizontal, 4)
+            }
+        } else if InternetPlan.load() == nil {
+            AppSection(footer: "Add the speeds your provider advertises in Settings → Internet Plan to compare results and create an ISP report.") {
+                AppRow(icon: "building.2.fill", tint: .teal, title: "Compare with Your Plan", subtitle: "Not set up")
+            }
+        }
+    }
+
+    private func planRow(title: LocalizedStringKey, value: String, isGood: Bool) -> some View {
+        HStack {
+            Text(title)
+                .appFont(size: 14, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.secondaryText)
+            Spacer(minLength: 8)
+            Text(verbatim: value)
+                .appFont(size: 15, weight: .bold, design: .rounded)
+                .monospacedDigit()
+                .foregroundStyle(isGood ? AppTheme.ping : AppTheme.danger)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: List

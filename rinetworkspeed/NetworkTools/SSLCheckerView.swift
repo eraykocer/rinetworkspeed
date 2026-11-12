@@ -198,6 +198,7 @@ struct SSLCheckerView: View {
         .scrollDismissesKeyboard(.interactively)
         .appPageBackground()
         .navigationTitle("SSL Checker")
+        .toolReport(vm) { $0.reportText }
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { fieldFocused = false }
     }
@@ -212,7 +213,7 @@ struct SSLCheckerView: View {
                 subtitle: "Inspect the TLS certificate, issuer and expiry date of any HTTPS site."
             )
 
-            AppInputField(icon: "globe", placeholder: "Domain (e.g. apple.com)", text: $vm.hostname) {
+            AppInputField(icon: "globe", placeholder: "Domain (e.g. apple.com)", text: $vm.hostname, showsFavorites: true) {
                 vm.check()
             }
             .focused($fieldFocused)

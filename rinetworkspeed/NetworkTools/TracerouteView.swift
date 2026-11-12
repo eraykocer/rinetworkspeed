@@ -233,6 +233,7 @@ struct TracerouteView: View {
         .scrollDismissesKeyboard(.interactively)
         .appPageBackground()
         .navigationTitle("Traceroute")
+        .toolReport(vm) { $0.reportText }
         .navigationBarTitleDisplayMode(.large)
     }
 
@@ -246,7 +247,7 @@ struct TracerouteView: View {
                 subtitle: "Probe each hop on the way to a host and measure its latency."
             )
 
-            AppInputField(icon: "globe", placeholder: "Target host (e.g. google.com)", text: $vm.targetHost) {
+            AppInputField(icon: "globe", placeholder: "Target host (e.g. google.com)", text: $vm.targetHost, showsFavorites: true) {
                 if !vm.isRunning { vm.start() }
             }
             .heroInset()

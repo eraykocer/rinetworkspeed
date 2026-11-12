@@ -16,6 +16,8 @@ enum AppDestination: String, Equatable {
     case usage
     case tools
     case settings
+    /// Opens the connection troubleshooter in the Tools tab.
+    case troubleshooter
     /// Opens the speed test sheet and starts a test right away.
     case speedTest = "speedtest"
 
@@ -25,7 +27,7 @@ enum AppDestination: String, Equatable {
         case .home, .speedTest: return 0
         case .graph: return 1
         case .usage: return 2
-        case .tools: return 3
+        case .tools, .troubleshooter: return 3
         case .settings: return 4
         }
     }
@@ -38,6 +40,8 @@ final class AppRouter: ObservableObject {
 
     /// Set by external triggers and cleared by the view that consumes it.
     @Published var pendingDestination: AppDestination?
+    /// Raw value of a tool the Tools tab should push, consumed by `NetworkToolsView`.
+    @Published var requestedTool: String?
 
     private init() {
         #if DEBUG
@@ -46,6 +50,8 @@ final class AppRouter: ObservableObject {
            let destination = AppDestination(rawValue: raw) {
             pendingDestination = destination
         }
+        // `-debugTool ipScanner` opens a tool in the Tools tab.
+        requestedTool = UserDefaults.standard.string(forKey: "debugTool")
         #endif
     }
 

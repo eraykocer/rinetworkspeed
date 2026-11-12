@@ -140,14 +140,16 @@ final class WiFiInfoManager: NSObject, ObservableObject {
     }
 
     private func updateLocalNetworkDetails() {
-        let details = localInterfaceDetails()
+        let details = Self.localInterfaceDetails()
         ipAddress = details.ipAddress
         subnetMask = details.subnetMask
         routerIP = details.routerIP
         dnsServers = currentDNSServers()
     }
 
-    private func localInterfaceDetails() -> (ipAddress: String?, subnetMask: String?, routerIP: String?) {
+    /// Wi-Fi (en0) IPv4 address, subnet mask and the router address inferred
+    /// from them (first host of the subnet). Also used by the troubleshooter.
+    nonisolated static func localInterfaceDetails() -> (ipAddress: String?, subnetMask: String?, routerIP: String?) {
         var address: String?
         var mask: String?
         var addrs: UnsafeMutablePointer<ifaddrs>?
@@ -185,7 +187,7 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         return (address, mask, router)
     }
 
-    private func ipv4String(from socketAddress: UnsafePointer<sockaddr>) -> String? {
+    nonisolated private static func ipv4String(from socketAddress: UnsafePointer<sockaddr>) -> String? {
         var hostName = [CChar](repeating: 0, count: Int(NI_MAXHOST))
         let result = getnameinfo(
             socketAddress,
@@ -201,7 +203,7 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         return String(cString: hostName)
     }
 
-    private func inferredRouterIP(ipAddress: String?, subnetMask: String?) -> String? {
+    nonisolated private static func inferredRouterIP(ipAddress: String?, subnetMask: String?) -> String? {
         guard
             let ipAddress,
             let subnetMask,
@@ -215,7 +217,7 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         return uint32ToIPv4(network + 1)
     }
 
-    private func ipv4ToUInt32(_ address: String) -> UInt32? {
+    nonisolated private static func ipv4ToUInt32(_ address: String) -> UInt32? {
         let octets = address.split(separator: ".").compactMap { UInt8($0) }
         guard octets.count == 4 else { return nil }
 
@@ -224,7 +226,7 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         }
     }
 
-    private func uint32ToIPv4(_ value: UInt32) -> String {
+    nonisolated private static func uint32ToIPv4(_ value: UInt32) -> String {
         [
             String((value >> 24) & 0xFF),
             String((value >> 16) & 0xFF),

@@ -90,6 +90,8 @@ struct MainTabView: View {
             selectedTab = destination.tab
             if destination == .speedTest {
                 speedTestRequested = true
+            } else if destination == .troubleshooter {
+                router.requestedTool = AppDestination.troubleshooter.rawValue
             }
         }
         .onAppear {

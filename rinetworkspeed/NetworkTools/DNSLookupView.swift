@@ -216,6 +216,7 @@ struct DNSLookupView: View {
         .scrollDismissesKeyboard(.interactively)
         .appPageBackground()
         .navigationTitle("DNS Lookup")
+        .toolReport(vm) { $0.reportText }
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { fieldFocused = false }
     }
@@ -230,7 +231,7 @@ struct DNSLookupView: View {
                 subtitle: "Resolve A, AAAA, MX, TXT, CNAME and NS records over DNS-over-HTTPS."
             )
 
-            AppInputField(icon: "globe", placeholder: "Domain (e.g. apple.com)", text: $vm.domain) {
+            AppInputField(icon: "globe", placeholder: "Domain (e.g. apple.com)", text: $vm.domain, showsFavorites: true) {
                 vm.lookup()
             }
             .focused($fieldFocused)

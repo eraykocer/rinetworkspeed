@@ -12,6 +12,7 @@ import SwiftUI
 struct NetworkWidgetBundle: WidgetBundle {
     var body: some Widget {
         NetworkStatusWidget()
+        DataUsageWidget()
         NetworkWidgetControl()
         NetworkWidgetLiveActivity()
     }

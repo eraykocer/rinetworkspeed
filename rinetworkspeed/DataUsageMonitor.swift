@@ -225,10 +225,17 @@ final class DataUsageMonitor: ObservableObject {
         recalculateWeeklyTotals()
         recalculatePeriodTotals()
 
+        let periodStart = billingPeriodStart(resetDay: resetDay)
+        WidgetSharedStore.savePeriodUsage(
+            cellular: periodCellularBytes,
+            periodEnd: calendar.date(byAdding: .month, value: 1, to: periodStart) ?? periodStart,
+            limitGB: max(defaults.double(forKey: "dataLimitGB"), 0),
+            limitEnabled: defaults.bool(forKey: "dataLimitEnabled")
+        )
+
         if defaults.bool(forKey: "dataLimitEnabled") {
             let usedGB = Double(periodCellularBytes) / 1_073_741_824
             let limitGB = max(defaults.double(forKey: "dataLimitGB"), 0)
-            let periodStart = billingPeriodStart(resetDay: resetDay)
             notificationManager.checkDataLimit(
                 usedGB: usedGB,
                 limitGB: limitGB,

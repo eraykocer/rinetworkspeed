@@ -6,41 +6,54 @@
 //
 
 import SwiftUI
+import Combine
 
 // MARK: - Tool Model
 
 private enum NetworkTool: String, CaseIterable, Identifiable, Hashable {
+    case troubleshooter
     case ipScanner
     case networkMap
+    case wifiSurvey
     case traceroute
     case portScanner
     case dnsLookup
     case sslChecker
     case whois
+    case subnetCalculator
+    case wakeOnLAN
 
     var id: String { rawValue }
 
     var name: LocalizedStringResource {
         switch self {
+        case .troubleshooter: "Troubleshooter"
         case .ipScanner: "IP Scanner"
         case .networkMap: "Network Map"
+        case .wifiSurvey: "Wi-Fi Survey"
         case .traceroute: "Traceroute"
         case .portScanner: "Port Scanner"
         case .dnsLookup: "DNS Lookup"
         case .sslChecker: "SSL Checker"
         case .whois: "Whois"
+        case .subnetCalculator: "Subnet Calculator"
+        case .wakeOnLAN: "Wake-on-LAN"
         }
     }
 
     var description: LocalizedStringResource {
         switch self {
+        case .troubleshooter: "Find out why the internet isn't working"
         case .ipScanner: "Discover devices on local network"
         case .networkMap: "Visually discover devices on the local network"
+        case .wifiSurvey: "Find the best and worst rooms for Wi-Fi"
         case .traceroute: "Hop-by-hop path analysis"
         case .portScanner: "Check open TCP ports on a host"
         case .dnsLookup: "Query DNS records for any domain"
         case .sslChecker: "Certificate validity & details"
         case .whois: "Domain registration information"
+        case .subnetCalculator: "Network, broadcast and host range for any subnet"
+        case .wakeOnLAN: "Turn on a computer over the network"
         }
     }
 
@@ -53,37 +66,49 @@ private enum NetworkTool: String, CaseIterable, Identifiable, Hashable {
     /// Plain-text keywords used for search filtering.
     private var keywords: String {
         switch self {
+        case .troubleshooter: "troubleshoot diagnose problem no internet router dns captive portal"
         case .ipScanner: "ip scanner devices lan local network"
         case .networkMap: "network map devices topology local"
+        case .wifiSurvey: "wifi survey room coverage signal heatmap dead zone"
         case .traceroute: "traceroute hops route path latency"
         case .portScanner: "port scanner tcp open ports host"
         case .dnsLookup: "dns lookup records domain a aaaa mx"
         case .sslChecker: "ssl tls certificate checker https"
         case .whois: "whois domain registration registrar"
+        case .subnetCalculator: "subnet calculator cidr mask netmask broadcast ip range"
+        case .wakeOnLAN: "wake on lan wol magic packet power computer"
         }
     }
 
     var icon: String {
         switch self {
+        case .troubleshooter: "stethoscope"
         case .ipScanner: "network"
         case .networkMap: "circle.hexagongrid.fill"
+        case .wifiSurvey: "house.and.flag.fill"
         case .traceroute: "point.3.connected.trianglepath.dotted"
         case .portScanner: "door.left.hand.open"
         case .dnsLookup: "globe.americas.fill"
         case .sslChecker: "lock.shield.fill"
         case .whois: "doc.text.magnifyingglass"
+        case .subnetCalculator: "square.split.2x2.fill"
+        case .wakeOnLAN: "power"
         }
     }
 
     var tint: Color {
         switch self {
+        case .troubleshooter: Color(red: 0.36, green: 0.30, blue: 0.86)
         case .ipScanner: Color(red: 0.24, green: 0.45, blue: 0.99)
         case .networkMap: Color(red: 0.20, green: 0.80, blue: 0.65)
+        case .wifiSurvey: Color(red: 0.10, green: 0.62, blue: 0.86)
         case .traceroute: Color(red: 0.13, green: 0.72, blue: 0.52)
         case .portScanner: Color(red: 0.84, green: 0.28, blue: 0.74)
         case .dnsLookup: Color(red: 0.98, green: 0.62, blue: 0.16)
         case .sslChecker: Color(red: 0.20, green: 0.75, blue: 0.99)
         case .whois: Color(red: 0.99, green: 0.37, blue: 0.37)
+        case .subnetCalculator: Color(red: 0.55, green: 0.42, blue: 0.98)
+        case .wakeOnLAN: Color(red: 0.98, green: 0.62, blue: 0.16)
         }
     }
 }
@@ -92,6 +117,7 @@ private enum NetworkToolSection: CaseIterable, Identifiable {
     case localNetwork
     case diagnostics
     case domainSecurity
+    case utilities
 
     var id: Self { self }
 
@@ -100,14 +126,16 @@ private enum NetworkToolSection: CaseIterable, Identifiable {
         case .localNetwork: "Local Network"
         case .diagnostics: "Diagnostics"
         case .domainSecurity: "Domain & Security"
+        case .utilities: "Utilities"
         }
     }
 
     var tools: [NetworkTool] {
         switch self {
-        case .localNetwork: [.ipScanner, .networkMap]
-        case .diagnostics: [.traceroute, .portScanner]
+        case .localNetwork: [.ipScanner, .networkMap, .wifiSurvey]
+        case .diagnostics: [.troubleshooter, .traceroute, .portScanner]
         case .domainSecurity: [.dnsLookup, .sslChecker, .whois]
+        case .utilities: [.subnetCalculator, .wakeOnLAN]
         }
     }
 }
@@ -133,8 +161,10 @@ struct NetworkToolsView: View {
         return section.tools.filter { $0.searchText.contains(query) }
     }
 
+    @State private var path: [NetworkTool] = []
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 28) {
                     if !isSearching || "speed test download upload ping \(String(localized: "Speed Test"))".lowercased().contains(searchText.lowercased()) {
@@ -164,19 +194,29 @@ struct NetworkToolsView: View {
                 destinationView(for: tool)
             }
         }
+        .onReceive(AppRouter.shared.$requestedTool.compactMap { $0 }) { raw in
+            AppRouter.shared.requestedTool = nil
+            if let tool = NetworkTool(rawValue: raw) {
+                path = [tool]
+            }
+        }
         .background(backgroundColor.ignoresSafeArea())
     }
 
     @ViewBuilder
     private func destinationView(for tool: NetworkTool) -> some View {
         switch tool {
+        case .troubleshooter: TroubleshooterView()
         case .ipScanner: IPScannerView()
         case .networkMap: NetworkMapView()
+        case .wifiSurvey: WiFiSurveyListView()
         case .traceroute: TracerouteView()
         case .portScanner: PortScannerView()
         case .dnsLookup: DNSLookupView()
         case .sslChecker: SSLCheckerView()
         case .whois: WhoisView()
+        case .subnetCalculator: SubnetCalculatorView()
+        case .wakeOnLAN: WakeOnLANView()
         }
     }
 }

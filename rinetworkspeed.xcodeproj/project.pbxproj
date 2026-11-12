@@ -522,7 +522,7 @@
 				CODE_SIGN_ENTITLEMENTS = rinetworkspeed/rinetworkspeed.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 233D765C68;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -532,6 +532,7 @@
 				INFOPLIST_FILE = rinetworkspeed/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RiNetwork;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "RiNetwork connects to devices on your local network to find them, map them and check that your router responds.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access is required by iOS to show the name and details of the Wi-Fi network you are connected to.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
@@ -575,7 +576,7 @@
 				CODE_SIGN_ENTITLEMENTS = rinetworkspeed/rinetworkspeed.entitlements;
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 5;
 				DEVELOPMENT_TEAM = 233D765C68;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -585,6 +586,7 @@
 				INFOPLIST_FILE = rinetworkspeed/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = RiNetwork;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "RiNetwork connects to devices on your local network to find them, map them and check that your router responds.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access is required by iOS to show the name and details of the Wi-Fi network you are connected to.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;

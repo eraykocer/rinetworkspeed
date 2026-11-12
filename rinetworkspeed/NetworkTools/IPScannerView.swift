@@ -58,6 +58,11 @@ final class IPScannerViewModel: ObservableObject {
     @Published var localIP: String = ""
     @Published var subnetBase: String = ""
     @Published var errorMessage: String?
+    /// Identifiers (see `KnownDevicesStore.identifier`) of devices not seen in earlier scans.
+    @Published private(set) var newDeviceIdentifiers: Set<String> = []
+    /// Set after a completed scan: whether it was the first scan of this network.
+    @Published private(set) var isFirstScanOfNetwork: Bool?
+    @Published private(set) var previousScanDate: Date?
 
     private var scanTask: Task<Void, Never>?
 
@@ -81,6 +86,8 @@ final class IPScannerViewModel: ObservableObject {
         scannedCount = 0
         progress = 0
         errorMessage = nil
+        newDeviceIdentifiers = []
+        isFirstScanOfNetwork = nil
 
         scanTask = Task {
             let base = subnetBase
@@ -108,8 +115,20 @@ final class IPScannerViewModel: ObservableObject {
                     }
                 }
             }
+
+            if !Task.isCancelled {
+                let network = await KnownDevicesStore.networkKey(subnetBase: base)
+                previousScanDate = KnownDevicesStore.shared.lastScan(on: network)
+                let result = KnownDevicesStore.shared.recordScan(discoveredDevices, on: network)
+                newDeviceIdentifiers = result.newIdentifiers
+                isFirstScanOfNetwork = result.isFirstScan
+            }
             isScanning = false
         }
+    }
+
+    func isNew(_ device: NetworkDevice) -> Bool {
+        newDeviceIdentifiers.contains(KnownDevicesStore.identifier(for: device))
     }
 
     func stopScan() {
@@ -202,7 +221,8 @@ final class IPScannerViewModel: ObservableObject {
             }
             guard result == 0 else { return nil }
             let s = String(cString: buf)
-            return s.isEmpty ? nil : s
+            // Some resolvers echo the address back instead of failing.
+            return s.isEmpty || s == ipString ? nil : s
         }.value
     }
 
@@ -263,10 +283,19 @@ struct IPScannerView: View {
         }
         .appPageBackground()
         .navigationTitle("IP Scanner")
+        .toolReport(vm) { $0.reportText }
         .navigationBarTitleDisplayMode(.large)
         .sheet(item: $selectedDevice) { device in
             DeviceDetailSheet(device: device, vm: vm)
         }
+        #if DEBUG
+        .onAppear {
+            // UI review helper: launch with `-debugAutoScan YES`.
+            if UserDefaults.standard.bool(forKey: "debugAutoScan"), !vm.isScanning, vm.scannedCount == 0 {
+                vm.startScan()
+            }
+        }
+        #endif
     }
 
     // MARK: - Hero Card
@@ -383,12 +412,17 @@ struct IPScannerView: View {
             AppEmptyState(icon: "dot.radiowaves.left.and.right", title: "Scanning…")
                 .appCard(padding: nil)
         } else {
-            AppSection("\(vm.discoveredDevices.count) devices found") {
+            newDevicesNotice
+
+            AppSection(
+                "\(vm.discoveredDevices.count) devices found",
+                footer: "iOS does not share MAC addresses, so devices are recognized by name, or by IP address when they have no name. A device that gets a new IP address may show up as new."
+            ) {
                 ForEach(vm.discoveredDevices) { device in
                     Button {
                         selectedDevice = device
                     } label: {
-                        DeviceRow(device: device)
+                        DeviceRow(device: device, isNew: vm.isNew(device))
                     }
                     .buttonStyle(AppRowButtonStyle())
 
@@ -398,6 +432,61 @@ struct IPScannerView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - New Devices Notice
+
+private extension IPScannerView {
+    @ViewBuilder
+    var newDevicesNotice: some View {
+        if let isFirstScan = vm.isFirstScanOfNetwork, !vm.isScanning {
+            let newCount = vm.newDeviceIdentifiers.count
+            let since = vm.previousScanDate.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? ""
+
+            if isFirstScan {
+                notice(
+                    icon: "checkmark.shield.fill",
+                    tint: AppTheme.ping,
+                    title: "Devices saved",
+                    message: "Next time you scan this network, devices that weren't here before will be marked as new."
+                )
+            } else if newCount > 0 {
+                notice(
+                    icon: "exclamationmark.shield.fill",
+                    tint: AppTheme.warning,
+                    title: "\(newCount) new devices",
+                    message: "Not on this network during your last scan (\(since)). If you don't recognize one, change your Wi-Fi password."
+                )
+            } else {
+                notice(
+                    icon: "checkmark.shield.fill",
+                    tint: AppTheme.ping,
+                    title: "No new devices",
+                    message: "The same devices as your last scan (\(since))."
+                )
+            }
+        }
+    }
+
+    func notice(icon: String, tint: Color, title: LocalizedStringKey, message: LocalizedStringKey) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .appFont(size: 24, weight: .semibold)
+                .foregroundStyle(tint)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .appFont(size: 16, weight: .bold, design: .rounded)
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(message)
+                    .appFont(size: 13, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .appCard()
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -442,6 +531,7 @@ private extension DeviceIconType {
 
 private struct DeviceRow: View {
     let device: NetworkDevice
+    var isNew = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -464,6 +554,9 @@ private struct DeviceRow: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 4) {
+                if isNew {
+                    AppPill(text: "New", tint: AppTheme.warning)
+                }
                 AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
                     .monospacedDigit()
                 Text(":\(device.openPort)")

@@ -20,6 +20,9 @@ struct SettingsView: View {
     @AppStorage("dataLimitGB") private var dataLimitGB: Double = 5.0
     @AppStorage("dataLimitResetDay") private var dataLimitResetDay: Int = 1
     @AppStorage("appearance") private var appearance: AppAppearance = .system
+    @AppStorage(InternetPlan.Key.provider) private var planProvider: String = ""
+    @AppStorage(InternetPlan.Key.download) private var planDownloadMbps: Double = 0
+    @AppStorage(InternetPlan.Key.upload) private var planUploadMbps: Double = 0
 
     @State private var showingPaywall = false
 
@@ -34,6 +37,7 @@ struct SettingsView: View {
                     generalSection
                     liveActivitySection
                     dataLimitSection
+                    internetPlanSection
                     notificationsSection
                     siriSection
                     aboutSection
@@ -242,6 +246,41 @@ struct SettingsView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: dataLimitEnabled)
+    }
+
+    // MARK: - Internet Plan
+
+    private var internetPlanSection: some View {
+        AppSection("Internet Plan", footer: "Used to compare your speed tests with what your provider advertises, and for the ISP report in Test History.") {
+            AppRow(icon: "building.2.fill", tint: .teal, title: "Provider") {
+                TextField("Optional", text: $planProvider)
+                    .multilineTextAlignment(.trailing)
+                    .appFont(size: 15, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .textInputAutocapitalization(.words)
+                    .frame(maxWidth: 160)
+            }
+            AppRowDivider()
+            planSpeedRow(icon: "arrow.down", tint: AppTheme.download, title: "Advertised Download", value: $planDownloadMbps)
+            AppRowDivider()
+            planSpeedRow(icon: "arrow.up", tint: AppTheme.upload, title: "Advertised Upload", value: $planUploadMbps)
+        }
+    }
+
+    private func planSpeedRow(icon: String, tint: Color, title: LocalizedStringKey, value: Binding<Double>) -> some View {
+        AppRow(icon: icon, tint: tint, title: title) {
+            HStack(spacing: 4) {
+                TextField("0", value: value, format: .number.precision(.fractionLength(0)))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .monospacedDigit()
+                    .frame(maxWidth: 80)
+                Text(verbatim: "Mbps")
+                    .foregroundStyle(AppTheme.tertiaryText)
+            }
+            .appFont(size: 15, weight: .medium, design: .rounded)
+            .foregroundStyle(AppTheme.secondaryText)
+        }
     }
 
     // MARK: - Notifications

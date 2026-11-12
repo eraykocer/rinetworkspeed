@@ -35,6 +35,8 @@ Status: implemented on 2026-11-12, together with the removal of all decorative g
 
 ## Phase 2 — New features (ordered by impact against effort)
 
+Status: implemented on 2026-11-12, except scheduled speed tests, which were dropped by decision (the ISP report card was built without them). Wake-on-LAN needs Apple's multicast entitlement before it can send packets on a device.
+
 1. **Widget family.** Small and medium home screen, Lock Screen and StandBy widgets showing the last test result and period usage.
 2. **Scheduled speed tests and ISP report card.** Periodic tests, comparison against the advertised plan speed, and a PDF for ISP complaints. Builds on [PDFReportGenerator.swift](rinetworkspeed/PDFReportGenerator.swift).
 3. **Connection troubleshooter.** One tap runs gateway → DNS → internet → latency and gives a plain-language diagnosis. Combines the existing tools.

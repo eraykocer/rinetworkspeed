@@ -185,6 +185,7 @@ struct WhoisView: View {
         .scrollDismissesKeyboard(.interactively)
         .appPageBackground()
         .navigationTitle("Whois")
+        .toolReport(vm) { $0.reportText }
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { fieldFocused = false }
     }
@@ -199,7 +200,7 @@ struct WhoisView: View {
                 subtitle: "Look up the registrar, key dates and name servers of a domain."
             )
 
-            AppInputField(icon: "globe", placeholder: "Domain (e.g. github.com)", text: $vm.domain) {
+            AppInputField(icon: "globe", placeholder: "Domain (e.g. github.com)", text: $vm.domain, showsFavorites: true) {
                 vm.lookup()
             }
             .focused($fieldFocused)

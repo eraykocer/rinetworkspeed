@@ -33,6 +33,21 @@ RI Network Speed reads live byte counters directly from the system's network int
 - Cellular data limit tied to a monthly billing period with a configurable reset day
 - Exportable PDF reports
 
+### Internet Plan and ISP Report
+- Enter the speeds your provider advertises (Settings → Internet Plan)
+- Test History compares results with the plan (average share of the plan, tests reaching 80 %)
+- A printable PDF report for complaints to your provider, built from the tests shown with the current filters
+
+### Per-Network History
+- Each test records the Wi-Fi name (with location access), so Test History lists every network with its own averages and can filter by network
+
+### Network Tools
+- **Troubleshooter:** checks the network, router, DNS, internet access (including hotel and café login pages) and latency, then explains the first problem in plain language
+- **IP Scanner** remembers the devices on each network and marks devices that were not there in the previous scan. iOS hides MAC addresses, so devices are matched by name or last IP address
+- **Wi-Fi Survey:** name rooms, run a speed test in each and see the best and weakest spots
+- **Subnet Calculator** and **Wake-on-LAN** (sending the packet needs Apple's multicast networking entitlement; see below)
+- Favorite hosts for Ping, Traceroute, Port Scanner, DNS, SSL and Whois, and a share button on every tool to share or copy its results as text
+
 ### Accessibility, Languages and Appearance
 - Every text scales with Dynamic Type; side-by-side cards stack at accessibility sizes
 - VoiceOver labels for the speed cards, gauge, charts and results
@@ -45,8 +60,10 @@ RI Network Speed reads live byte counters directly from the system's network int
 - Push-token support for server-side updates; falls back to local-only if unavailable
 - Graceful background handling: the app requests a background task on suspension and tears down cleanly after a 25 s grace period
 
-### Home Screen Widget and Control
-- Small and medium widget showing the last speed test and today's usage, read from a shared `UserDefaults` App Group
+### Widgets and Control
+- **Speed widget:** small and medium Home Screen sizes (also in StandBy), plus circular, rectangular and inline Lock Screen sizes, showing the last speed test
+- **Data Usage widget:** cellular usage against the monthly limit as a ring or bar, or today's usage when no limit is set
+- Both read a shared `UserDefaults` App Group and follow the light or dark appearance
 - Widgets cannot measure live; the app reloads them after every speed test and when it goes to the background
 - A "Start Speed Test" control for Control Center, the Lock Screen and the Action button
 - Tapping the widget or the control opens the app and starts a test (`rinetworkspeed://speedtest`)
@@ -77,6 +94,9 @@ rinetworkspeed/          ← iOS app target
 ├── SpeedTestScoring.swift   Score, grade and use-case summary
 ├── SpeedHistoryArchive.swift  Per-minute live speed summaries for 24 h / 7 days
 ├── ConnectionContext.swift  Connection type, Wi-Fi name and provider for a test
+├── InternetPlan.swift       Advertised plan and comparison with results
+├── ISPReportGenerator.swift Printable ISP report PDF
+└── NetworkTools/            Troubleshooter, scanners, survey, subnet calculator, Wake-on-LAN…
 ├── PurchaseManager.swift    StoreKit subscription management
 └── *View.swift              SwiftUI screens
 
@@ -119,6 +139,7 @@ open rinetworkspeed.xcodeproj
 1. Select your development team in **Signing & Capabilities** for both targets (`rinetworkspeed`, `NetworkWidgetExtension`).
 2. Update the App Group identifier (`group.rinetworkspeedapp`) in both entitlements files and in `WidgetSharedStore.swift` / `NetworkStatusWidget.swift` if you use a different bundle-ID prefix.
 3. Build and run on a real device — the simulator does not expose live network interface counters.
+4. Wake-on-LAN sends a UDP broadcast, which iOS only allows once Apple grants the `com.apple.developer.networking.multicast` entitlement. Request it from Apple, then add it to `rinetworkspeed.entitlements`; until then the tool explains that the broadcast was blocked.
 
 > **Note:** The speed test uses Cloudflare's public endpoints (`speed.cloudflare.com`). No API key is required.
 
@@ -131,9 +152,12 @@ RI Network Speed has no analytics, no tracking and no backend of its own. Usage 
 - **Speed tests** to `speed.cloudflare.com`, when you start a test.
 - **Ping** TCP connections to the host you choose in the Ping Monitor (default `1.1.1.1`).
 - **Provider name** from `speed.cloudflare.com/meta` during a speed test, to label the result in history.
+- **Troubleshooter** loads Apple's connectivity test page (`www.apple.com/library/test/success.html`), looks up `www.apple.com` and opens TCP connections to your router and `1.1.1.1`.
 - **Public IP and ISP lookup** to `api.ipify.org` and `ipapi.co` when the Speed Test screen opens and location permission is granted (for the Wi-Fi details section). These services receive your public IP address, as every web request does, and return your public IP and provider name.
 
 Network tools (port scanner, traceroute, DNS lookup, SSL checker) contact the hosts you enter; WHOIS lookups go through `who-dat.as93.net`; the IP scanner and network map only probe your local network.
+
+Tools that reach devices on your network (IP scanner, network map, troubleshooter) trigger the iOS Local Network permission prompt.
 
 The app and the widget extension each ship a `PrivacyInfo.xcprivacy` manifest declaring the required-reason APIs they use (UserDefaults, system boot time).
 

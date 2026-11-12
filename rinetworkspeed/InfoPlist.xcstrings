@@ -37,6 +37,24 @@
         }
       }
     },
+    "NSLocalNetworkUsageDescription": {
+      "comment": "Privacy - Local Network Usage Description",
+      "extractionState": "extracted_with_value",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "RiNetwork connects to devices on your local network to find them, map them and check that your router responds."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RiNetwork, yerel ağınızdaki cihazları bulmak, haritalamak ve router'ınızın yanıt verdiğini kontrol etmek için bu cihazlara bağlanır."
+          }
+        }
+      }
+    },
     "NSLocationWhenInUseUsageDescription": {
       "comment": "Privacy - Location When In Use Usage Description",
       "extractionState": "extracted_with_value",

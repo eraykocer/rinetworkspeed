@@ -55,6 +55,7 @@ struct NetworkMapView: View {
             .appPageBackground()
             .navigationTitle("Network Map")
             .navigationBarTitleDisplayMode(.large)
+            .toolReport(manager) { $0.reportText }
             .sheet(item: $selectedDevice) { device in
                 MapDeviceDetailSheet(device: device, manager: manager)
             }

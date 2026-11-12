@@ -280,8 +280,8 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
         case NotificationAction.reviewUsage.rawValue:
             return .usage
         case NotificationAction.retry.rawValue:
-            // Home shows the live connection state, which refreshes on resume.
-            return .home
+            // Retry after a disconnect: check what is wrong with the connection.
+            return .troubleshooter
         case NotificationAction.testAgain.rawValue:
             return .speedTest
         default:

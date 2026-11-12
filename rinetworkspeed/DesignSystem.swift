@@ -179,7 +179,7 @@ struct AppIconTile: View {
 struct AppRow<Trailing: View>: View {
     let icon: String
     let tint: Color
-    let title: LocalizedStringKey
+    private let titleText: Text
     var subtitle: LocalizedStringKey?
     @ViewBuilder let trailing: Trailing
 
@@ -192,7 +192,23 @@ struct AppRow<Trailing: View>: View {
     ) {
         self.icon = icon
         self.tint = tint
-        self.title = title
+        self.titleText = Text(title)
+        self.subtitle = subtitle
+        self.trailing = trailing()
+    }
+
+    /// For user content such as a Wi-Fi or device name, which must not be
+    /// looked up in the string catalog.
+    init(
+        icon: String,
+        tint: Color,
+        verbatimTitle: String,
+        subtitle: LocalizedStringKey? = nil,
+        @ViewBuilder trailing: () -> Trailing = { EmptyView() }
+    ) {
+        self.icon = icon
+        self.tint = tint
+        self.titleText = Text(verbatim: verbatimTitle)
         self.subtitle = subtitle
         self.trailing = trailing()
     }
@@ -202,7 +218,7 @@ struct AppRow<Trailing: View>: View {
             AppIconTile(systemName: icon, tint: tint)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(title)
+                titleText
                     .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                 if let subtitle {
@@ -350,6 +366,8 @@ struct AppInputField: View {
     let placeholder: LocalizedStringKey
     @Binding var text: String
     var keyboard: UIKeyboardType = .URL
+    /// Shows the favorite hosts star menu; use for fields that take a host.
+    var showsFavorites = false
     var onSubmit: () -> Void = {}
 
     var body: some View {
@@ -373,6 +391,9 @@ struct AppInputField: View {
                         .foregroundStyle(AppTheme.tertiaryText)
                 }
                 .buttonStyle(.plain)
+            }
+            if showsFavorites {
+                FavoriteHostsMenu(text: $text)
             }
         }
         .padding(.horizontal, 14)

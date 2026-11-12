@@ -126,6 +126,7 @@ struct PingMonitorView: View {
             }
             .appPageBackground()
             .navigationTitle("Ping Monitor")
+            .toolReport(monitor) { $0.reportText }
             .onAppear {
                 startIfNeeded()
             }
@@ -165,6 +166,7 @@ struct PingMonitorView: View {
                     icon: "server.rack",
                     placeholder: "Enter host",
                     text: $customHost,
+                    showsFavorites: true,
                     onSubmit: applyCustomHost
                 )
             }

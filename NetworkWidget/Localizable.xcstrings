@@ -1,6 +1,46 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Cellular Limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hücresel Limit"
+          }
+        }
+      }
+    },
+    "Cellular usage against your monthly limit, or today's usage.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aylık limitinize göre hücresel kullanımınız veya bugünkü kullanımınız."
+          }
+        }
+      }
+    },
+    "Data Usage": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri Kullanımı"
+          }
+        }
+      }
+    },
+    "Download %@ Mbps": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İndirme %@ Mbps"
+          }
+        }
+      }
+    },
     "Last Test": {
       "localizations": {
         "tr": {
@@ -22,6 +62,7 @@
       }
     },
     "Network Status": {
+      "extractionState": "stale",
       "localizations": {
         "tr": {
           "stringUnit": {
@@ -102,11 +143,32 @@
       }
     },
     "Your last speed test and today's data usage. Tap to run a new test.": {
+      "extractionState": "stale",
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
             "value": "Son hız testiniz ve bugünkü veri kullanımınız. Yeni test için dokunun."
+          }
+        }
+      }
+    },
+    "Your last speed test. Tap to run a new test.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son hız testiniz. Yeni test için dokunun."
+          }
+        }
+      }
+    },
+    "ms": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ms"
           }
         }
       }
