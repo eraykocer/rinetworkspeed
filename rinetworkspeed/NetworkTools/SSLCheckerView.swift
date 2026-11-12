@@ -167,224 +167,290 @@ struct SSLCheckerView: View {
     @StateObject private var vm = SSLCheckerViewModel()
     @FocusState private var fieldFocused: Bool
 
-    private let bg     = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-    private let accent = Color(red: 0.20, green: 0.75, blue: 0.99)
+    private let accent     = Color(red: 0.20, green: 0.75, blue: 0.99)
+    private let accentDeep = Color(red: 0.08, green: 0.40, blue: 0.72)
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                inputCard
+            VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                heroCard
 
                 if vm.isLoading {
-                    loadingView
+                    ToolLoadingCard(message: "Connecting to \(vm.hostname)…", tint: accent)
                 } else if let err = vm.errorMessage {
-                    ContentUnavailableView("Check Failed", systemImage: "lock.slash",
-                                          description: Text(err))
-                    .foregroundStyle(.white)
+                    ToolErrorCard(title: "Check Failed", message: err, icon: "lock.slash")
                 } else if let info = vm.certInfo {
-                    validityCard(info)
-                    detailsCard(info)
-                    chainCard(info)
+                    statusCard(info)
+                    detailsSection(info)
+                    chainSection(info)
                 } else {
-                    placeholderView
+                    AppEmptyState(
+                        icon: "lock.shield",
+                        title: "Enter a Domain",
+                        message: "Type a domain name above and tap Check to inspect its SSL certificate."
+                    )
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
         }
-        .background(bg.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
+        .appPageBackground()
         .navigationTitle("SSL Checker")
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { fieldFocused = false }
     }
 
-    // MARK: - Input Card
+    // MARK: - Hero Card
 
-    private var inputCard: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(accent)
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ToolHeroHeader(
+                icon: "lock.shield.fill",
+                title: "Certificate validity & details",
+                subtitle: "Inspect the TLS certificate, issuer and expiry date of any HTTPS site."
+            )
 
-            TextField("Domain (e.g. apple.com)", text: $vm.hostname)
-                .font(.system(size: 15, design: .monospaced))
-                .foregroundStyle(.white)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .keyboardType(.URL)
-                .focused($fieldFocused)
-                .onSubmit { vm.check() }
+            AppInputField(icon: "globe", placeholder: "Domain (e.g. apple.com)", text: $vm.hostname) {
+                vm.check()
+            }
+            .focused($fieldFocused)
+            .heroInset()
 
             Button {
                 fieldFocused = false
                 vm.check()
             } label: {
-                Text("Check")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(
-                        Capsule().fill(
-                            LinearGradient(colors: [accent, Color(red: 0.08, green: 0.40, blue: 0.72)],
-                                           startPoint: .leading, endPoint: .trailing)
-                        )
-                    )
+                HStack(spacing: 8) {
+                    if vm.isLoading {
+                        ProgressView().tint(accentDeep)
+                    } else {
+                        Image(systemName: "checkmark.shield.fill")
+                    }
+                    Text("Check")
+                }
             }
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
         }
-        .padding(16)
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .appHeroCard(colors: [accent, accentDeep])
     }
 
-    // MARK: - Loading
+    // MARK: - Status Card
 
-    private var loadingView: some View {
-        VStack(spacing: 12) {
-            ProgressView().tint(accent)
-            Text("Connecting to \(vm.hostname)…")
-                .font(.system(size: 14, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
-        }
-        .padding(40)
+    private func statusPill(_ info: CertificateInfo) -> LocalizedStringKey {
+        guard let days = info.daysRemaining else { return "Unknown" }
+        if days < 0 { return "Expired" }
+        if days < 30 { return "Expiring Soon" }
+        return "Valid"
     }
 
-    // MARK: - Placeholder
-
-    private var placeholderView: some View {
-        ContentUnavailableView(
-            "Enter a Domain",
-            systemImage: "lock.shield",
-            description: Text("Type a domain name above and tap Check to inspect its SSL certificate.")
-        )
-        .foregroundStyle(.white)
-        .padding(.top, 30)
-    }
-
-    // MARK: - Validity Card
-
-    private func validityCard(_ info: CertificateInfo) -> some View {
-        HStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(info.statusColor.opacity(0.15))
-                    .frame(width: 54, height: 54)
-                Image(systemName: info.isExpired ? "xmark.shield.fill" : "checkmark.shield.fill")
-                    .font(.system(size: 26, weight: .semibold))
-                    .foregroundStyle(info.statusColor)
-            }
+    private func statusCard(_ info: CertificateInfo) -> some View {
+        HStack(spacing: 14) {
+            AppIconTile(systemName: info.isExpired ? "xmark.shield.fill" : "checkmark.shield.fill",
+                        tint: info.statusColor, size: 48)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(info.subjectSummary)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
                 Text(info.statusLabel)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(info.statusColor)
             }
-            Spacer()
+
+            Spacer(minLength: 8)
+
+            AppPill(text: statusPill(info), tint: info.statusColor)
         }
-        .padding(18)
-        .background(info.statusColor.opacity(0.08))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(info.statusColor.opacity(0.30), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .appCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(info.statusColor.opacity(0.35), lineWidth: 1)
+        )
     }
 
-    // MARK: - Details Card
+    // MARK: - Details Section
 
-    private func detailsCard(_ info: CertificateInfo) -> some View {
-        VStack(spacing: 0) {
-            sectionHeader("Certificate Details")
-            Divider().background(Color.white.opacity(0.08))
-
-            infoRow("Subject",    value: info.subjectSummary)
-            Divider().background(Color.white.opacity(0.06)).padding(.leading, 16)
-            infoRow("Issuer",     value: info.issuerName)
-            Divider().background(Color.white.opacity(0.06)).padding(.leading, 16)
-            infoRow("Valid From", value: vm.formatted(info.notBefore))
-            Divider().background(Color.white.opacity(0.06)).padding(.leading, 16)
-            infoRow("Expires",    value: vm.formatted(info.notAfter))
-            Divider().background(Color.white.opacity(0.06)).padding(.leading, 16)
+    private func detailsSection(_ info: CertificateInfo) -> some View {
+        AppSection("Certificate Details") {
+            KeyValueRow(label: "Subject", value: info.subjectSummary)
+            AppRowDivider(leadingInset: 16)
+            KeyValueRow(label: "Issuer", value: info.issuerName)
+            AppRowDivider(leadingInset: 16)
+            KeyValueRow(label: "Valid From", value: vm.formatted(info.notBefore))
+            AppRowDivider(leadingInset: 16)
+            KeyValueRow(label: "Expires", value: vm.formatted(info.notAfter))
+            AppRowDivider(leadingInset: 16)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("SHA-256 Fingerprint")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.45))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
                 Text(info.sha256Fingerprint)
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.70))
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundStyle(AppTheme.primaryText.opacity(0.85))
                     .textSelection(.enabled)
                     .lineLimit(4)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.vertical, 13)
         }
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // MARK: - Chain Card
+    // MARK: - Chain Section
 
-    private func chainCard(_ info: CertificateInfo) -> some View {
-        VStack(spacing: 0) {
-            sectionHeader("Certificate Chain")
-            Divider().background(Color.white.opacity(0.08))
+    private func chainSection(_ info: CertificateInfo) -> some View {
+        AppSection("Certificate Chain") {
             ForEach(Array(info.chain.enumerated()), id: \.offset) { index, name in
                 HStack(spacing: 14) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(accent.opacity(index == 0 ? 0.20 : 0.08))
-                            .frame(width: 32, height: 32)
-                        Text("\(index + 1)")
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundStyle(accent.opacity(index == 0 ? 1.0 : 0.50))
-                    }
+                    Text(verbatim: "\(index + 1)")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(index == 0 ? .white : AppTheme.secondaryText)
+                        .frame(width: 40, height: 40)
+                        .background(chainTileFill(isLeaf: index == 0),
+                                    in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+
                     Text(name)
-                        .font(.system(size: 13, weight: index == 0 ? .semibold : .regular, design: .rounded))
-                        .foregroundStyle(index == 0 ? .white : .white.opacity(0.55))
+                        .font(.system(size: 15, weight: index == 0 ? .semibold : .regular, design: .rounded))
+                        .foregroundStyle(index == 0 ? AppTheme.primaryText : AppTheme.secondaryText)
                         .lineLimit(1)
+                        .textSelection(.enabled)
+
+                    Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
+
                 if index < info.chain.count - 1 {
-                    Divider().background(Color.white.opacity(0.06)).padding(.leading, 62)
+                    AppRowDivider()
                 }
             }
         }
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    // MARK: - Helpers
-
-    private func sectionHeader(_ title: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+    private func chainTileFill(isLeaf: Bool) -> AnyShapeStyle {
+        isLeaf
+            ? AnyShapeStyle(LinearGradient(colors: [accent, accent.opacity(0.6)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing))
+            : AnyShapeStyle(Color.white.opacity(0.06))
     }
+}
 
-    private func infoRow(_ label: String, value: String) -> some View {
-        HStack(alignment: .top) {
-            Text(label)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.45))
-                .frame(width: 90, alignment: .leading)
-            Text(value)
-                .font(.system(size: 13, design: .rounded))
+// MARK: - Tool Page Components
+
+/// Icon tile + short description shown at the top of the tool's hero card.
+private struct ToolHeroHeader: View {
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(.white)
-                .textSelection(.enabled)
+                .frame(width: 52, height: 52)
+                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private extension View {
+    /// Darkened inset so inputs and controls stay legible on the hero gradient.
+    func heroInset() -> some View {
+        background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+    }
+}
+
+/// Card explaining why the last run failed.
+private struct ToolErrorCard: View {
+    let title: LocalizedStringKey
+    let message: String
+    var icon = "exclamationmark.triangle.fill"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            AppIconTile(systemName: icon, tint: AppTheme.danger)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(verbatim: message)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .appCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(AppTheme.danger.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+/// Inline progress card shown while a request is in flight.
+private struct ToolLoadingCard: View {
+    let message: LocalizedStringKey
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ProgressView()
+                .tint(tint)
+                .frame(width: 40, height: 40)
+            Text(message)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .lineLimit(2)
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .appCard(padding: nil)
+    }
+}
+
+/// Label/value row used inside result sections.
+private struct KeyValueRow: View {
+    let label: LocalizedStringKey
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .frame(width: 96, alignment: .leading)
+            Text(verbatim: value)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundStyle(AppTheme.primaryText)
+                .textSelection(.enabled)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 }
 
@@ -392,4 +458,5 @@ struct SSLCheckerView: View {
     NavigationStack {
         SSLCheckerView()
     }
+    .preferredColorScheme(.dark)
 }

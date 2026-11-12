@@ -82,14 +82,14 @@ struct SettingsView: View {
                         .foregroundStyle(.white)
                     Text("All Pro features unlocked")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.ping)
             }
-            .appHeroCard()
+            .appCard(padding: 20)
         } else {
             // Upgrade banner (free users only)
             Button {
@@ -103,7 +103,7 @@ struct SettingsView: View {
                                 .foregroundStyle(.white)
                             Text("Unlock all features")
                                 .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.75))
+                                .foregroundStyle(AppTheme.secondaryText)
                                 .multilineTextAlignment(.leading)
                         }
                         Spacer(minLength: 12)
@@ -115,23 +115,26 @@ struct SettingsView: View {
                         Text("Upgrade")
                     }
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.accent)
+                    .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(.white, in: Capsule())
+                    .background(proTint, in: Capsule())
                 }
-                .appHeroCard()
+                .appCard(padding: 20)
             }
             .buttonStyle(AppPressableButtonStyle())
         }
     }
 
+    /// Solid accent for the Pro card; lighter than AppTheme.accent for contrast on the dark card.
+    private let proTint = Color(red: 0.55, green: 0.42, blue: 0.98)
+
     private var heroIcon: some View {
         Image(systemName: "crown.fill")
             .font(.system(size: 26, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 58, height: 58)
-            .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .foregroundStyle(proTint)
+            .frame(width: 56, height: 56)
+            .background(proTint.opacity(0.15), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: - General

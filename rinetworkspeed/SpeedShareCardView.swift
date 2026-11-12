@@ -44,11 +44,11 @@ struct SpeedShareCardView: View {
 
     private var gradeColor: Color {
         switch grade {
-        case "A": return Color(red: 52/255,  green: 211/255, blue: 153/255)
-        case "B": return Color(red: 59/255,  green: 130/255, blue: 246/255)
-        case "C": return Color(red: 234/255, green: 179/255, blue: 8/255)
-        case "D": return Color(red: 249/255, green: 115/255, blue: 22/255)
-        default:  return Color(red: 239/255, green: 68/255,  blue: 68/255)
+        case "A": return AppTheme.ping
+        case "B": return AppTheme.download
+        case "C": return AppTheme.warning
+        case "D": return AppTheme.upload
+        default:  return AppTheme.danger
         }
     }
 
@@ -64,14 +64,20 @@ struct SpeedShareCardView: View {
 
     private var background: some View {
         ZStack {
-            LinearGradient(
-                stops: [
-                    .init(color: Color(red: 5/255,  green: 5/255,  blue: 20/255),  location: 0.0),
-                    .init(color: Color(red: 10/255, green: 20/255, blue: 60/255),  location: 0.5),
-                    .init(color: Color(red: 55/255, green: 10/255, blue: 85/255),  location: 1.0)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+            AppTheme.background
+
+            // Soft brand glows in opposite corners
+            RadialGradient(
+                colors: [AppTheme.download.opacity(0.45), .clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: format.size.height * 0.75
+            )
+            RadialGradient(
+                colors: [AppTheme.accent.opacity(0.40), .clear],
+                center: .bottomTrailing,
+                startRadius: 0,
+                endRadius: format.size.height * 0.75
             )
 
             // Subtle grid
@@ -112,25 +118,29 @@ struct SpeedShareCardView: View {
 
     private var headerSection: some View {
         VStack(spacing: isStory ? 22 : 16) {
-            Image(systemName: "wifi")
-                .font(.system(size: isStory ? 72 : 52, weight: .bold))
-                .foregroundStyle(
+            Image(systemName: "gauge.with.dots.needle.67percent")
+                .font(.system(size: isStory ? 64 : 46, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: isStory ? 132 : 96, height: isStory ? 132 : 96)
+                .background(
                     LinearGradient(
-                        colors: [
-                            Color(red: 59/255, green: 130/255, blue: 246/255),
-                            Color(red: 168/255, green: 85/255,  blue: 247/255)
-                        ],
-                        startPoint: .leading, endPoint: .trailing
-                    )
+                        colors: AppTheme.heroGradient,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: isStory ? 36 : 26, style: .continuous)
                 )
+                .shadow(color: AppTheme.download.opacity(0.45), radius: 30, x: 0, y: 12)
 
             Text("NetworkSpeed")
                 .font(.system(size: isStory ? 56 : 40, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
             Text("Speed Test Results")
-                .font(.system(size: isStory ? 28 : 20, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.5))
+                .font(.system(size: isStory ? 26 : 19, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .textCase(.uppercase)
+                .tracking(2)
         }
     }
 
@@ -159,8 +169,10 @@ struct SpeedShareCardView: View {
             .shadow(color: gradeColor.opacity(0.45), radius: 32)
 
             Text("Network Quality Score")
-                .font(.system(size: isStory ? 26 : 18, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.5))
+                .font(.system(size: isStory ? 24 : 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .textCase(.uppercase)
+                .tracking(1.5)
         }
     }
 
@@ -175,11 +187,11 @@ struct SpeedShareCardView: View {
                     label: "Download",
                     value: String(format: "%.1f", downloadMB),
                     unit: "MB/s",
-                    color: Color(red: 59/255, green: 130/255, blue: 246/255)
+                    color: AppTheme.download
                 )
 
                 Rectangle()
-                    .fill(Color.white.opacity(0.12))
+                    .fill(AppTheme.separator)
                     .frame(width: 1, height: isStory ? 110 : 84)
 
                 speedCard(
@@ -187,17 +199,17 @@ struct SpeedShareCardView: View {
                     label: "Upload",
                     value: String(format: "%.1f", uploadMB),
                     unit: "MB/s",
-                    color: Color(red: 168/255, green: 85/255, blue: 247/255)
+                    color: AppTheme.upload
                 )
             }
             .padding(.horizontal, 24)
             .padding(.vertical, isStory ? 32 : 22)
             .background(
-                RoundedRectangle(cornerRadius: 24)
-                    .fill(.white.opacity(0.05))
+                RoundedRectangle(cornerRadius: isStory ? 44 : 36, style: .continuous)
+                    .fill(AppTheme.cardFill)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 24)
-                            .stroke(.white.opacity(0.1), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: isStory ? 44 : 36, style: .continuous)
+                            .stroke(AppTheme.cardStroke, lineWidth: 2)
                     )
             )
 
@@ -216,12 +228,22 @@ struct SpeedShareCardView: View {
     ) -> some View {
         VStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: isStory ? 42 : 32, weight: .bold))
-                .foregroundStyle(color)
+                .font(.system(size: isStory ? 30 : 24, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: isStory ? 68 : 54, height: isStory ? 68 : 54)
+                .background(
+                    LinearGradient(
+                        colors: [color, color.opacity(0.6)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: isStory ? 19 : 15, style: .continuous)
+                )
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value)
                     .font(.system(size: isStory ? 64 : 50, weight: .black, design: .rounded))
+                    .monospacedDigit()
                     .foregroundStyle(.white)
                 Text(unit)
                     .font(.system(size: isStory ? 22 : 17, weight: .semibold, design: .rounded))
@@ -229,8 +251,10 @@ struct SpeedShareCardView: View {
             }
 
             Text(label)
-                .font(.system(size: isStory ? 24 : 17, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.5))
+                .font(.system(size: isStory ? 22 : 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .textCase(.uppercase)
+                .tracking(1.2)
         }
         .frame(maxWidth: .infinity)
     }
@@ -239,9 +263,10 @@ struct SpeedShareCardView: View {
         HStack(spacing: 8) {
             Image(systemName: "timer")
                 .font(.system(size: isStory ? 22 : 16, weight: .semibold))
-                .foregroundStyle(Color(red: 249/255, green: 115/255, blue: 22/255))
+                .foregroundStyle(AppTheme.ping)
             Text(String(format: "%.0f ms", result.ping))
                 .font(.system(size: isStory ? 28 : 21, weight: .bold, design: .rounded))
+                .monospacedDigit()
                 .foregroundStyle(.white)
             Text("Ping")
                 .font(.system(size: isStory ? 20 : 14, weight: .medium, design: .rounded))
@@ -251,8 +276,8 @@ struct SpeedShareCardView: View {
         .padding(.vertical, 10)
         .background(
             Capsule()
-                .fill(.white.opacity(0.06))
-                .overlay(Capsule().stroke(.white.opacity(0.1), lineWidth: 1))
+                .fill(AppTheme.cardFill)
+                .overlay(Capsule().stroke(AppTheme.cardStroke, lineWidth: 2))
         )
     }
 
@@ -270,8 +295,8 @@ struct SpeedShareCardView: View {
         .padding(.vertical, 10)
         .background(
             Capsule()
-                .fill(.white.opacity(0.06))
-                .overlay(Capsule().stroke(.white.opacity(0.1), lineWidth: 1))
+                .fill(AppTheme.cardFill)
+                .overlay(Capsule().stroke(AppTheme.cardStroke, lineWidth: 2))
         )
     }
 
@@ -346,7 +371,7 @@ struct SpeedSharePreviewSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 10/255, green: 10/255, blue: 20/255).ignoresSafeArea()
+                AppTheme.background.ignoresSafeArea()
 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -379,24 +404,10 @@ struct SpeedSharePreviewSheet: View {
                                 Text(isSharing ? "Preparing..." : "Share")
                                     .fontWeight(.bold)
                             }
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color(red: 59/255,  green: 130/255, blue: 246/255),
-                                                Color(red: 168/255, green: 85/255,  blue: 247/255)
-                                            ],
-                                            startPoint: .leading, endPoint: .trailing
-                                        )
-                                    )
-                            )
+                            .padding(.vertical, 2)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(AppPrimaryButtonStyle())
+                        .shadow(color: AppTheme.download.opacity(0.35), radius: 16, x: 0, y: 8)
                         .disabled(isSharing)
                         .padding(.horizontal, 20)
                     }
@@ -420,8 +431,8 @@ struct SpeedSharePreviewSheet: View {
     private var cardPreview: some View {
         ZStack {
             // Blur background behind the card
-            RoundedRectangle(cornerRadius: 24)
-                .fill(.white.opacity(0.04))
+            RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous)
+                .fill(AppTheme.cardFill)
                 .frame(width: previewWidth + 32, height: previewHeight + 32)
                 .blur(radius: 8)
 
@@ -434,7 +445,11 @@ struct SpeedSharePreviewSheet: View {
             .frame(width: selectedFormat.size.width, height: selectedFormat.size.height)
             .scaleEffect(previewScale)
             .frame(width: previewWidth, height: previewHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                    .stroke(AppTheme.cardStroke, lineWidth: 1)
+            )
             .shadow(color: .black.opacity(0.55), radius: 24, x: 0, y: 10)
         }
         .scaleEffect(cardEntryScale)
@@ -484,4 +499,13 @@ struct SpeedSharePreviewSheet: View {
             self.dismiss()
         }
     }
+}
+
+#Preview {
+    SpeedSharePreviewSheet(
+        result: SpeedTestResult(date: .now, downloadSpeed: 52_000_000, uploadSpeed: 18_000_000, ping: 14),
+        ssid: "Home WiFi",
+        isWifi: true
+    )
+    .preferredColorScheme(.dark)
 }

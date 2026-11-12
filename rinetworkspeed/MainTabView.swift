@@ -8,26 +8,25 @@
 import SwiftUI
 
 struct MainTabView: View {
-    @StateObject private var monitor = NetworkStatsMonitor()
-    @StateObject private var dataUsageMonitor = DataUsageMonitor()
-    @StateObject private var speedTestManager = SpeedTestManager()
-    @StateObject private var pingMonitor = PingMonitor()
-    @StateObject private var notificationManager = NotificationManager.shared
+    // Held with @State (not @StateObject) so the root view does NOT subscribe to
+    // their high-frequency changes. Re-rendering the whole TabView on every
+    // monitor tick caused stutter when switching tabs; each tab observes only
+    // the managers it actually displays.
+    @State private var monitor = NetworkStatsMonitor()
+    @State private var dataUsageMonitor = DataUsageMonitor()
+    @State private var speedTestManager = SpeedTestManager()
+    @State private var pingMonitor = PingMonitor()
+    private let notificationManager = NotificationManager.shared
     @State private var selectedTab: Int = 0
     @State private var isShowingSplash = true
     @State private var didStartSplashSequence = false
-    @AppStorage("appTheme") private var appTheme: String = "system"
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Color.black, Color(red: 0.07, green: 0.08, blue: 0.12)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppTheme.background
+                .ignoresSafeArea()
 
             TabView(selection: $selectedTab) {
                 Tab("Home", systemImage: "house.fill", value: 0) {
@@ -49,7 +48,7 @@ struct MainTabView: View {
                 }
 
                 Tab("Tools", systemImage: "wrench.and.screwdriver.fill", value: 3) {
-                    NetworkToolsView()
+                    NetworkToolsView(speedTestManager: speedTestManager)
                 }
 
                 Tab("Settings", systemImage: "gearshape.fill", value: 4) {
@@ -60,7 +59,8 @@ struct MainTabView: View {
             .tabBarMinimizeBehavior(.onScrollDown)
             .toolbarBackground(.visible, for: .tabBar)
             .modifier(TabBarMaterialModifier())
-            .animation(.smooth(duration: 0.28), value: selectedTab)
+            // Lighter violet than AppTheme.accent so the selected tab stays readable on the dark bar.
+            .tint(Color(red: 0.62, green: 0.52, blue: 1.0))
 
             if isShowingSplash {
                 SplashScreenView()
@@ -68,7 +68,8 @@ struct MainTabView: View {
                     .zIndex(1)
             }
         }
-        .preferredColorScheme(preferredColorScheme)
+        // The whole UI is designed for a dark appearance only.
+        .preferredColorScheme(.dark)
         .fullScreenCover(
             isPresented: Binding(
                 get: { !hasCompletedOnboarding },
@@ -112,22 +113,11 @@ struct MainTabView: View {
             }
         }
     }
-
-    private var preferredColorScheme: ColorScheme? {
-        switch appTheme {
-        case "dark":
-            return .dark
-        case "light":
-            return .light
-        default:
-            return nil
-        }
-    }
 }
 
 private struct UsageTabScreen: View {
     @ObservedObject var monitor: DataUsageMonitor
-    @ObservedObject var speedTestManager: SpeedTestManager
+    let speedTestManager: SpeedTestManager
 
     var body: some View {
         UsageView(dataUsage: monitor, speedTestManager: speedTestManager)

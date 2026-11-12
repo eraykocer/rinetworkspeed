@@ -57,8 +57,6 @@ struct OnboardingView: View {
                         .padding(.vertical, 7)
                         .background(Capsule().fill(AppTheme.cardFill))
                         .overlay(Capsule().stroke(AppTheme.cardStroke, lineWidth: 1))
-                        .opacity(isLastPage ? 0 : 1)
-                        .disabled(isLastPage)
                 }
                 .padding(.top, 8)
                 .padding(.horizontal, AppTheme.pagePadding)
@@ -146,7 +144,7 @@ private struct OnboardingPageIndicator: View {
         }
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: current)
         .accessibilityElement(children: .ignore)
-        .accessibilityValue(Text("\(current + 1) / \(count)"))
+        .accessibilityValue(Text(verbatim: "\(current + 1) / \(count)"))
     }
 }
 

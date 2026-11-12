@@ -32,7 +32,7 @@ struct GetNetworkSpeedIntent: AppIntent {
     // MARK: - Private
 
     private func resolveSpeed() async -> (Double, Double) {
-        let shared    = UserDefaults(suiteName: "group.com.rinetworkspeed")
+        let shared    = UserDefaults(suiteName: "group.rinetworkspeedapp")
         let lastTs    = shared?.double(forKey: "lastUpdated") ?? 0
         let isRecent  = Date().timeIntervalSince1970 - lastTs < 10
 

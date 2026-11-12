@@ -156,286 +156,338 @@ struct WhoisView: View {
     @StateObject private var vm = WhoisViewModel()
     @FocusState private var fieldFocused: Bool
 
-    private let bg     = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-    private let accent = Color(red: 0.99, green: 0.37, blue: 0.37)
+    private let accent     = Color(red: 0.99, green: 0.37, blue: 0.37)
+    private let accentDeep = Color(red: 0.72, green: 0.12, blue: 0.12)
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                inputCard
-                if vm.isLoading { loadingView }
-                else if let err = vm.errorMessage { errorView(err) }
-                else if let data = vm.data { resultsView(data) }
-                else { placeholderView }
+            VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                heroCard
+
+                if vm.isLoading {
+                    ToolLoadingCard(message: "Querying Whois for \(vm.domain)…", tint: accent)
+                } else if let err = vm.errorMessage {
+                    ToolErrorCard(title: "Not Found", message: err, icon: "questionmark.bubble")
+                } else if let data = vm.data {
+                    resultsView(data)
+                } else {
+                    AppEmptyState(
+                        icon: "doc.text.magnifyingglass",
+                        title: "Enter a Domain",
+                        message: "Type a domain name above to look up registration details."
+                    )
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
         }
-        .background(bg.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
+        .appPageBackground()
         .navigationTitle("Whois")
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { fieldFocused = false }
     }
 
-    // MARK: - Input Card
+    // MARK: - Hero Card
 
-    private var inputCard: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(accent)
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ToolHeroHeader(
+                icon: "doc.text.magnifyingglass",
+                title: "Domain registration information",
+                subtitle: "Look up the registrar, key dates and name servers of a domain."
+            )
 
-            TextField("Domain (e.g. github.com)", text: $vm.domain)
-                .font(.system(size: 15, design: .monospaced))
-                .foregroundStyle(.white)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .keyboardType(.URL)
-                .focused($fieldFocused)
-                .onSubmit { vm.lookup() }
+            AppInputField(icon: "globe", placeholder: "Domain (e.g. github.com)", text: $vm.domain) {
+                vm.lookup()
+            }
+            .focused($fieldFocused)
+            .heroInset()
 
             Button {
                 fieldFocused = false
                 vm.lookup()
             } label: {
-                Text("Query")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(
-                        Capsule().fill(
-                            LinearGradient(colors: [accent, Color(red: 0.72, green: 0.12, blue: 0.12)],
-                                           startPoint: .leading, endPoint: .trailing)
-                        )
-                    )
+                HStack(spacing: 8) {
+                    if vm.isLoading {
+                        ProgressView().tint(accentDeep)
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    Text("Query")
+                }
             }
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
         }
-        .padding(16)
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    // MARK: - States
-
-    private var loadingView: some View {
-        VStack(spacing: 12) {
-            ProgressView().tint(accent)
-            Text("Querying Whois for \(vm.domain)…")
-                .font(.system(size: 14, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
-        }
-        .padding(40)
-    }
-
-    private func errorView(_ msg: String) -> some View {
-        ContentUnavailableView("Not Found", systemImage: "questionmark.bubble",
-                               description: Text(msg))
-        .foregroundStyle(.white)
-    }
-
-    private var placeholderView: some View {
-        ContentUnavailableView(
-            "Enter a Domain",
-            systemImage: "doc.text.magnifyingglass",
-            description: Text("Type a domain name above to look up registration details.")
-        )
-        .foregroundStyle(.white)
-        .padding(.top, 30)
+        .appHeroCard(colors: [accent, accentDeep])
     }
 
     // MARK: - Results
 
     private func resultsView(_ data: WhoisData) -> some View {
-        VStack(spacing: 14) {
-            // Domain header
+        VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
             domainHeader(data)
 
-            // Dates card
-            infoCard(title: "Dates", entries: [
+            infoSection(title: "Dates", entries: [
                 ("Registered", data.createdDate ?? "—"),
                 ("Updated",    data.updatedDate ?? "—"),
                 ("Expires",    data.expirationDate ?? "—"),
                 ("Domain Age", data.domainAge ?? "—")
             ])
 
-            // Registrar card
             if let reg = data.registrar {
-                infoCard(title: "Registrar", entries: [("Name", reg)])
+                infoSection(title: "Registrar", entries: [("Name", reg)])
             }
 
-            // Registrant card
-            let registrantEntries: [(String, String)] = [
-                data.registrantOrg.map { ("Organization", $0) },
-                data.registrantCountry.map { ("Country", $0) }
-            ].compactMap { $0 }
-            if !registrantEntries.isEmpty {
-                infoCard(title: "Registrant", entries: registrantEntries)
+            let registrant = registrantEntries(data)
+            if !registrant.isEmpty {
+                infoSection(title: "Registrant", entries: registrant)
             }
 
-            // Status card
             if !data.status.isEmpty {
-                statusCard(data.status)
+                statusSection(data.status)
             }
 
-            // Name servers card
             if !data.nameServers.isEmpty {
-                nameServersCard(data.nameServers)
+                nameServersSection(data.nameServers)
             }
         }
+    }
+
+    private func registrantEntries(_ data: WhoisData) -> [(LocalizedStringKey, String)] {
+        var entries: [(LocalizedStringKey, String)] = []
+        if let org = data.registrantOrg { entries.append(("Organization", org)) }
+        if let country = data.registrantCountry { entries.append(("Country", country)) }
+        return entries
     }
 
     private func domainHeader(_ data: WhoisData) -> some View {
-        HStack(spacing: 16) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(LinearGradient(colors: [accent.opacity(0.25), Color(red: 0.72, green: 0.12, blue: 0.12).opacity(0.15)],
-                                        startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 52, height: 52)
-                Image(systemName: "globe")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(accent)
-            }
+        HStack(spacing: 14) {
+            AppIconTile(systemName: "globe", tint: accent, size: 48)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(data.domainName.uppercased())
                     .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.primaryText)
+                    .textSelection(.enabled)
                 if let reg = data.registrar {
                     Text(reg)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(AppTheme.secondaryText)
                         .lineLimit(1)
                 }
             }
-            Spacer()
+
+            Spacer(minLength: 0)
         }
-        .padding(16)
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(accent.opacity(0.20), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .appCard()
     }
 
-    private func infoCard(title: String, entries: [(String, String)]) -> some View {
-        VStack(spacing: 0) {
-            sectionHeader(title)
-            Divider().background(Color.white.opacity(0.08))
+    private func infoSection(title: LocalizedStringKey, entries: [(LocalizedStringKey, String)]) -> some View {
+        AppSection(title) {
             ForEach(Array(entries.enumerated()), id: \.offset) { idx, entry in
-                infoRow(label: entry.0, value: entry.1)
+                KeyValueRow(label: entry.0, value: entry.1)
                 if idx < entries.count - 1 {
-                    Divider().background(Color.white.opacity(0.06)).padding(.leading, 16)
+                    AppRowDivider(leadingInset: 16)
                 }
             }
         }
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private func statusCard(_ statuses: [String]) -> some View {
-        VStack(spacing: 0) {
-            sectionHeader("Status")
-            Divider().background(Color.white.opacity(0.08))
-            FlowLayout(items: statuses) { status in
-                Text(status.components(separatedBy: " ").first ?? status)
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.70))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.white.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    private func statusSection(_ statuses: [String]) -> some View {
+        AppSection("Status") {
+            FlowLayout(spacing: 6) {
+                ForEach(Array(statuses.enumerated()), id: \.offset) { _, status in
+                    AppPill(text: "\(status.components(separatedBy: " ").first ?? status)",
+                            tint: .white.opacity(0.75))
+                }
             }
-            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(16)
         }
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    private func nameServersCard(_ ns: [String]) -> some View {
-        VStack(spacing: 0) {
-            sectionHeader("Name Servers")
-            Divider().background(Color.white.opacity(0.08))
+    private func nameServersSection(_ ns: [String]) -> some View {
+        AppSection("Name Servers") {
             ForEach(Array(ns.enumerated()), id: \.offset) { idx, server in
-                HStack(spacing: 12) {
-                    Image(systemName: "server.rack")
-                        .font(.system(size: 13))
-                        .foregroundStyle(accent.opacity(0.60))
-                        .frame(width: 20)
+                HStack(spacing: 14) {
+                    AppIconTile(systemName: "server.rack", tint: accent, size: 32)
                     Text(server.lowercased())
-                        .font(.system(size: 13, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.80))
+                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .foregroundStyle(AppTheme.primaryText)
                         .textSelection(.enabled)
                         .lineLimit(1)
+                    Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 if idx < ns.count - 1 {
-                    Divider().background(Color.white.opacity(0.06)).padding(.leading, 48)
+                    AppRowDivider(leadingInset: 62)
                 }
             }
         }
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    // MARK: - Helpers
-
-    private func sectionHeader(_ title: String) -> some View {
-        HStack {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.50))
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-    }
-
-    private func infoRow(label: String, value: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(label)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.45))
-                .frame(width: 90, alignment: .leading)
-            Text(value)
-                .font(.system(size: 13, design: .rounded))
-                .foregroundStyle(.white)
-                .textSelection(.enabled)
-                .multilineTextAlignment(.leading)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
 }
 
-// MARK: - Simple Flow Layout
+// MARK: - Flow Layout
 
-private struct FlowLayout<Item: Hashable, Content: View>: View {
-    let items: [Item]
-    @ViewBuilder let content: (Item) -> Content
+/// Wraps pills onto new lines when they run out of horizontal space.
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
 
-    private var rows: [[Item]] {
-        var result: [[Item]] = [[]]
-        for (i, item) in items.enumerated() {
-            if i % 3 == 0 && i != 0 { result.append([]) }
-            result[result.count - 1].append(item)
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var widest: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0 && x + size.width > maxWidth {
+                y += rowHeight + spacing
+                x = 0
+                rowHeight = 0
+            }
+            widest = max(widest, min(x + size.width, maxWidth))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
         }
-        return result
+        return CGSize(width: proposal.width ?? widest, height: y + rowHeight)
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(rows, id: \.self) { row in
-                HStack(spacing: 6) {
-                    ForEach(row, id: \.self) { item in
-                        content(item)
-                    }
-                }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX && x + size.width > bounds.maxX {
+                y += rowHeight + spacing
+                x = bounds.minX
+                rowHeight = 0
             }
+            subview.place(at: CGPoint(x: x, y: y),
+                          proposal: ProposedViewSize(width: min(size.width, bounds.width), height: size.height))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Tool Page Components
+
+/// Icon tile + short description shown at the top of the tool's hero card.
+private struct ToolHeroHeader: View {
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private extension View {
+    /// Darkened inset so inputs and controls stay legible on the hero gradient.
+    func heroInset() -> some View {
+        background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+    }
+}
+
+/// Card explaining why the last run failed.
+private struct ToolErrorCard: View {
+    let title: LocalizedStringKey
+    let message: String
+    var icon = "exclamationmark.triangle.fill"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            AppIconTile(systemName: icon, tint: AppTheme.danger)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(verbatim: message)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .appCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(AppTheme.danger.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+/// Inline progress card shown while a request is in flight.
+private struct ToolLoadingCard: View {
+    let message: LocalizedStringKey
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ProgressView()
+                .tint(tint)
+                .frame(width: 40, height: 40)
+            Text(message)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .appCard(padding: nil)
+    }
+}
+
+/// Label/value row used inside result sections.
+private struct KeyValueRow: View {
+    let label: LocalizedStringKey
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .frame(width: 96, alignment: .leading)
+            Text(verbatim: value)
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundStyle(AppTheme.primaryText)
+                .textSelection(.enabled)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 }
 
@@ -443,4 +495,5 @@ private struct FlowLayout<Item: Hashable, Content: View>: View {
     NavigationStack {
         WhoisView()
     }
+    .preferredColorScheme(.dark)
 }

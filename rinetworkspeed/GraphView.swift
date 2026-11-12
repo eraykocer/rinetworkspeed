@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Charts
+import UniformTypeIdentifiers
 
 private enum GraphRange: String, CaseIterable, Identifiable {
     case lastMinute
@@ -39,128 +40,128 @@ private enum GraphRange: String, CaseIterable, Identifiable {
 }
 
 private struct GraphStat: Identifiable {
-    let id = UUID()
-    let title: String
+    let id: String
+    let title: LocalizedStringKey
     let value: String
     let icon: String
     let color: Color
 }
 
 struct GraphView: View {
-    @ObservedObject var monitor: NetworkStatsMonitor
-    @AppStorage("speedUnit") private var speedUnit: String = "bytes"
+    // Not observed here: the chart, stats and export subviews observe the
+    // monitor themselves, so per-tick history updates only re-render them.
+    let monitor: NetworkStatsMonitor
     @State private var selectedRange: GraphRange = .lastMinute
-    @State private var selectedSample: SpeedSample?
 
-    private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-    private let downloadColor = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
-    private let uploadColor = Color(red: 249 / 255, green: 115 / 255, blue: 22 / 255)
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                    Picker("Time Range", selection: $selectedRange) {
+                        ForEach(GraphRange.allCases) { range in
+                            Text(verbatim: range.title).tag(range)
+                        }
+                    }
+                    .pickerStyle(.segmented)
 
-    private var filteredHistory: [SpeedSample] {
-        let cutoff = Date().addingTimeInterval(-selectedRange.duration)
-        return monitor.history.filter { $0.timestamp >= cutoff }
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            AppSectionHeader("Speed History")
+                            Spacer()
+                            HStack(spacing: 12) {
+                                legendDot(color: AppTheme.download, label: "DL")
+                                legendDot(color: AppTheme.upload, label: "UL")
+                            }
+                            .padding(.trailing, 4)
+                        }
+
+                        GraphChartCard(monitor: monitor, range: selectedRange)
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        AppSectionHeader("Statistics")
+                        GraphStatsGrid(monitor: monitor, range: selectedRange)
+                    }
+
+                    GraphExportButton(monitor: monitor)
+                }
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
+            }
+            .appPageBackground()
+            .navigationTitle("Graph")
+        }
+        .appPageBackground()
     }
 
-    private var chartDomain: ClosedRange<Date> {
-        let end = filteredHistory.last?.timestamp ?? Date()
-        let start = max(filteredHistory.first?.timestamp ?? end.addingTimeInterval(-selectedRange.duration), end.addingTimeInterval(-selectedRange.duration))
+    private func legendDot(color: Color, label: LocalizedStringKey) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+        }
+    }
+}
+
+// MARK: - Chart Card
+
+private struct GraphChartCard: View {
+    @ObservedObject var monitor: NetworkStatsMonitor
+    let range: GraphRange
+    @AppStorage("speedUnit") private var speedUnit: String = "bytes"
+    @State private var selectedSample: SpeedSample?
+
+    private let downloadColor = AppTheme.download
+    private let uploadColor = AppTheme.upload
+
+    /// Maximum number of points drawn by the chart. The 30-minute range holds
+    /// thousands of samples; drawing all of them (×4 marks) on every update
+    /// made the tab stutter.
+    private static let maxChartPoints = 240
+
+    private var filteredHistory: ArraySlice<SpeedSample> {
+        monitor.history.samples(since: Date().addingTimeInterval(-range.duration))
+    }
+
+    /// Down-sampled points for drawing; keeps the newest sample as the last point.
+    private func chartSamples(from samples: ArraySlice<SpeedSample>) -> [SpeedSample] {
+        guard samples.count > Self.maxChartPoints else { return Array(samples) }
+        let step = Double(samples.count - 1) / Double(Self.maxChartPoints - 1)
+        return (0..<Self.maxChartPoints).map { i in
+            samples[samples.startIndex + Int((Double(i) * step).rounded())]
+        }
+    }
+
+    private func chartDomain(for samples: ArraySlice<SpeedSample>) -> ClosedRange<Date> {
+        let end = samples.last?.timestamp ?? Date()
+        let start = max(samples.first?.timestamp ?? end.addingTimeInterval(-range.duration), end.addingTimeInterval(-range.duration))
         return start...end
     }
 
-    private var maxSpeed: Double {
-        let peak = filteredHistory.reduce(0.0) { partialResult, sample in
+    private func maxSpeed(for samples: ArraySlice<SpeedSample>) -> Double {
+        let peak = samples.reduce(0.0) { partialResult, sample in
             max(partialResult, sample.downloadSpeed, sample.uploadSpeed)
         }
         return max(1, peak * 1.15)
     }
 
-    private var stats: [GraphStat] {
-        let maxDownload = filteredHistory.map(\.downloadSpeed).max() ?? 0
-        let maxUpload = filteredHistory.map(\.uploadSpeed).max() ?? 0
-        let avgDownload = filteredHistory.isEmpty ? 0 : filteredHistory.map(\.downloadSpeed).reduce(0, +) / Double(filteredHistory.count)
-        let avgUpload = filteredHistory.isEmpty ? 0 : filteredHistory.map(\.uploadSpeed).reduce(0, +) / Double(filteredHistory.count)
-
-        let totalTransferBytes = zip(filteredHistory, filteredHistory.dropFirst()).reduce(0.0) { partialResult, pair in
-            let interval = pair.1.timestamp.timeIntervalSince(pair.0.timestamp)
-            let averageRate = ((pair.0.downloadSpeed + pair.0.uploadSpeed) + (pair.1.downloadSpeed + pair.1.uploadSpeed)) / 2
-            return partialResult + (averageRate * interval)
-        }
-
-        return [
-            GraphStat(title: "Max Download", value: formatRate(maxDownload), icon: "arrow.down.circle.fill", color: downloadColor),
-            GraphStat(title: "Max Upload", value: formatRate(maxUpload), icon: "arrow.up.circle.fill", color: uploadColor),
-            GraphStat(title: "Avg Download", value: formatRate(avgDownload), icon: "arrow.down.and.line.horizontal.and.arrow.up", color: downloadColor),
-            GraphStat(title: "Avg Upload", value: formatRate(avgUpload), icon: "arrow.up.and.line.horizontal.and.arrow.down", color: uploadColor),
-            GraphStat(title: "Total Transfer", value: formatTransfer(totalTransferBytes), icon: "chart.bar.fill", color: .white),
-            GraphStat(title: "Active Duration", value: formatDuration(monitor.activeDuration()), icon: "timer", color: .white)
-        ]
-    }
-
-    private var csvExport: String {
-        let header = "timestamp,download,upload"
-        let rows = monitor.history.map {
-            "\($0.timestamp.ISO8601Format()),\($0.downloadSpeed),\($0.uploadSpeed)"
-        }
-        return ([header] + rows).joined(separator: "\n")
-    }
-
     var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
-                    header
-                    chartCard
-                    statsGrid
-                    ShareLink(item: csvExport, preview: SharePreview("NetworkHistory.csv")) {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up.fill")
-                            Text("Export as CSV")
-                        }
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                    }
-                    .buttonStyle(.plain)
-                    .graphCardStyle()
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
-            .background(backgroundColor.ignoresSafeArea())
-            .navigationTitle("Graph")
-        }
-        .background(backgroundColor.ignoresSafeArea())
-        .animation(.easeInOut, value: selectedRange)
-    }
+        // Computed once per render and shared by the chart modifiers.
+        let samples = filteredHistory
 
-    private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Speed History")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-
-                Spacer()
-            }
-
-            Picker("Time Range", selection: $selectedRange) {
-                ForEach(GraphRange.allCases) { range in
-                    Text(range.title).tag(range)
-                }
-            }
-            .pickerStyle(.segmented)
-        }
-    }
-
-    private var chartCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Chart(filteredHistory) { sample in
+            Chart(chartSamples(from: samples)) { sample in
+                // Explicit yStart/yEnd keeps the two areas from stacking on top
+                // of each other; `series` keeps DL and UL points in separate marks.
                 AreaMark(
                     x: .value("Time", sample.timestamp),
-                    y: .value("Download", sample.downloadSpeed)
+                    yStart: .value("Zero", 0),
+                    yEnd: .value("Download", sample.downloadSpeed),
+                    series: .value("Series", "Download")
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(
                     .linearGradient(
                         colors: [downloadColor.opacity(0.35), downloadColor.opacity(0.02)],
@@ -171,17 +172,21 @@ struct GraphView: View {
 
                 LineMark(
                     x: .value("Time", sample.timestamp),
-                    y: .value("Download", sample.downloadSpeed)
+                    y: .value("Download", sample.downloadSpeed),
+                    series: .value("Series", "Download")
                 )
-                .interpolationMethod(.catmullRom)
+                // Monotone interpolation never overshoots the data, unlike catmullRom.
+                .interpolationMethod(.monotone)
                 .foregroundStyle(downloadColor)
                 .lineStyle(StrokeStyle(lineWidth: 2.5))
 
                 AreaMark(
                     x: .value("Time", sample.timestamp),
-                    y: .value("Upload", sample.uploadSpeed)
+                    yStart: .value("Zero", 0),
+                    yEnd: .value("Upload", sample.uploadSpeed),
+                    series: .value("Series", "Upload")
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(
                     .linearGradient(
                         colors: [uploadColor.opacity(0.3), uploadColor.opacity(0.02)],
@@ -192,9 +197,10 @@ struct GraphView: View {
 
                 LineMark(
                     x: .value("Time", sample.timestamp),
-                    y: .value("Upload", sample.uploadSpeed)
+                    y: .value("Upload", sample.uploadSpeed),
+                    series: .value("Series", "Upload")
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(uploadColor)
                 .lineStyle(StrokeStyle(lineWidth: 2.5))
 
@@ -204,33 +210,38 @@ struct GraphView: View {
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 }
             }
-            .chartXScale(domain: chartDomain)
-            .chartYScale(domain: 0...maxSpeed)
+            .chartXScale(domain: chartDomain(for: samples))
+            .chartYScale(domain: 0...maxSpeed(for: samples))
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(Color.white.opacity(0.05))
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                        .foregroundStyle(AppTheme.separator)
                     AxisValueLabel {
                         if let date = value.as(Date.self) {
-                            Text(xAxisLabel(for: date))
+                            Text(verbatim: xAxisLabel(for: date))
                         }
                     }
-                    .foregroundStyle(.white.opacity(0.55))
+                    .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
+                    .foregroundStyle(AppTheme.tertiaryText)
                 }
             }
             .chartYAxis {
                 AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(Color.white.opacity(0.05))
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                        .foregroundStyle(AppTheme.separator)
                     AxisValueLabel {
                         if let speed = value.as(Double.self) {
-                            Text(formatAxisRate(speed))
+                            Text(verbatim: formatAxisRate(speed))
                         }
                     }
-                    .foregroundStyle(.white.opacity(0.55))
+                    .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
+                    .foregroundStyle(AppTheme.tertiaryText)
                 }
             }
             .chartLegend(.hidden)
+            .chartPlotStyle { plotArea in
+                plotArea.clipped()
+            }
             .chartOverlay { proxy in
                 GeometryReader { geometry in
                     Rectangle()
@@ -239,10 +250,11 @@ struct GraphView: View {
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
-                                    let frame = geometry[proxy.plotAreaFrame]
+                                    guard let plotFrame = proxy.plotFrame else { return }
+                                    let frame = geometry[plotFrame]
                                     let xPosition = value.location.x - frame.origin.x
 
-                                    guard xPosition >= 0, xPosition <= proxy.plotAreaSize.width,
+                                    guard xPosition >= 0, xPosition <= proxy.plotSize.width,
                                           let date: Date = proxy.value(atX: xPosition) else {
                                         return
                                     }
@@ -255,67 +267,39 @@ struct GraphView: View {
                         )
                 }
             }
-            .frame(height: 280)
+            .frame(height: 260)
 
             if let selectedSample {
                 tooltip(for: selectedSample)
                     .transition(.opacity.combined(with: .scale))
             }
         }
-        .padding(18)
-        .graphCardStyle(highlighted: true)
-    }
-
-    private var statsGrid: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 14),
-            GridItem(.flexible(), spacing: 14)
-        ], spacing: 14) {
-            ForEach(stats) { stat in
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
-                        Image(systemName: stat.icon)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(stat.color)
-                        Text(stat.title)
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.74))
-                    }
-
-                    Text(stat.value)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .minimumScaleFactor(0.7)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .graphCardStyle()
-            }
-        }
+        .appCard()
     }
 
     private func tooltip(for sample: SpeedSample) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+        HStack(spacing: 14) {
             Text(sample.timestamp.formatted(date: .omitted, time: .shortened))
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(AppTheme.secondaryText)
 
-            Label(formatRate(sample.downloadSpeed), systemImage: "arrow.down.circle.fill")
+            Spacer(minLength: 0)
+
+            Label(monitor.formatSpeed(sample.downloadSpeed), systemImage: "arrow.down")
                 .foregroundStyle(downloadColor)
 
-            Label(formatRate(sample.uploadSpeed), systemImage: "arrow.up.circle.fill")
+            Label(monitor.formatSpeed(sample.uploadSpeed), systemImage: "arrow.up")
                 .foregroundStyle(uploadColor)
         }
-        .font(.system(size: 13, weight: .semibold, design: .rounded))
-        .padding(12)
+        .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.black.opacity(0.88))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.black.opacity(0.35))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(AppTheme.cardStroke, lineWidth: 1)
         )
     }
 
@@ -326,7 +310,7 @@ struct GraphView: View {
     }
 
     private func xAxisLabel(for date: Date) -> String {
-        switch selectedRange {
+        switch range {
         case .lastMinute:
             return date.formatted(.dateTime.minute().second())
         case .lastFiveMinutes:
@@ -334,10 +318,6 @@ struct GraphView: View {
         case .lastThirtyMinutes:
             return date.formatted(.dateTime.hour().minute())
         }
-    }
-
-    private func formatRate(_ bytesPerSecond: Double) -> String {
-        monitor.formatSpeed(bytesPerSecond)
     }
 
     private func formatAxisRate(_ bytesPerSecond: Double) -> String {
@@ -351,13 +331,91 @@ struct GraphView: View {
         }
         return String(format: "%.0f K%@", kbValue, unitPrefix)
     }
+}
 
-    private func formatTransfer(_ bytes: Double) -> String {
+// MARK: - Stats Grid
+
+private struct GraphStatsGrid: View {
+    @ObservedObject var monitor: NetworkStatsMonitor
+    let range: GraphRange
+
+    private func stats(for samples: ArraySlice<SpeedSample>) -> [GraphStat] {
+        // Single pass over the visible samples.
+        var maxDownload = 0.0
+        var maxUpload = 0.0
+        var sumDownload = 0.0
+        var sumUpload = 0.0
+        var totalTransferBytes = 0.0
+        var previous: SpeedSample?
+
+        for sample in samples {
+            maxDownload = max(maxDownload, sample.downloadSpeed)
+            maxUpload = max(maxUpload, sample.uploadSpeed)
+            sumDownload += sample.downloadSpeed
+            sumUpload += sample.uploadSpeed
+            if let previous {
+                let interval = sample.timestamp.timeIntervalSince(previous.timestamp)
+                let averageRate = ((previous.downloadSpeed + previous.uploadSpeed) + (sample.downloadSpeed + sample.uploadSpeed)) / 2
+                totalTransferBytes += averageRate * interval
+            }
+            previous = sample
+        }
+
+        let count = Double(max(samples.count, 1))
+        let avgDownload = sumDownload / count
+        let avgUpload = sumUpload / count
+
+        return [
+            GraphStat(id: "maxDownload", title: "Max Download", value: monitor.formatSpeed(maxDownload), icon: "arrow.down.circle.fill", color: AppTheme.download),
+            GraphStat(id: "maxUpload", title: "Max Upload", value: monitor.formatSpeed(maxUpload), icon: "arrow.up.circle.fill", color: AppTheme.upload),
+            GraphStat(id: "avgDownload", title: "Avg Download", value: monitor.formatSpeed(avgDownload), icon: "arrow.down.and.line.horizontal.and.arrow.up", color: AppTheme.download),
+            GraphStat(id: "avgUpload", title: "Avg Upload", value: monitor.formatSpeed(avgUpload), icon: "arrow.up.and.line.horizontal.and.arrow.down", color: AppTheme.upload),
+            GraphStat(id: "totalTransfer", title: "Total Transfer", value: formatTransfer(totalTransferBytes), icon: "chart.bar.fill", color: AppTheme.accent),
+            GraphStat(id: "activeDuration", title: "Active Duration", value: formatDuration(monitor.activeDuration()), icon: "timer", color: AppTheme.ping)
+        ]
+    }
+
+    var body: some View {
+        let samples = monitor.history.samples(since: Date().addingTimeInterval(-range.duration))
+
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ], spacing: 12) {
+            ForEach(stats(for: samples)) { stat in
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 10) {
+                        AppIconTile(systemName: stat.icon, tint: stat.color, size: 30)
+                        Text(stat.title)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                    }
+
+                    Text(stat.value)
+                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.primaryText)
+                        .contentTransition(.numericText())
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                }
+                .appCard()
+            }
+        }
+    }
+
+    private static let transferFormatter: ByteCountFormatter = {
         let formatter = ByteCountFormatter()
         formatter.allowedUnits = [.useKB, .useMB, .useGB]
         formatter.countStyle = .binary
         formatter.isAdaptive = true
-        return formatter.string(fromByteCount: Int64(bytes))
+        return formatter
+    }()
+
+    private func formatTransfer(_ bytes: Double) -> String {
+        Self.transferFormatter.string(fromByteCount: Int64(bytes))
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
@@ -371,27 +429,36 @@ struct GraphView: View {
     }
 }
 
-private struct GraphCardModifier: ViewModifier {
-    let highlighted: Bool
+// MARK: - Export
 
-    func body(content: Content) -> some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
-            .shadow(color: highlighted ? Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255).opacity(0.15) : .clear, radius: 20, x: 0, y: 10)
+/// Observes the monitor so the shared CSV always reflects the latest history.
+private struct GraphExportButton: View {
+    @ObservedObject var monitor: NetworkStatsMonitor
+
+    var body: some View {
+        ShareLink(item: HistoryCSVExport(history: monitor.history), preview: SharePreview("NetworkHistory.csv")) {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.arrow.up")
+                Text("Export as CSV")
+            }
+        }
+        .buttonStyle(AppSecondaryButtonStyle())
     }
 }
 
-private extension View {
-    func graphCardStyle(highlighted: Bool = false) -> some View {
-        modifier(GraphCardModifier(highlighted: highlighted))
+/// Builds the CSV only when the user actually shares it, instead of on every render.
+private struct HistoryCSVExport: Transferable {
+    let history: [SpeedSample]
+
+    static var transferRepresentation: some TransferRepresentation {
+        DataRepresentation(exportedContentType: .commaSeparatedText) { export in
+            let header = "timestamp,download,upload"
+            let rows = export.history.map {
+                "\($0.timestamp.ISO8601Format()),\($0.downloadSpeed),\($0.uploadSpeed)"
+            }
+            return Data(([header] + rows).joined(separator: "\n").utf8)
+        }
+        .suggestedFileName("NetworkHistory.csv")
     }
 }
 

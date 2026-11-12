@@ -25,34 +25,42 @@ struct NetworkMapView: View {
     // Canvas size (captured from GeometryReader)
     @State private var canvasSize: CGSize   = .zero
 
-    private let bg = Color(red: 10/255, green: 10/255, blue: 10/255)
+    private let heroColors = [Color(red: 0.20, green: 0.80, blue: 0.65),
+                              Color(red: 0.08, green: 0.45, blue: 0.52)]
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
-                bg.ignoresSafeArea()
-
+            Group {
                 if showList {
-                    NetworkMapListView(manager: manager, selectedDevice: $selectedDevice)
-                        .padding(.bottom, 72)
-                } else {
-                    GeometryReader { geo in
-                        mapCanvas
-                            .onAppear { canvasSize = geo.size }
-                            .onChange(of: geo.size) { _, s in canvasSize = s }
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                            heroCard
+                            NetworkMapListView(manager: manager, selectedDevice: $selectedDevice)
+                        }
+                        .padding(.horizontal, AppTheme.pagePadding)
+                        .padding(.top, 8)
+                        .padding(.bottom, 32)
                     }
-                    .ignoresSafeArea(edges: .bottom)
+                } else {
+                    // Map mode stays non-scrolling so pan/zoom gestures own the canvas.
+                    VStack(spacing: 16) {
+                        heroCard
+                        mapCard
+                    }
+                    .padding(.horizontal, AppTheme.pagePadding)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
                 }
-
-                bottomBar
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .appPageBackground()
             .navigationTitle("Network Map")
             .navigationBarTitleDisplayMode(.large)
             .sheet(item: $selectedDevice) { device in
                 MapDeviceDetailSheet(device: device, manager: manager)
             }
         }
-        .background(bg.ignoresSafeArea())
+        .appPageBackground()
         .task {
             if manager.devices.isEmpty && !manager.isScanning {
                 appeared = []
@@ -69,10 +77,120 @@ struct NetworkMapView: View {
             let fresh = newDevices.filter { !appeared.contains($0.id) }
             for dev in fresh {
                 withAnimation(.spring(response: 0.42, dampingFraction: 0.65)) {
-                    appeared.insert(dev.id)
+                    _ = appeared.insert(dev.id)
                 }
             }
         }
+    }
+
+    // MARK: – Hero card
+
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 14) {
+                Image(systemName: "circle.hexagongrid.fill")
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 50, height: 50)
+                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                Text("Visually discover devices on the local network")
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
+            }
+
+            summaryStrip
+
+            HStack(spacing: 10) {
+                // Rescan
+                Button {
+                    Task { await manager.scan() }
+                } label: {
+                    HStack(spacing: 8) {
+                        if manager.isScanning {
+                            ProgressView()
+                                .tint(heroColors[1])
+                                .scaleEffect(0.85)
+                            Text("Scanning…")
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Rescan")
+                        }
+                    }
+                }
+                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: heroColors))
+                .disabled(manager.isScanning)
+
+                // List / Map toggle
+                Button {
+                    withAnimation(.spring(response: 0.32)) { showList.toggle() }
+                } label: {
+                    Image(systemName: showList ? "circle.hexagongrid.fill" : "list.bullet")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 50, height: 50)
+                        .background(Circle().fill(.white.opacity(0.18)))
+                }
+                .buttonStyle(AppPressableButtonStyle())
+                .accessibilityLabel(showList ? Text("Map") : Text("List"))
+            }
+        }
+        .appHeroCard(colors: heroColors)
+    }
+
+    private var summaryStrip: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 0) {
+                MapHeroStat(value: "\(manager.devices.count)", label: "Devices")
+                AppMetricDivider()
+                if manager.isScanning {
+                    MapHeroStat(value: "\(Int(manager.progress * 100))%", label: "Scanning…")
+                } else if let date = manager.lastScanDate {
+                    MapHeroStat(value: date.formatted(date: .omitted, time: .shortened), label: "Last scan")
+                } else {
+                    MapHeroStat(value: "–", label: "Last scan")
+                }
+            }
+
+            // Scan progress strip
+            if manager.isScanning {
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(.white.opacity(0.18))
+                        Capsule()
+                            .fill(.white)
+                            .frame(width: g.size.width * manager.progress)
+                            .animation(.linear(duration: 0.2), value: manager.progress)
+                    }
+                }
+                .frame(height: 4)
+                .padding(.horizontal, 14)
+            }
+        }
+        .padding(.vertical, 12)
+        .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    // MARK: – Map card
+
+    private var mapCard: some View {
+        GeometryReader { geo in
+            mapCanvas
+                .onAppear { canvasSize = geo.size }
+                .onChange(of: geo.size) { _, s in canvasSize = s }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(AppTheme.cardFill)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(AppTheme.cardStroke, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
     }
 
     // MARK: – Canvas map
@@ -111,17 +229,7 @@ struct NetworkMapView: View {
 
             // Empty state
             if manager.devices.isEmpty && !manager.isScanning {
-                VStack(spacing: 14) {
-                    Image(systemName: "wifi.slash")
-                        .font(.system(size: 42, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.3))
-                    Text("No scan performed")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.35))
-                    Text("Tap Rescan")
-                        .font(.system(size: 14, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.22))
-                }
+                AppEmptyState(icon: "wifi.slash", title: "No scan performed", message: "Tap Rescan")
             }
         }
         .clipShape(Rectangle())
@@ -133,100 +241,6 @@ struct NetworkMapView: View {
                 gestureScale = 1.0
                 panOffset = .zero
                 gestureDelta = .zero
-            }
-        }
-    }
-
-    // MARK: – Bottom bar
-
-    private var bottomBar: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("\(manager.devices.count) cihaz")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                if let date = manager.lastScanDate {
-                    Text("Last scan: " + date.formatted(date: .omitted, time: .shortened))
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.45))
-                } else if manager.isScanning {
-                    Text("Scanning… \(Int(manager.progress * 100))%")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.55))
-                        .contentTransition(.numericText())
-                }
-            }
-
-            Spacer()
-
-            // List / Map toggle
-            Button {
-                withAnimation(.spring(response: 0.32)) { showList.toggle() }
-            } label: {
-                Image(systemName: showList ? "circle.hexagongrid.fill" : "list.bullet")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(Circle().fill(Color.white.opacity(0.10)))
-            }
-            .buttonStyle(.plain)
-
-            // Rescan
-            Button {
-                Task { await manager.scan() }
-            } label: {
-                ZStack {
-                    if manager.isScanning {
-                        ProgressView()
-                            .tint(.white)
-                            .scaleEffect(0.85)
-                    } else {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(.white)
-                    }
-                }
-                .frame(width: 42, height: 42)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 59/255, green: 130/255, blue: 246/255),
-                                    Color(red: 168/255, green: 85/255,  blue: 247/255)
-                                ],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(manager.isScanning)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: 0)
-        )
-        .overlay(alignment: .top) {
-            // Scan progress strip
-            if manager.isScanning {
-                GeometryReader { g in
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 59/255, green: 130/255, blue: 246/255),
-                                    Color(red: 168/255, green: 85/255,  blue: 247/255)
-                                ],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
-                        .frame(width: g.size.width * manager.progress, height: 2)
-                        .animation(.linear(duration: 0.2), value: manager.progress)
-                }
-                .frame(height: 2)
             }
         }
     }
@@ -446,48 +460,51 @@ private struct MapNodeView: View {
     }
 }
 
+// MARK: - Hero Stat
+
+/// Value + caption pair shown inside the hero summary strip.
+private struct MapHeroStat: View {
+    let value: String
+    let label: LocalizedStringKey
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 // MARK: - List View
 
 private struct NetworkMapListView: View {
     @ObservedObject var manager: NetworkMapManager
     @Binding var selectedDevice: MapDevice?
 
-    private let accentBlue = Color(red: 59/255, green: 130/255, blue: 246/255)
-
     var body: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(spacing: 0) {
-                if manager.devices.isEmpty {
-                    ContentUnavailableView(
-                        "No Devices Found",
-                        systemImage: "network",
-                        description: Text("Tap Rescan")
-                    )
-                    .foregroundStyle(.white)
-                    .padding(.top, 40)
-                } else {
-                    ForEach(manager.devices) { device in
-                        Button { selectedDevice = device } label: {
-                            MapListRow(device: device)
-                        }
-                        .buttonStyle(.plain)
+        if manager.devices.isEmpty {
+            AppEmptyState(icon: "network", title: "No Devices Found", message: "Tap Rescan")
+                .appCard(padding: nil)
+        } else {
+            AppSection("Devices") {
+                ForEach(manager.devices) { device in
+                    Button { selectedDevice = device } label: {
+                        MapListRow(device: device)
+                    }
+                    .buttonStyle(AppRowButtonStyle())
 
-                        if device.id != manager.devices.last?.id {
-                            Divider()
-                                .background(Color.white.opacity(0.08))
-                                .padding(.leading, 64)
-                        }
+                    if device.id != manager.devices.last?.id {
+                        AppRowDivider()
                     }
                 }
             }
-            .background(Color.white.opacity(0.06))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.white.opacity(0.10), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
         }
     }
 }
@@ -497,57 +514,51 @@ private struct MapListRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(device.deviceType.nodeColor.opacity(0.14))
-                    .frame(width: 42, height: 42)
-                Image(systemName: device.deviceType.rawValue)
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(device.deviceType.nodeColor)
-            }
+            AppIconTile(systemName: device.deviceType.rawValue, tint: device.deviceType.nodeColor)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(device.hostname ?? device.ip)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(device.hostname ?? device.ip)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.primaryText)
+                        .lineLimit(1)
+                    if device.isCurrentDevice {
+                        AppPill(text: "This device", tint: device.deviceType.nodeColor)
+                    }
+                }
                 if device.hostname != nil {
                     Text(device.ip)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.45))
-                }
-                if device.isCurrentDevice {
-                    Text("This device")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(device.deviceType.nodeColor)
+                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.secondaryText)
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 3) {
+            VStack(alignment: .trailing, spacing: 4) {
                 if device.responseTime > 0 {
-                    Text(String(format: "%.0f ms", device.responseTime))
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundStyle(latencyColor(device.responseTime))
+                    AppPill(text: "\(Int(device.responseTime.rounded())) ms", tint: latencyColor(device.responseTime))
+                        .monospacedDigit()
                 }
                 Text(device.deviceType.displayName)
-                    .font(.system(size: 11, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.35))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(AppTheme.tertiaryText)
+                    .lineLimit(1)
             }
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.22))
+            AppChevron()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .contentShape(Rectangle())
     }
 
     private func latencyColor(_ ms: Double) -> Color {
-        if ms < 5  { return .green }
-        if ms < 20 { return .yellow }
-        return .red
+        if ms < 5  { return AppTheme.ping }
+        if ms < 20 { return AppTheme.warning }
+        return AppTheme.danger
     }
 }
 
@@ -561,41 +572,66 @@ private struct MapDeviceDetailSheet: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("Device Info") {
-                    infoRow("IP Address", value: device.ip)
-                    if let h = device.hostname {
-                        infoRow("Hostname", value: h)
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                    header
+
+                    AppSection("Device Info") {
+                        infoRow("IP Address", value: device.ip)
+                        if let h = device.hostname {
+                            AppRowDivider(leadingInset: 16)
+                            infoRow("Hostname", value: h)
+                        }
+                        if let mac = device.macAddress {
+                            AppRowDivider(leadingInset: 16)
+                            infoRow("MAC Address", value: mac)
+                        }
+                        AppRowDivider(leadingInset: 16)
+                        infoRow("Device Type", value: device.deviceType.displayName)
+                        if device.responseTime > 0 {
+                            AppRowDivider(leadingInset: 16)
+                            infoRow("Response Time", value: String(format: "%.1f ms", device.responseTime))
+                        }
+                        if device.isCurrentDevice {
+                            AppRowDivider(leadingInset: 16)
+                            infoRow("Durum", value: String(localized: "This Device"))
+                        }
                     }
-                    if let mac = device.macAddress {
-                        infoRow("MAC Address", value: mac)
-                    }
-                    infoRow("Device Type", value: device.deviceType.displayName)
-                    if device.responseTime > 0 {
-                        infoRow("Response Time", value: String(format: "%.1f ms", device.responseTime))
-                    }
-                    if device.isCurrentDevice {
-                        infoRow("Durum", value: "This Device")
+
+                    AppSection("Actions") {
+                        NavigationLink {
+                            PortScannerView(initialHost: device.ip)
+                        } label: {
+                            AppRow(
+                                icon: "door.left.hand.open",
+                                tint: Color(red: 0.84, green: 0.28, blue: 0.74),
+                                title: "Scan Ports"
+                            ) {
+                                AppChevron()
+                            }
+                        }
+                        .buttonStyle(AppRowButtonStyle())
+
+                        AppRowDivider()
+
+                        NavigationLink {
+                            PingMonitorView(
+                                monitor: PingMonitor(),
+                                initialHost: device.ip
+                            )
+                        } label: {
+                            AppRow(icon: "timer", tint: AppTheme.ping, title: "Monitor Ping") {
+                                AppChevron()
+                            }
+                        }
+                        .buttonStyle(AppRowButtonStyle())
                     }
                 }
-
-                Section("Actions") {
-                    NavigationLink {
-                        PortScannerView(initialHost: device.ip)
-                    } label: {
-                        Label("Scan Ports", systemImage: "door.left.hand.open")
-                    }
-
-                    NavigationLink {
-                        PingMonitorView(
-                            monitor: PingMonitor(),
-                            initialHost: device.ip
-                        )
-                    } label: {
-                        Label("Monitor Ping", systemImage: "timer")
-                    }
-                }
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
             }
+            .appPageBackground()
             .navigationTitle(device.hostname ?? device.ip)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -604,22 +640,52 @@ private struct MapDeviceDetailSheet: View {
                 }
             }
         }
+        .presentationBackground(AppTheme.background)
     }
 
-    @ViewBuilder
-    private func infoRow(_ label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.trailing)
-                .font(.system(size: 14, design: .monospaced))
+    private var header: some View {
+        HStack(spacing: 14) {
+            AppIconTile(systemName: device.deviceType.rawValue, tint: device.deviceType.nodeColor, size: 52)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(device.hostname ?? device.ip)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(1)
+                Text(device.deviceType.displayName)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+            }
+
+            Spacer(minLength: 8)
+
+            if device.isCurrentDevice {
+                AppPill(text: "This device", tint: device.deviceType.nodeColor)
+            }
         }
+        .padding(.top, 8)
+    }
+
+    private func infoRow(_ label: LocalizedStringKey, value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(AppTheme.primaryText)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 }
 
 #Preview {
     NetworkMapView()
+        .preferredColorScheme(.dark)
 }

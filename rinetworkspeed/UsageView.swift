@@ -20,7 +20,8 @@ private struct UsageChartBar: Identifiable {
 
 struct UsageView: View {
     @ObservedObject var dataUsage: DataUsageMonitor
-    @ObservedObject var speedTestManager: SpeedTestManager
+    /// Only read when generating the PDF report; not observed to avoid re-rendering during speed tests.
+    let speedTestManager: SpeedTestManager
     @AppStorage("dataLimitEnabled") private var dataLimitEnabled: Bool = false
     @AppStorage("dataLimitGB") private var dataLimitGB: Double = 5.0
     @AppStorage("dataLimitResetDay") private var dataLimitResetDay: Int = 1
@@ -31,9 +32,8 @@ struct UsageView: View {
     @State private var selectedReportMonth: Date = Date()
     @State private var isGeneratingPDF = false
 
-    private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-    private let wifiColor = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
-    private let cellularColor = Color(red: 249 / 255, green: 115 / 255, blue: 22 / 255)
+    private let wifiColor = AppTheme.download
+    private let cellularColor = AppTheme.upload
 
     private var todayTotal: UInt64 {
         dataUsage.todayWifiBytes + dataUsage.todayCellularBytes
@@ -61,13 +61,6 @@ struct UsageView: View {
         min(1, Double(todayTotal) / progressTarget)
     }
 
-    private var ringColor: Color {
-        if dataLimitEnabled && Double(todayTotal) > progressTarget {
-            return .red
-        }
-        return todayTotal > dataUsage.todayWifiBytes ? cellularColor : wifiColor
-    }
-
     private var chartBars: [UsageChartBar] {
         weeklySamples.flatMap { sample in
             let isToday = Calendar.current.isDateInToday(sample.date)
@@ -81,8 +74,8 @@ struct UsageView: View {
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 16) {
-                    if todayTotal == 0 && weeklySamples.allSatisfy({ $0.wifiBytes == 0 && $0.cellularBytes == 0 }) {
+                VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                    if !dataUsage.hasInitialSample {
                         placeholderCard
                     } else {
                         heroCard
@@ -92,10 +85,11 @@ struct UsageView: View {
                         pdfReportCard
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
             }
-            .background(backgroundColor.ignoresSafeArea())
+            .appPageBackground()
             .navigationTitle("Data Usage")
             .alert("Reset today's counter?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) {}
@@ -106,207 +100,255 @@ struct UsageView: View {
                 Text("Today's WiFi and Cellular counters will be reset.")
             }
         }
-        .background(backgroundColor.ignoresSafeArea())
+        .appPageBackground()
     }
+
+    // MARK: - Hero Card
 
     private var heroCard: some View {
-        VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .stroke(Color.white.opacity(0.08), style: StrokeStyle(lineWidth: 16, lineCap: .round))
+        let isOverLimit = self.isOverLimit
+        let ringColor = isOverLimit ? AppTheme.danger : wifiColor
 
-                Circle()
-                    .trim(from: 0, to: ringProgress)
-                    .stroke(
-                        ringColor,
-                        style: StrokeStyle(lineWidth: 16, lineCap: .round)
-                    )
-                    .rotationEffect(.degrees(-90))
-                    .animation(.easeInOut(duration: 0.35), value: ringProgress)
-
-                VStack(spacing: 6) {
-                    if dataLimitEnabled && Double(todayTotal) > progressTarget {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(.red)
-                    }
+        return VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Today's Total")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .textCase(.uppercase)
 
                     Text(dataUsage.formatBytes(todayTotal))
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                         .contentTransition(.numericText())
 
-                    Text("Today's Total")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.54))
+                    if dataLimitEnabled {
+                        Text(limitMessage)
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(isOverLimit ? AppTheme.danger : AppTheme.secondaryText)
+                            .multilineTextAlignment(.leading)
+                    }
+                }
+
+                Spacer(minLength: 12)
+
+                VStack(spacing: 6) {
+                    ZStack {
+                        Circle()
+                            .stroke(.white.opacity(0.08), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+
+                        Circle()
+                            .trim(from: 0, to: ringProgress)
+                            .stroke(ringColor, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeInOut(duration: 0.35), value: ringProgress)
+
+                        if isOverLimit {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundStyle(AppTheme.danger)
+                        } else {
+                            Text(ringProgress, format: .percent.precision(.fractionLength(0)))
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(AppTheme.primaryText)
+                                .contentTransition(.numericText())
+                        }
+                    }
+                    .frame(width: 72, height: 72)
+
+                    // Ring compares today against the data limit, or the 7-day average when no limit is set.
+                    Text(dataLimitEnabled ? "of limit" : "of daily avg")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(AppTheme.tertiaryText)
                 }
             }
-            .frame(width: 150, height: 150)
 
-            VStack(spacing: 10) {
-                usageRow(title: "WiFi", value: dataUsage.formatBytes(dataUsage.todayWifiBytes), color: wifiColor)
-                usageRow(title: "Cellular", value: dataUsage.formatBytes(dataUsage.todayCellularBytes), color: cellularColor)
-            }
+            UsageSplitBar(
+                wifiBytes: dataUsage.todayWifiBytes,
+                cellularBytes: dataUsage.todayCellularBytes,
+                wifiColor: wifiColor,
+                cellularColor: cellularColor
+            )
 
-            if dataLimitEnabled {
-                Text(limitMessage)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Double(todayTotal) > progressTarget ? .red : .white.opacity(0.76))
-                    .multilineTextAlignment(.center)
+            HStack(spacing: 12) {
+                UsageHeroMetric(
+                    icon: "wifi",
+                    caption: "WiFi",
+                    value: dataUsage.formatBytes(dataUsage.todayWifiBytes),
+                    tint: wifiColor
+                )
+                UsageHeroMetric(
+                    icon: "antenna.radiowaves.left.and.right",
+                    caption: "Cellular",
+                    value: dataUsage.formatBytes(dataUsage.todayCellularBytes),
+                    tint: cellularColor
+                )
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 220)
-        .padding(18)
-        .usageCardStyle()
+        .appCard(padding: 20)
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(AppTheme.danger.opacity(isOverLimit ? 0.6 : 0), lineWidth: 1)
+        )
+        .animation(.easeInOut(duration: 0.35), value: isOverLimit)
     }
+
+    // MARK: - Weekly Chart
 
     private var weeklyChartCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Weekly Chart")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+        AppSection("Weekly Chart") {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 14) {
+                    legendItem(title: "WiFi", color: wifiColor)
+                    legendItem(title: "Cellular", color: cellularColor)
+                    Spacer()
+                }
 
-            Chart(chartBars) { bar in
-                BarMark(
-                    x: .value("Day", bar.date, unit: .day),
-                    y: .value("Usage", bar.bytes)
-                )
-                .position(by: .value("Type", bar.type))
-                .foregroundStyle(by: .value("Type", bar.type))
-                .opacity(bar.isToday ? 1 : 0.76)
-                .annotation(position: .top, spacing: 4) {
-                    if bar.isToday && selectedDay == nil {
-                        Capsule()
-                            .fill(Color.white.opacity(0.18))
-                            .frame(width: 24, height: 3)
-                    }
-                }
-            }
-            .chartForegroundStyleScale([
-                "WiFi": wifiColor,
-                "Cellular": cellularColor
-            ])
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { value in
-                    AxisValueLabel {
-                        if let date = value.as(Date.self) {
-                            Text(weekdayLabel(for: date))
+                Chart(chartBars) { bar in
+                    BarMark(
+                        x: .value("Day", bar.date, unit: .day),
+                        y: .value("Usage", bar.bytes)
+                    )
+                    .position(by: .value("Type", bar.type))
+                    .foregroundStyle(by: .value("Type", bar.type))
+                    .cornerRadius(4)
+                    .opacity(bar.isToday ? 1 : 0.76)
+                    .annotation(position: .top, spacing: 4) {
+                        if bar.isToday && selectedDay == nil {
+                            Capsule()
+                                .fill(Color.white.opacity(0.18))
+                                .frame(width: 24, height: 3)
                         }
                     }
-                    .foregroundStyle(.white.opacity(0.58))
                 }
-            }
-            .chartYAxis {
-                AxisMarks(values: .automatic(desiredCount: 3)) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(Color.white.opacity(0.05))
-                    AxisValueLabel {
-                        if let bytes = value.as(Double.self) {
-                            Text(axisLabel(bytes))
+                .chartForegroundStyleScale([
+                    "WiFi": wifiColor,
+                    "Cellular": cellularColor
+                ])
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) { value in
+                        AxisValueLabel {
+                            if let date = value.as(Date.self) {
+                                Text(weekdayLabel(for: date))
+                            }
                         }
+                        .foregroundStyle(AppTheme.secondaryText)
                     }
-                    .foregroundStyle(.white.opacity(0.58))
                 }
-            }
-            .chartLegend(.hidden)
-            .chartOverlay { proxy in
-                GeometryReader { geometry in
-                    Rectangle()
-                        .fill(.clear)
-                        .contentShape(Rectangle())
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    let frame = geometry[proxy.plotAreaFrame]
-                                    let xPosition = value.location.x - frame.origin.x
-                                    guard xPosition >= 0,
-                                          xPosition <= proxy.plotAreaSize.width,
-                                          let date: Date = proxy.value(atX: xPosition) else {
-                                        return
+                .chartYAxis {
+                    AxisMarks(values: .automatic(desiredCount: 3)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
+                            .foregroundStyle(AppTheme.separator)
+                        AxisValueLabel {
+                            if let bytes = value.as(Double.self) {
+                                Text(axisLabel(bytes))
+                            }
+                        }
+                        .foregroundStyle(AppTheme.secondaryText)
+                    }
+                }
+                .chartLegend(.hidden)
+                .chartOverlay { proxy in
+                    GeometryReader { geometry in
+                        Rectangle()
+                            .fill(.clear)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        let frame = geometry[proxy.plotAreaFrame]
+                                        let xPosition = value.location.x - frame.origin.x
+                                        guard xPosition >= 0,
+                                              xPosition <= proxy.plotAreaSize.width,
+                                              let date: Date = proxy.value(atX: xPosition) else {
+                                            return
+                                        }
+                                        selectedDay = nearestDay(to: date)
                                     }
-                                    selectedDay = nearestDay(to: date)
-                                }
-                                .onEnded { _ in
-                                    selectedDay = nil
-                                }
-                        )
+                                    .onEnded { _ in
+                                        selectedDay = nil
+                                    }
+                            )
+                    }
                 }
-            }
-            .frame(height: 200)
+                .frame(height: 200)
 
-            if let selectedDay {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(selectedDay.date.formatted(date: .abbreviated, time: .omitted))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.54))
-                    Label(dataUsage.formatBytes(selectedDay.wifiBytes), systemImage: "wifi")
-                        .foregroundStyle(wifiColor)
-                    Label(dataUsage.formatBytes(selectedDay.cellularBytes), systemImage: "antenna.radiowaves.left.and.right")
-                        .foregroundStyle(cellularColor)
+                if let selectedDay {
+                    HStack(spacing: 16) {
+                        Text(selectedDay.date.formatted(date: .abbreviated, time: .omitted))
+                            .foregroundStyle(AppTheme.secondaryText)
+                        Spacer(minLength: 0)
+                        Label(dataUsage.formatBytes(selectedDay.wifiBytes), systemImage: "wifi")
+                            .foregroundStyle(wifiColor)
+                        Label(dataUsage.formatBytes(selectedDay.cellularBytes), systemImage: "antenna.radiowaves.left.and.right")
+                            .foregroundStyle(cellularColor)
+                    }
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(Color.black.opacity(0.88))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
             }
+            .padding(16)
         }
-        .padding(18)
-        .usageCardStyle()
     }
+
+    // MARK: - Monthly Summary
 
     private var monthlySummaryCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Monthly Summary")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-
-            summaryRow(title: "This month WiFi", value: dataUsage.formatBytes(monthlySummary.wifi), color: wifiColor)
-            summaryRow(title: "This month Cellular", value: dataUsage.formatBytes(monthlySummary.cellular), color: cellularColor)
-            summaryRow(title: "Daily average", value: dataUsage.formatBytes(monthlySummary.dailyAverage), color: .white)
-            summaryRow(title: "Projected monthly total", value: dataUsage.formatBytes(monthlySummary.projectedMonthly), color: .white)
+        // Computed once per render; it sorts the whole daily history.
+        let monthlySummary = self.monthlySummary
+        return AppSection("Monthly Summary") {
+            AppRow(icon: "wifi", tint: wifiColor, title: "This month WiFi") {
+                valueText(dataUsage.formatBytes(monthlySummary.wifi))
+            }
+            AppRowDivider()
+            AppRow(icon: "antenna.radiowaves.left.and.right", tint: cellularColor, title: "This month Cellular") {
+                valueText(dataUsage.formatBytes(monthlySummary.cellular))
+            }
+            AppRowDivider()
+            AppRow(icon: "chart.bar.fill", tint: AppTheme.accent, title: "Daily average") {
+                valueText(dataUsage.formatBytes(monthlySummary.dailyAverage))
+            }
+            AppRowDivider()
+            AppRow(icon: "chart.line.uptrend.xyaxis", tint: AppTheme.ping, title: "Projected monthly total") {
+                valueText(dataUsage.formatBytes(monthlySummary.projectedMonthly))
+            }
         }
-        .padding(18)
-        .usageCardStyle()
     }
 
-    private var resetInfoCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Reset Info")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+    // MARK: - Reset Info
 
-            Text("Counter resets in \(dataUsage.daysUntilReset(resetDay: dataLimitResetDay)) days")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.78))
+    private var resetInfoCard: some View {
+        AppSection("Reset Info") {
+            AppRow(
+                icon: "calendar.badge.clock",
+                tint: AppTheme.warning,
+                title: "Counter resets in \(dataUsage.daysUntilReset(resetDay: dataLimitResetDay)) days"
+            )
+
+            AppRowDivider(leadingInset: 0)
 
             Button {
                 showingResetAlert = true
             } label: {
-                Text("Reset")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.counterclockwise")
+                    Text("Reset")
+                }
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.danger)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.white.opacity(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
+            .buttonStyle(AppRowButtonStyle())
         }
-        .padding(18)
-        .usageCardStyle()
     }
 
     // MARK: – PDF Report Card
@@ -317,37 +359,21 @@ struct UsageView: View {
     }
 
     private var pdfReportCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                Image(systemName: "doc.richtext.fill")
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundStyle(Color(red: 59/255, green: 130/255, blue: 246/255))
-                Text("PDF Report")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-            }
-
-            // Month picker
-            Picker("Ay", selection: $selectedReportMonth) {
-                ForEach(last6Months, id: \.self) { date in
-                    Text(date.formatted(.dateTime.month(.wide).year()))
-                        .tag(date)
+        AppSection("PDF Report") {
+            AppRow(icon: "doc.richtext.fill", tint: wifiColor, title: "Report Month") {
+                Picker("Ay", selection: $selectedReportMonth) {
+                    ForEach(last6Months, id: \.self) { date in
+                        Text(date.formatted(.dateTime.month(.wide).year()))
+                            .tag(date)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .tint(wifiColor)
             }
-            .pickerStyle(.menu)
-            .tint(Color(red: 59/255, green: 130/255, blue: 246/255))
-            .padding(.vertical, 6)
-            .padding(.horizontal, 12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.06))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
-                    )
-            )
 
-            // Generate button
+            AppRowDivider(leadingInset: 0)
+
             Button {
                 generatePDFReport()
             } label: {
@@ -358,29 +384,12 @@ struct UsageView: View {
                         Image(systemName: "arrow.down.doc.fill")
                     }
                     Text(isGeneratingPDF ? "Generating..." : "Generate Report")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 59/255,  green: 130/255, blue: 246/255),
-                                    Color(red: 168/255, green: 85/255,  blue: 247/255)
-                                ],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
-                )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(AppPrimaryButtonStyle())
             .disabled(isGeneratingPDF)
+            .padding(16)
         }
-        .padding(18)
-        .usageCardStyle()
     }
 
     private func generatePDFReport() {
@@ -422,13 +431,16 @@ struct UsageView: View {
                 .tint(.white.opacity(0.7))
                 .scaleEffect(1.2)
             Text("Collecting data...")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
                 .foregroundStyle(.white.opacity(0.8))
         }
         .frame(maxWidth: .infinity)
         .frame(height: 220)
-        .padding(18)
-        .usageCardStyle()
+        .appCard()
+    }
+
+    private var isOverLimit: Bool {
+        dataLimitEnabled && Double(todayTotal) > progressTarget
     }
 
     private var limitMessage: String {
@@ -436,37 +448,34 @@ struct UsageView: View {
         return String(format: "Used %.1f GB of your %.1f GB limit", usedGB, dataLimitGB)
     }
 
-    private func usageRow(title: String, value: String, color: Color) -> some View {
-        HStack {
+    private func legendItem(title: LocalizedStringKey, color: Color) -> some View {
+        HStack(spacing: 6) {
             Circle()
                 .fill(color)
-                .frame(width: 9, height: 9)
+                .frame(width: 8, height: 8)
             Text(title)
-                .foregroundStyle(.white.opacity(0.72))
-            Spacer()
-            Text(value)
-                .foregroundStyle(.white)
-                .contentTransition(.numericText())
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
         }
-        .font(.system(size: 14, weight: .semibold, design: .rounded))
     }
 
-    private func summaryRow(title: String, value: String, color: Color) -> some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(.white.opacity(0.68))
-            Spacer()
-            Text(value)
-                .foregroundStyle(color)
-        }
-        .font(.system(size: 15, weight: .semibold, design: .rounded))
+    private func valueText(_ value: String) -> some View {
+        Text(value)
+            .font(.system(size: 15, weight: .semibold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(AppTheme.primaryText)
+            .contentTransition(.numericText())
     }
 
-    private func weekdayLabel(for date: Date) -> String {
+    private static let weekdayFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "EEE"
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func weekdayLabel(for date: Date) -> String {
+        Self.weekdayFormatter.string(from: date)
     }
 
     private func axisLabel(_ bytes: Double) -> String {
@@ -484,27 +493,82 @@ struct UsageView: View {
     }
 }
 
-private struct UsageCardModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
+// MARK: - Hero Metric
+
+/// WiFi / Cellular figure inside the hero card; byte strings already include their unit.
+private struct UsageHeroMetric: View {
+    let icon: String
+    let caption: LocalizedStringKey
+    let value: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 32, height: 32)
+                .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(caption)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .textCase(.uppercase)
+
+                Text(value)
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
-private extension View {
-    func usageCardStyle() -> some View {
-        modifier(UsageCardModifier())
+// MARK: - Split Bar
+
+/// Horizontal bar showing today's WiFi vs Cellular share.
+private struct UsageSplitBar: View {
+    let wifiBytes: UInt64
+    let cellularBytes: UInt64
+    let wifiColor: Color
+    let cellularColor: Color
+
+    private var wifiShare: Double {
+        let total = Double(wifiBytes) + Double(cellularBytes)
+        return total > 0 ? Double(wifiBytes) / total : 0
+    }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let total = wifiBytes + cellularBytes
+            HStack(spacing: total > 0 && wifiShare > 0 && wifiShare < 1 ? 3 : 0) {
+                if total == 0 {
+                    Capsule().fill(.white.opacity(0.08))
+                } else {
+                    if wifiBytes > 0 {
+                        Capsule().fill(wifiColor)
+                            .frame(width: max(6, proxy.size.width * wifiShare - 1.5))
+                    }
+                    if cellularBytes > 0 {
+                        Capsule().fill(cellularColor)
+                    }
+                }
+            }
+        }
+        .frame(height: 8)
+        .animation(.easeInOut(duration: 0.35), value: wifiShare)
     }
 }
 
 #Preview {
     UsageView(dataUsage: DataUsageMonitor(), speedTestManager: SpeedTestManager())
+        .preferredColorScheme(.dark)
 }

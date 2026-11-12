@@ -126,6 +126,8 @@ final class PingMonitor: ObservableObject {
         configuration.waitsForConnectivity = false
 
         let session = URLSession(configuration: configuration)
+        // Sessions are not released until invalidated; one was leaked per ping.
+        defer { session.finishTasksAndInvalidate() }
         let start = Date()
 
         do {

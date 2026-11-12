@@ -11,7 +11,6 @@ import SwiftUI
 @main
 struct NetworkWidgetBundle: WidgetBundle {
     var body: some Widget {
-        NetworkWidget()
         NetworkWidgetControl()
         NetworkWidgetLiveActivity()
     }

@@ -247,20 +247,23 @@ struct IPScannerView: View {
     @StateObject private var vm = IPScannerViewModel()
     @State private var selectedDevice: NetworkDevice?
 
-    private let bg = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
     private let accentBlue = Color(red: 0.24, green: 0.45, blue: 0.99)
+
+    private var heroColors: [Color] {
+        [accentBlue, Color(red: 0.12, green: 0.25, blue: 0.72)]
+    }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                subnetCard
-                progressCard
+            VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                heroCard
                 devicesList
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
         }
-        .background(bg.ignoresSafeArea())
+        .appPageBackground()
         .navigationTitle("IP Scanner")
         .navigationBarTitleDisplayMode(.large)
         .sheet(item: $selectedDevice) { device in
@@ -268,132 +271,171 @@ struct IPScannerView: View {
         }
     }
 
-    // MARK: - Subnet Card
-    private var subnetCard: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "network")
-                .font(.system(size: 26, weight: .semibold))
-                .foregroundStyle(accentBlue)
-                .frame(width: 44, height: 44)
+    // MARK: - Hero Card
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Local Network")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.55))
-                Text(vm.subnetBase.isEmpty ? "Not Connected" : "\(vm.subnetBase).1–254")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                if !vm.localIP.isEmpty {
-                    Text("Your IP: \(vm.localIP)")
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.45))
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Local Network")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .textCase(.uppercase)
+                    Text(vm.subnetBase.isEmpty ? "Not Connected" : "\(vm.subnetBase).1–254")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                    if !vm.localIP.isEmpty {
+                        Text("Your IP: \(vm.localIP)")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.75))
+                    }
                 }
+
+                Spacer(minLength: 12)
+
+                Image(systemName: "network")
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 58)
+                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
 
-            Spacer()
+            Text("Discover devices on local network")
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.75))
+
+            if vm.isScanning || vm.scannedCount > 0 {
+                progressSummary
+            }
+
+            if let errorMessage = vm.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
 
             Button {
                 vm.isScanning ? vm.stopScan() : vm.startScan()
             } label: {
-                Text(vm.isScanning ? "Stop" : "Scan")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
-                    .background(
-                        Capsule().fill(
-                            vm.isScanning
-                                ? LinearGradient(colors: [.red, .pink], startPoint: .leading, endPoint: .trailing)
-                                : LinearGradient(colors: [accentBlue, Color(red: 0.12, green: 0.25, blue: 0.72)],
-                                                 startPoint: .leading, endPoint: .trailing)
-                        )
-                    )
+                HStack(spacing: 8) {
+                    Image(systemName: vm.isScanning ? "stop.fill" : "dot.radiowaves.left.and.right")
+                    Text(vm.isScanning ? "Stop" : "Scan")
+                }
             }
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: heroColors))
         }
-        .padding(18)
-        .background(Color.white.opacity(0.06))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .appHeroCard(colors: heroColors)
     }
 
-    // MARK: - Progress Card
-    @ViewBuilder
-    private var progressCard: some View {
-        if vm.isScanning || vm.scannedCount > 0 {
-            VStack(spacing: 10) {
-                HStack {
-                    Text(vm.isScanning ? "Scanning…" : "Scan Complete")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Spacer()
-                    Text("\(vm.scannedCount) / 254")
-                        .font(.system(size: 13, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.55))
+    private var progressSummary: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(vm.isScanning ? "Scanning…" : "Scan Complete")
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.65))
+                .textCase(.uppercase)
+
+            VStack(spacing: 12) {
+                HStack(spacing: 0) {
+                    ScannerHeroStat(value: "\(vm.discoveredDevices.count)", label: "Devices")
+                    AppMetricDivider()
+                    ScannerHeroStat(value: "\(vm.scannedCount)/254", label: "Scanned")
+                    AppMetricDivider()
+                    ScannerHeroStat(value: "\(Int(vm.progress * 100))%", label: "Progress")
                 }
 
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(Color.white.opacity(0.10))
-                            .frame(height: 6)
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(LinearGradient(colors: [accentBlue, .cyan], startPoint: .leading, endPoint: .trailing))
-                            .frame(width: geo.size.width * vm.progress, height: 6)
+                        Capsule()
+                            .fill(.white.opacity(0.18))
+                        Capsule()
+                            .fill(.white)
+                            .frame(width: geo.size.width * vm.progress)
                             .animation(.linear(duration: 0.2), value: vm.progress)
                     }
                 }
-                .frame(height: 6)
-
-                if !vm.discoveredDevices.isEmpty {
-                    Text("\(vm.discoveredDevices.count) device\(vm.discoveredDevices.count == 1 ? "" : "s") found")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(accentBlue)
-                }
+                .frame(height: 4)
+                .padding(.horizontal, 14)
             }
-            .padding(16)
-            .background(Color.white.opacity(0.06))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(.vertical, 12)
+            .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
 
     // MARK: - Devices List
+
     @ViewBuilder
     private var devicesList: some View {
         if vm.discoveredDevices.isEmpty && !vm.isScanning && vm.scannedCount == 0 {
-            ContentUnavailableView(
-                "No Scan Yet",
-                systemImage: "network",
-                description: Text("Tap Scan to discover devices on your local network.")
+            AppEmptyState(
+                icon: "network",
+                title: "No Scan Yet",
+                message: "Tap Scan to discover devices on your local network."
             )
-            .foregroundStyle(.white)
-            .padding(.top, 40)
+            .appCard(padding: nil)
         } else if vm.discoveredDevices.isEmpty && !vm.isScanning {
-            ContentUnavailableView(
-                "No Devices Found",
-                systemImage: "wifi.slash",
-                description: Text("No responsive devices were found on \(vm.subnetBase).x")
+            AppEmptyState(
+                icon: "wifi.slash",
+                title: "No Devices Found",
+                message: "No responsive devices were found on \(vm.subnetBase).x"
             )
-            .foregroundStyle(.white)
-            .padding(.top, 40)
+            .appCard(padding: nil)
+        } else if vm.discoveredDevices.isEmpty {
+            AppEmptyState(icon: "dot.radiowaves.left.and.right", title: "Scanning…")
+                .appCard(padding: nil)
         } else {
-            VStack(spacing: 0) {
+            AppSection("\(vm.discoveredDevices.count) device\(vm.discoveredDevices.count == 1 ? "" : "s") found") {
                 ForEach(vm.discoveredDevices) { device in
                     Button {
                         selectedDevice = device
                     } label: {
                         DeviceRow(device: device)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(AppRowButtonStyle())
 
                     if device.id != vm.discoveredDevices.last?.id {
-                        Divider().background(Color.white.opacity(0.08)).padding(.leading, 68)
+                        AppRowDivider()
                     }
                 }
             }
-            .background(Color.white.opacity(0.06))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+    }
+}
+
+// MARK: - Hero Stat
+
+/// Value + caption pair shown inside the hero summary strip.
+private struct ScannerHeroStat: View {
+    let value: String
+    let label: LocalizedStringKey
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.6))
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Device Type Tint
+
+private extension DeviceIconType {
+    var tint: Color {
+        switch self {
+        case .router: Color(red: 0.24, green: 0.45, blue: 0.99)
+        case .phone: AppTheme.accent
+        case .laptop: Color(red: 0.20, green: 0.80, blue: 0.65)
+        case .tv: AppTheme.upload
+        case .printer: Color(red: 0.93, green: 0.30, blue: 0.60)
+        case .unknown: Color(white: 0.45)
         }
     }
 }
@@ -405,42 +447,38 @@ private struct DeviceRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: device.deviceType.rawValue)
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(Color(red: 0.24, green: 0.45, blue: 0.99))
-                .frame(width: 42, height: 42)
-                .background(Color(red: 0.24, green: 0.45, blue: 0.99).opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            AppIconTile(systemName: device.deviceType.rawValue, tint: device.deviceType.tint)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(device.hostname ?? device.ip)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
                 if device.hostname != nil {
                     Text(device.ip)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.secondaryText)
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 3) {
-                Text("\(Int(device.responseTime)) ms")
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.green)
+            VStack(alignment: .trailing, spacing: 4) {
+                AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
+                    .monospacedDigit()
                 Text(":\(device.openPort)")
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.35))
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.tertiaryText)
             }
 
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.25))
+            AppChevron()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .contentShape(Rectangle())
     }
 }
 
@@ -453,54 +491,74 @@ struct DeviceDetailSheet: View {
     @State private var isScanning = false
     @Environment(\.dismiss) private var dismiss
 
-    private let bg = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-
     var body: some View {
         NavigationStack {
-            List {
-                Section("Device Info") {
-                    infoRow(label: "IP Address", value: device.ip)
-                    if let hostname = device.hostname {
-                        infoRow(label: "Hostname", value: hostname)
-                    }
-                    infoRow(label: "Device Type",
-                            value: device.deviceType.rawValue.replacingOccurrences(of: ".fill", with: "").capitalized)
-                    infoRow(label: "Response Time", value: "\(Int(device.responseTime)) ms")
-                    infoRow(label: "First Open Port", value: "\(device.openPort) (\(serviceName(for: device.openPort)))")
-                }
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                    header
 
-                Section {
-                    if isScanning {
-                        HStack {
-                            ProgressView()
-                            Text("Scanning common ports…")
-                                .font(.system(size: 14, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 8)
+                    AppSection("Device Info") {
+                        infoRow(label: "IP Address", value: device.ip)
+                        AppRowDivider(leadingInset: 16)
+                        if let hostname = device.hostname {
+                            infoRow(label: "Hostname", value: hostname)
+                            AppRowDivider(leadingInset: 16)
                         }
-                    } else if openPorts.isEmpty {
-                        Text("No additional open ports found")
-                            .font(.system(size: 14, design: .rounded))
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(openPorts, id: \.self) { port in
-                            HStack {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 8, height: 8)
-                                Text("\(port)")
-                                    .font(.system(size: 14, design: .monospaced))
-                                Spacer()
-                                Text(serviceName(for: port))
-                                    .font(.system(size: 12, design: .rounded))
-                                    .foregroundStyle(.secondary)
+                        infoRow(label: "Device Type",
+                                value: device.deviceType.rawValue.replacingOccurrences(of: ".fill", with: "").capitalized)
+                        AppRowDivider(leadingInset: 16)
+                        infoRow(label: "Response Time", value: "\(Int(device.responseTime)) ms")
+                        AppRowDivider(leadingInset: 16)
+                        infoRow(label: "First Open Port", value: "\(device.openPort) (\(serviceName(for: device.openPort)))")
+                    }
+
+                    AppSection("Open Ports") {
+                        if isScanning {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .tint(.white)
+                                Text("Scanning common ports…")
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(AppTheme.secondaryText)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                        } else if openPorts.isEmpty {
+                            Text("No additional open ports found")
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(AppTheme.secondaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
+                        } else {
+                            ForEach(openPorts, id: \.self) { port in
+                                HStack(spacing: 10) {
+                                    Circle()
+                                        .fill(AppTheme.ping)
+                                        .frame(width: 8, height: 8)
+                                    Text("\(port)")
+                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                        .monospacedDigit()
+                                        .foregroundStyle(AppTheme.primaryText)
+                                    Spacer()
+                                    AppPill(text: LocalizedStringKey(serviceName(for: port)), tint: AppTheme.ping)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+
+                                if port != openPorts.last {
+                                    AppRowDivider(leadingInset: 34)
+                                }
                             }
                         }
                     }
-                } header: {
-                    Text("Open Ports")
                 }
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
             }
+            .appPageBackground()
             .navigationTitle(device.hostname ?? device.ip)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -510,6 +568,7 @@ struct DeviceDetailSheet: View {
             }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(AppTheme.background)
         .task {
             isScanning = true
             openPorts = await vm.probeCommonPorts(ip: device.ip)
@@ -517,15 +576,47 @@ struct DeviceDetailSheet: View {
         }
     }
 
-    private func infoRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundStyle(.primary)
+    private var header: some View {
+        HStack(spacing: 14) {
+            AppIconTile(systemName: device.deviceType.rawValue, tint: device.deviceType.tint, size: 52)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(device.hostname ?? device.ip)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryText)
+                    .lineLimit(1)
+                if device.hostname != nil {
+                    Text(device.ip)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.secondaryText)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
+                .monospacedDigit()
         }
+        .padding(.top, 8)
+    }
+
+    private func infoRow(label: LocalizedStringKey, value: String) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(AppTheme.primaryText)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 
     private func serviceName(for port: Int) -> String {
@@ -559,4 +650,5 @@ struct DeviceDetailSheet: View {
     NavigationStack {
         IPScannerView()
     }
+    .preferredColorScheme(.dark)
 }

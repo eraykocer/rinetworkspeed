@@ -241,66 +241,60 @@ struct PortScannerView: View {
         _vm = StateObject(wrappedValue: PortScannerViewModel(initialHost: initialHost))
     }
 
-    private let bg     = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-    private let accent = Color(red: 0.84, green: 0.28, blue: 0.74)
+    private let accent     = Color(red: 0.84, green: 0.28, blue: 0.74)
+    private let accentDeep = Color(red: 0.54, green: 0.12, blue: 0.48)
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                configCard
-                if vm.isScanning || !vm.results.isEmpty { statsRow }
-                if !vm.results.isEmpty { resultsList }
+            VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                heroCard
+
                 if let err = vm.errorMessage {
-                    ContentUnavailableView("Error", systemImage: "exclamationmark.triangle.fill",
-                                          description: Text(err))
-                    .foregroundStyle(.white)
+                    ToolErrorCard(title: "Error", message: err)
+                }
+
+                if vm.isScanning || !vm.results.isEmpty { summarySection }
+
+                if !vm.results.isEmpty {
+                    resultsSection
+                } else if !vm.isScanning && vm.errorMessage == nil {
+                    AppEmptyState(
+                        icon: "door.left.hand.open",
+                        title: "No Scan Yet",
+                        message: "Enter a host, choose ports or a preset, then start the scan."
+                    )
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
         }
-        .background(bg.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
+        .appPageBackground()
         .navigationTitle("Port Scanner")
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { hostFocused = false }
     }
 
-    // MARK: - Config Card
+    // MARK: - Hero Card
 
-    private var configCard: some View {
-        VStack(spacing: 14) {
-            // Host input
-            HStack(spacing: 12) {
-                Image(systemName: "server.rack")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(accent)
-                TextField("Host or IP (e.g. 192.168.1.1)", text: $vm.targetHost)
-                    .font(.system(size: 15, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ToolHeroHeader(
+                icon: "door.left.hand.open",
+                title: "Check open TCP ports on a host",
+                subtitle: "Scan a port range or pick a preset to find listening services."
+            )
+
+            VStack(spacing: 10) {
+                AppInputField(icon: "server.rack", placeholder: "Host or IP (e.g. 192.168.1.1)", text: $vm.targetHost)
                     .focused($hostFocused)
-            }
-            .padding(14)
-            .background(Color.white.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .heroInset()
 
-            // Port range input
-            HStack(spacing: 12) {
-                Image(systemName: "door.left.hand.open")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(accent)
-                TextField("Ports: 80,443 or 1-1024", text: $vm.portRangeText)
-                    .font(.system(size: 15, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.numbersAndPunctuation)
+                AppInputField(icon: "number", placeholder: "Ports: 80,443 or 1-1024",
+                              text: $vm.portRangeText, keyboard: .numbersAndPunctuation)
+                    .heroInset()
             }
-            .padding(14)
-            .background(Color.white.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             // Presets
             ScrollView(.horizontal, showsIndicators: false) {
@@ -309,26 +303,8 @@ struct PortScannerView: View {
                         Button {
                             vm.applyPreset(preset)
                         } label: {
-                            HStack(spacing: 5) {
-                                Image(systemName: preset.icon)
-                                    .font(.system(size: 11, weight: .semibold))
-                                Text(preset.rawValue)
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            }
-                            .foregroundStyle(vm.selectedPreset == preset ? accent : .white.opacity(0.50))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(vm.selectedPreset == preset
-                                          ? accent.opacity(0.20)
-                                          : Color.white.opacity(0.06))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .stroke(vm.selectedPreset == preset ? accent.opacity(0.55) : Color.clear,
-                                            lineWidth: 1)
-                            )
+                            HeroChip(title: preset.rawValue, icon: preset.icon,
+                                     isSelected: vm.selectedPreset == preset, selectedTint: accentDeep)
                         }
                         .buttonStyle(.plain)
                     }
@@ -341,80 +317,77 @@ struct PortScannerView: View {
                 hostFocused = false
                 vm.isScanning ? vm.stopScan() : vm.startScan()
             } label: {
-                Text(vm.isScanning ? "Stop Scan" : "Start Scan")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(vm.isScanning
-                                  ? LinearGradient(colors: [.red, .pink], startPoint: .leading, endPoint: .trailing)
-                                  : LinearGradient(colors: [accent, Color(red: 0.54, green: 0.12, blue: 0.48)],
-                                                   startPoint: .leading, endPoint: .trailing))
-                    )
+                HStack(spacing: 8) {
+                    if vm.isScanning {
+                        ProgressView().tint(accentDeep)
+                    } else {
+                        Image(systemName: "play.fill")
+                    }
+                    Text(vm.isScanning ? "Stop Scan" : "Start Scan")
+                }
             }
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
         }
-        .padding(16)
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .appHeroCard(colors: [accent, accentDeep])
     }
 
-    // MARK: - Stats Row
+    // MARK: - Summary Section
 
-    private var statsRow: some View {
-        HStack(spacing: 12) {
-            statBubble(value: "\(vm.openCount)", label: "Open", color: .green)
-            statBubble(value: "\(vm.scannedCount - vm.openCount)", label: "Closed", color: .white.opacity(0.25))
-            statBubble(value: "\(vm.scannedCount)", label: "Scanned", color: accent)
+    private var summarySection: some View {
+        AppSection("Summary") {
+            HStack(spacing: 0) {
+                statCell(value: vm.openCount, label: "Open", color: AppTheme.ping)
+                AppMetricDivider()
+                statCell(value: vm.scannedCount - vm.openCount, label: "Closed", color: AppTheme.secondaryText)
+                AppMetricDivider()
+                statCell(value: vm.scannedCount, label: "Scanned", color: accent)
+            }
+            .padding(.vertical, 16)
 
-            Spacer()
+            AppRowDivider(leadingInset: 16)
 
-            HStack(spacing: 6) {
-                Text("Open only")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.50))
-                Toggle("", isOn: $vm.showOnlyOpen)
-                    .toggleStyle(SwitchToggleStyle(tint: accent))
+            AppRow(icon: "line.3.horizontal.decrease", tint: accent, title: "Open only") {
+                Toggle("Open only", isOn: $vm.showOnlyOpen)
                     .labelsHidden()
+                    .tint(accent)
             }
         }
-        .padding(.horizontal, 4)
     }
 
-    private func statBubble(value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+    private func statCell(value: Int, label: LocalizedStringKey, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(verbatim: "\(value)")
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .monospacedDigit()
                 .foregroundStyle(color)
+                .contentTransition(.numericText())
             Text(label)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.40))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .textCase(.uppercase)
         }
+        .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Results List
+    // MARK: - Results Section
 
-    private var resultsList: some View {
-        VStack(spacing: 0) {
-            if vm.filteredResults.isEmpty {
-                Text(vm.showOnlyOpen ? "No open ports found" : "No results yet")
-                    .font(.system(size: 14, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.40))
-                    .padding(24)
+    private var resultsSection: some View {
+        AppSection("Results") {
+            let results = vm.filteredResults
+            if results.isEmpty {
+                AppEmptyState(
+                    icon: vm.showOnlyOpen ? "door.left.hand.closed" : "hourglass",
+                    title: vm.showOnlyOpen ? "No open ports found" : "No results yet"
+                )
             } else {
-                ForEach(vm.filteredResults) { result in
-                    PortRow(result: result)
-                    if result.id != vm.filteredResults.last?.id {
-                        Divider().background(Color.white.opacity(0.06)).padding(.leading, 16)
+                ForEach(results) { result in
+                    PortRow(result: result, accent: accent)
+                    if result.id != results.last?.id {
+                        AppRowDivider(leadingInset: 16)
                     }
                 }
             }
         }
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -422,46 +395,129 @@ struct PortScannerView: View {
 
 private struct PortRow: View {
     let result: PortResult
+    let accent: Color
 
     var body: some View {
-        HStack(spacing: 14) {
-            Circle()
-                .fill(result.isOpen ? Color.green : Color.white.opacity(0.12))
-                .frame(width: 10, height: 10)
-
-            Text("\(result.port)")
-                .font(.system(size: 14, weight: .bold, design: .monospaced))
-                .foregroundStyle(result.isOpen ? .white : .white.opacity(0.40))
-                .frame(width: 48, alignment: .leading)
+        HStack(spacing: 12) {
+            Text(verbatim: String(result.port))
+                .font(.system(size: 15, weight: .bold, design: .monospaced))
+                .foregroundStyle(result.isOpen ? AppTheme.primaryText : AppTheme.tertiaryText)
+                .frame(width: 56, alignment: .leading)
 
             if !result.serviceName.isEmpty {
-                Text(result.serviceName)
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(result.isOpen ? Color(red: 0.84, green: 0.28, blue: 0.74) : .white.opacity(0.20))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(result.isOpen
-                                  ? Color(red: 0.84, green: 0.28, blue: 0.74).opacity(0.15)
-                                  : Color.white.opacity(0.04))
-                    )
+                Text(verbatim: result.serviceName)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(result.isOpen ? accent : AppTheme.tertiaryText)
+                    .lineLimit(1)
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
             if result.isOpen {
-                Text(String(format: "%.0f ms", result.responseTime))
+                Text(verbatim: String(format: "%.0f ms", result.responseTime))
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.green.opacity(0.80))
-            } else {
-                Text("closed")
-                    .font(.system(size: 12, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.20))
+                    .foregroundStyle(AppTheme.secondaryText)
             }
+
+            AppPill(text: result.isOpen ? "Open" : "Closed",
+                    tint: result.isOpen ? AppTheme.ping : .white.opacity(0.45))
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 11)
+        .padding(.vertical, 12)
+    }
+}
+
+// MARK: - Tool Page Components
+
+/// Icon tile + short description shown at the top of the tool's hero card.
+private struct ToolHeroHeader: View {
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private extension View {
+    /// Darkened inset so inputs and controls stay legible on the hero gradient.
+    func heroInset() -> some View {
+        background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+    }
+}
+
+/// Card explaining why the last run failed.
+private struct ToolErrorCard: View {
+    let title: LocalizedStringKey
+    let message: String
+    var icon = "exclamationmark.triangle.fill"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            AppIconTile(systemName: icon, tint: AppTheme.danger)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(verbatim: message)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .appCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(AppTheme.danger.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+/// Selectable capsule used for options inside the hero card.
+private struct HeroChip: View {
+    let title: String
+    var icon: String?
+    let isSelected: Bool
+    let selectedTint: Color
+    var monospaced = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            Text(verbatim: title)
+                .font(.system(size: 13, weight: .semibold, design: monospaced ? .monospaced : .rounded))
+        }
+        .foregroundStyle(isSelected ? selectedTint : .white.opacity(0.85))
+        .padding(.horizontal, 13)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(isSelected ? Color.white : Color.black.opacity(0.22)))
+        .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 }
 
@@ -469,4 +525,5 @@ private struct PortRow: View {
     NavigationStack {
         PortScannerView()
     }
+    .preferredColorScheme(.dark)
 }

@@ -180,8 +180,7 @@ struct NetworkToolsView: View {
 private struct SpeedTestHeroCard: View {
     @ObservedObject var manager: SpeedTestManager
 
-    private let gradient = [Color(red: 0.16, green: 0.47, blue: 0.96),
-                            Color(red: 0.42, green: 0.22, blue: 0.93)]
+    private let tint = AppTheme.download
 
     private var isRunning: Bool {
         switch manager.state {
@@ -199,35 +198,35 @@ private struct SpeedTestHeroCard: View {
                         .foregroundStyle(.white)
                     Text("Measure ping, download and upload speed")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(AppTheme.secondaryText)
                         .multilineTextAlignment(.leading)
                 }
 
                 Spacer(minLength: 12)
 
                 Image(systemName: "gauge.with.dots.needle.67percent")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 58, height: 58)
-                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 56, height: 56)
+                    .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
 
             if let last = manager.history.first {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Last result · \(last.date, format: .relative(presentation: .named))")
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.65))
+                        .foregroundStyle(AppTheme.tertiaryText)
                         .textCase(.uppercase)
 
                     HStack(spacing: 0) {
-                        metric(icon: "arrow.down", value: mbps(last.downloadSpeed), unit: "Mbps")
+                        metric(icon: "arrow.down", tint: AppTheme.download, value: mbps(last.downloadSpeed), unit: "Mbps")
                         divider
-                        metric(icon: "arrow.up", value: mbps(last.uploadSpeed), unit: "Mbps")
+                        metric(icon: "arrow.up", tint: AppTheme.upload, value: mbps(last.uploadSpeed), unit: "Mbps")
                         divider
-                        metric(icon: "timer", value: String(format: "%.0f", last.ping), unit: "ms")
+                        metric(icon: "timer", tint: AppTheme.ping, value: String(format: "%.0f", last.ping), unit: "ms")
                     }
                     .padding(.vertical, 12)
-                    .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
 
@@ -237,30 +236,26 @@ private struct SpeedTestHeroCard: View {
                 Text(isRunning ? "Test in progress" : (manager.history.isEmpty ? "Start Test" : "Test Again"))
             }
             .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(gradient[1])
+            .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(.white, in: Capsule())
+            .background(tint, in: Capsule())
         }
-        .padding(20)
-        .background(
-            LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: gradient[0].opacity(0.35), radius: 16, x: 0, y: 8)
+        .appCard(padding: 20)
     }
 
     private var divider: some View {
         Rectangle()
-            .fill(.white.opacity(0.18))
+            .fill(AppTheme.separator)
             .frame(width: 1, height: 28)
     }
 
-    private func metric(icon: String, value: String, unit: String) -> some View {
+    private func metric(icon: String, tint: Color, value: String, unit: String) -> some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(tint)
                 Text(value)
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .monospacedDigit()
@@ -343,7 +338,8 @@ private struct ToolRow: View {
                 Text(tool.description)
                     .font(.system(size: 12, weight: .regular, design: .rounded))
                     .foregroundStyle(.white.opacity(0.55))
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
             }
 
             Spacer(minLength: 8)

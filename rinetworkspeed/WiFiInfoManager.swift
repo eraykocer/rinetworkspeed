@@ -74,7 +74,7 @@ final class WiFiInfoManager: NSObject, ObservableObject {
     @Published var isRefreshing: Bool = false
 
     private let locationManager = CLLocationManager()
-    private let sharedDefaults = UserDefaults(suiteName: "group.com.rinetworkspeed")
+    private let sharedDefaults = UserDefaults(suiteName: "group.rinetworkspeedapp")
 
     override init() {
         authorizationStatus = locationManager.authorizationStatus

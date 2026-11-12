@@ -14,8 +14,6 @@ import UIKit
 final class NotificationManager: NSObject, ObservableObject {
     static let shared = NotificationManager()
 
-    @AppStorage("notifyOnSpeedDrop") var notifyOnSpeedDrop: Bool = true
-    @AppStorage("speedDropThreshold") var speedDropThreshold: Double = 1.0
     @AppStorage("notifyOnDisconnect") var notifyOnDisconnect: Bool = true
     @AppStorage("notifyOnDataLimit") var notifyOnDataLimit: Bool = true
     @AppStorage("dataLimitThresholdPercent") var dataLimitThresholdPercent: Double = 80.0
@@ -28,11 +26,9 @@ final class NotificationManager: NSObject, ObservableObject {
     private let center = UNUserNotificationCenter.current()
     private let cooldownInterval: TimeInterval = 60
     private var lastNotificationDates: [String: Date] = [:]
-    private var lastObservedSpeed: Double?
     private var lastObservedConnectionState: Bool?
     private var hasReachedDataLimitThreshold = false
     private var hasReachedSpeedPeakThreshold = false
-    private var hasDroppedBelowSpeedThreshold = false
 
     private override init() {
         super.init()
@@ -71,31 +67,6 @@ final class NotificationManager: NSObject, ObservableObject {
     func openAppSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         UIApplication.shared.open(url)
-    }
-
-    func checkSpeedDrop(current: Double) {
-        guard notifyOnSpeedDrop else {
-            hasDroppedBelowSpeedThreshold = false
-            lastObservedSpeed = current
-            return
-        }
-
-        let thresholdBytes = speedDropThreshold * 1_048_576
-        let previousSpeed = lastObservedSpeed
-        let isBelowThreshold = current > 0 && current < thresholdBytes
-        let wasAboveThreshold = (previousSpeed ?? thresholdBytes) >= thresholdBytes
-
-        if isBelowThreshold && wasAboveThreshold && !hasDroppedBelowSpeedThreshold {
-            notifyIfNeeded(
-                type: NotificationType.speedDrop.rawValue,
-                title: "Speed Drop Detected",
-                body: String(format: "Current throughput dropped to %.2f MB/s.", megabytesPerSecond(from: current)),
-                category: NotificationCategory.speedDrop.rawValue
-            )
-        }
-
-        hasDroppedBelowSpeedThreshold = isBelowThreshold
-        lastObservedSpeed = current
     }
 
     func checkDisconnect(isConnected: Bool) {
@@ -180,11 +151,6 @@ final class NotificationManager: NSObject, ObservableObject {
 
         let categories: Set<UNNotificationCategory> = [
             UNNotificationCategory(
-                identifier: NotificationCategory.speedDrop.rawValue,
-                actions: [openAppAction, dismissAction],
-                intentIdentifiers: []
-            ),
-            UNNotificationCategory(
                 identifier: NotificationCategory.disconnect.rawValue,
                 actions: [retryAction, dismissAction],
                 intentIdentifiers: []
@@ -229,9 +195,6 @@ final class NotificationManager: NSObject, ObservableObject {
         return Date().timeIntervalSince(lastDate) >= cooldownInterval
     }
 
-    private func megabytesPerSecond(from bytesPerSecond: Double) -> Double {
-        bytesPerSecond / 1_048_576
-    }
 }
 
 extension NotificationManager: UNUserNotificationCenterDelegate {
@@ -244,14 +207,12 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
 }
 
 private enum NotificationType: String {
-    case speedDrop
     case disconnect
     case dataLimit
     case speedPeak
 }
 
 private enum NotificationCategory: String {
-    case speedDrop = "network.speed.drop"
     case disconnect = "network.disconnect"
     case dataLimit = "network.data.limit"
     case speedPeak = "network.speed.peak"

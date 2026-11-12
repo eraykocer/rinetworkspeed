@@ -20,7 +20,7 @@ struct GetDataUsageIntent: AppIntent {
     static var openAppWhenRun: Bool = false
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        let shared = UserDefaults(suiteName: "group.com.rinetworkspeed")
+        let shared = UserDefaults(suiteName: "group.rinetworkspeedapp")
 
         // Values are persisted as Int (64-bit on iOS) by DataUsageMonitor
         let wifiBytes     = UInt64(max(0, shared?.integer(forKey: "intentTodayWifi")     ?? 0))

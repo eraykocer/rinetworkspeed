@@ -15,7 +15,7 @@ private enum PingHostOption: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    var title: LocalizedStringKey {
         switch self {
         case .cloudflare:
             return "Cloudflare"
@@ -38,279 +38,26 @@ private enum PingHostOption: String, CaseIterable, Identifiable {
     }
 }
 
-private struct PingStat: Identifiable {
-    let id = UUID()
-    let title: String
-    let value: String
-    let color: Color
-}
+// MARK: - Status Styling
 
-struct PingMonitorView: View {
-    @ObservedObject var monitor: PingMonitor
-    @State private var selectedHost: PingHostOption = .cloudflare
-    @State private var customHost: String = ""
-    @State private var pulseScale: Double = 1
-    @State private var pulseOpacity: Double = 0.5
-
-    init(monitor: PingMonitor, initialHost: String = "") {
-        _monitor = ObservedObject(wrappedValue: monitor)
-        if !initialHost.isEmpty {
-            _selectedHost = State(initialValue: .custom)
-            _customHost   = State(initialValue: initialHost)
-        }
-    }
-
-    private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-
-    private var stats: [PingStat] {
-        [
-            PingStat(title: "Min Ping", value: formatPing(monitor.minPing), color: .green),
-            PingStat(title: "Max Ping", value: formatPing(monitor.maxPing), color: .orange),
-            PingStat(title: "Avg Ping", value: formatPing(monitor.avgPing), color: .yellow),
-            PingStat(title: "Sent", value: "\(monitor.packetsSent)", color: .white),
-            PingStat(title: "Lost", value: "\(monitor.packetsLost)", color: .red),
-            PingStat(title: "Packet Loss", value: String(format: "%.0f%%", monitor.packetLossPercent), color: .pink)
-        ]
-    }
-
-    private var maxChartValue: Double {
-        let values = monitor.pingHistory.map { $0.latency < 0 ? 0 : $0.latency }
-        return max(20, (values.max() ?? 0) * 1.2)
-    }
-
-    var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    statusSection
-                    chartCard
-                    statsGrid
-                    hostSelectorCard
-                    controlButton
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 20)
-            }
-            .background(backgroundColor.ignoresSafeArea())
-            .navigationTitle("Ping Monitor")
-            .onAppear {
-                startIfNeeded()
-                startPulseAnimation()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
-                monitor.stop()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                startIfNeeded()
-            }
-        }
-        .background(backgroundColor.ignoresSafeArea())
-    }
-
-    private var statusSection: some View {
-        VStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .strokeBorder(statusColor.opacity(0.16), lineWidth: 14)
-                    .background(
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                    )
-                    .frame(width: 160, height: 160)
-
-                Circle()
-                    .stroke(statusColor.opacity(0.35), lineWidth: 8)
-                    .frame(width: 160, height: 160)
-                    .scaleEffect(pulseScale)
-                    .opacity(pulseOpacity)
-
-                VStack(spacing: 6) {
-                    Text(monitor.currentPing < 0 ? "--" : String(format: "%.0f", monitor.currentPing))
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .contentTransition(.numericText())
-                    Text("ms")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.58))
-                    Text(statusLabel)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(statusColor)
-                }
-            }
-            .shadow(color: statusColor.opacity(0.22), radius: 24, x: 0, y: 12)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private var chartCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Live Chart")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-
-            Chart {
-                ForEach(monitor.pingHistory) { sample in
-                    if sample.latency >= 0 {
-                        LineMark(
-                            x: .value("Time", sample.timestamp),
-                            y: .value("Latency", sample.latency)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(statusColor)
-                    }
-                }
-
-                ForEach(monitor.pingHistory.filter { $0.latency < 0 }) { sample in
-                    PointMark(
-                        x: .value("Time", sample.timestamp),
-                        y: .value("Latency", maxChartValue * 0.9)
-                    )
-                    .symbolSize(40)
-                    .foregroundStyle(.red)
-                }
-
-                RectangleMark(
-                    xStart: .value("Start", Date().addingTimeInterval(-60)),
-                    xEnd: .value("End", Date()),
-                    yStart: .value("Low", 0),
-                    yEnd: .value("Excellent", 20)
-                )
-                .foregroundStyle(.green.opacity(0.08))
-            }
-            .chartXScale(domain: Date().addingTimeInterval(-60)...Date())
-            .chartYScale(domain: 0...maxChartValue)
-            .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisValueLabel {
-                        if let date = value.as(Date.self) {
-                            Text(date.formatted(.dateTime.minute().second()))
-                        }
-                    }
-                    .foregroundStyle(.white.opacity(0.5))
-                }
-            }
-            .chartYAxis {
-                AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
-                        .foregroundStyle(Color.white.opacity(0.05))
-                    AxisValueLabel {
-                        if let ping = value.as(Double.self) {
-                            Text("\(Int(ping))")
-                        }
-                    }
-                    .foregroundStyle(.white.opacity(0.5))
-                }
-            }
-            .frame(height: 160)
-        }
-        .padding(18)
-        .pingCardStyle()
-    }
-
-    private var statsGrid: some View {
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
-        ], spacing: 12) {
-            ForEach(stats) { stat in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(stat.title)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.64))
-                    Text(stat.value)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(stat.color)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(16)
-                .pingCardStyle()
-            }
-        }
-    }
-
-    private var hostSelectorCard: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Host Selector")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-
-            Picker("Host", selection: $selectedHost) {
-                ForEach(PingHostOption.allCases) { option in
-                    Text(option.title).tag(option)
-                }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: selectedHost) { _, newValue in
-                applyHostChange(for: newValue)
-            }
-
-            if selectedHost == .custom {
-                TextField("Enter host", text: $customHost)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .padding(14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.white.opacity(0.06))
-                    )
-                    .foregroundStyle(.white)
-                    .onSubmit {
-                        applyCustomHost()
-                    }
-            }
-        }
-        .padding(18)
-        .pingCardStyle()
-    }
-
-    private var controlButton: some View {
-        VStack(spacing: 10) {
-            Button {
-                if monitor.isRunning {
-                    monitor.stop()
-                } else {
-                    startIfNeeded()
-                }
-            } label: {
-                Text(monitor.isRunning ? "Stop" : "Start")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(
-                                monitor.isRunning
-                                    ? AnyShapeStyle(LinearGradient(colors: [.red, .pink], startPoint: .leading, endPoint: .trailing))
-                                    : AnyShapeStyle(LinearGradient(colors: [.green, .mint], startPoint: .leading, endPoint: .trailing))
-                            )
-                    )
-            }
-            .buttonStyle(.plain)
-
-            Text("Pinging \(activeHostText)...")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
-        }
-    }
-
-    private var statusColor: Color {
-        switch monitor.status {
+private extension ConnectionStatus {
+    var color: Color {
+        switch self {
         case .excellent:
-            return .green
+            return AppTheme.ping
         case .good:
             return Color(red: 134 / 255, green: 239 / 255, blue: 172 / 255)
         case .fair:
-            return .yellow
+            return AppTheme.warning
         case .poor:
-            return .orange
+            return AppTheme.upload
         case .timeout:
-            return .red
+            return AppTheme.danger
         }
     }
 
-    private var statusLabel: String {
-        switch monitor.status {
+    var label: LocalizedStringKey {
+        switch self {
         case .excellent:
             return "Excellent"
         case .good:
@@ -324,8 +71,116 @@ struct PingMonitorView: View {
         }
     }
 
+    /// Hero card gradient; shifts from green to red as latency degrades.
+    var heroGradient: [Color] {
+        switch self {
+        case .excellent, .good:
+            return [AppTheme.ping, Color(red: 0.05, green: 0.52, blue: 0.62)]
+        case .fair:
+            return [Color(red: 0.85, green: 0.62, blue: 0.10), AppTheme.upload]
+        case .poor:
+            return [AppTheme.upload, Color(red: 0.86, green: 0.27, blue: 0.20)]
+        case .timeout:
+            return [AppTheme.danger, Color(red: 0.62, green: 0.12, blue: 0.22)]
+        }
+    }
+}
+
+// MARK: - Main View
+
+struct PingMonitorView: View {
+    /// Not observed here: only the small live subviews observe the monitor, so the
+    /// 1 s ping updates don't re-render the host selector.
+    let monitor: PingMonitor
+    @State private var selectedHost: PingHostOption = .cloudflare
+    @State private var customHost: String = ""
+
+    init(monitor: PingMonitor, initialHost: String = "") {
+        self.monitor = monitor
+        if !initialHost.isEmpty {
+            _selectedHost = State(initialValue: .custom)
+            _customHost   = State(initialValue: initialHost)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                    PingHeroCard(monitor: monitor, hostText: activeHostText, onToggle: toggleRunning)
+
+                    AppSection("Live Chart") {
+                        PingLiveChart(monitor: monitor)
+                            .padding(16)
+                    }
+
+                    AppSection("Statistics") {
+                        PingStatsRows(monitor: monitor)
+                    }
+
+                    hostSelectorSection
+                }
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
+            }
+            .appPageBackground()
+            .navigationTitle("Ping Monitor")
+            .onAppear {
+                startIfNeeded()
+            }
+            // Stop pinging once the screen is closed; otherwise the 1 s timer kept
+            // running (and publishing) while the user browsed other tabs.
+            .onDisappear {
+                monitor.stop()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                monitor.stop()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+                startIfNeeded()
+            }
+        }
+        .appPageBackground()
+    }
+
+    private var hostSelectorSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            AppSectionHeader("Host Selector")
+
+            Picker("Host", selection: $selectedHost) {
+                ForEach(PingHostOption.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(12)
+            .appCard(padding: nil)
+            .onChange(of: selectedHost) { _, newValue in
+                applyHostChange(for: newValue)
+            }
+
+            if selectedHost == .custom {
+                AppInputField(
+                    icon: "server.rack",
+                    placeholder: "Enter host",
+                    text: $customHost,
+                    onSubmit: applyCustomHost
+                )
+            }
+        }
+    }
+
     private var activeHostText: String {
         selectedHost == .custom ? customHost : selectedHost.host
+    }
+
+    private func toggleRunning() {
+        if monitor.isRunning {
+            monitor.stop()
+        } else {
+            startIfNeeded()
+        }
     }
 
     private func startIfNeeded() {
@@ -348,40 +203,218 @@ struct PingMonitorView: View {
         monitor.reset()
         startIfNeeded()
     }
+}
 
-    private func startPulseAnimation() {
-        withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
-            pulseScale = 1.3
-            pulseOpacity = 0
+// MARK: - Hero Card
+
+private struct PingHeroCard: View {
+    @ObservedObject var monitor: PingMonitor
+    let hostText: String
+    let onToggle: () -> Void
+
+    var body: some View {
+        let gradient = monitor.status.heroGradient
+
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        PulseDot(isActive: monitor.isRunning)
+                        Text(monitor.status.label)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .textCase(.uppercase)
+                    }
+
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(monitor.currentPing < 0 ? "--" : String(format: "%.0f", monitor.currentPing))
+                            .font(.system(size: 56, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                            .contentTransition(.numericText())
+                        Text("ms")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+
+                Spacer(minLength: 12)
+
+                Image(systemName: "waveform.path.ecg")
+                    .font(.system(size: 28, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 58, height: 58)
+                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+
+            HStack(spacing: 0) {
+                AppMetric(icon: "arrow.down", value: pingValue(monitor.minPing), unit: "ms", caption: "Min Ping")
+                AppMetricDivider()
+                AppMetric(icon: "equal", value: pingValue(monitor.avgPing), unit: "ms", caption: "Avg Ping")
+                AppMetricDivider()
+                AppMetric(icon: "arrow.up", value: pingValue(monitor.maxPing), unit: "ms", caption: "Max Ping")
+            }
+            .padding(.vertical, 12)
+            .background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            VStack(spacing: 10) {
+                Button(action: onToggle) {
+                    HStack(spacing: 8) {
+                        Image(systemName: monitor.isRunning ? "stop.fill" : "play.fill")
+                        Text(monitor.isRunning ? "Stop" : "Start")
+                    }
+                }
+                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: gradient))
+
+                Text("Pinging \(hostText)...")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .appHeroCard(colors: gradient)
+        .animation(.easeInOut(duration: 0.4), value: monitor.status)
+    }
+
+    private func pingValue(_ value: Double) -> String {
+        value <= 0 ? "--" : String(format: "%.0f", value)
+    }
+}
+
+/// Small live indicator with a repeating pulse ring while pinging.
+private struct PulseDot: View {
+    let isActive: Bool
+
+    @State private var pulseScale: Double = 1
+    @State private var pulseOpacity: Double = 0.6
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(.white, lineWidth: 2)
+                .frame(width: 10, height: 10)
+                .scaleEffect(pulseScale)
+                .opacity(isActive ? pulseOpacity : 0)
+
+            Circle()
+                .fill(.white.opacity(isActive ? 1 : 0.45))
+                .frame(width: 8, height: 8)
+        }
+        .frame(width: 18, height: 18)
+        .onAppear {
+            withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
+                pulseScale = 2.2
+                pulseOpacity = 0
+            }
+        }
+    }
+}
+
+// MARK: - Live Chart
+
+private struct PingLiveChart: View {
+    @ObservedObject var monitor: PingMonitor
+
+    private var maxChartValue: Double {
+        let values = monitor.pingHistory.map { $0.latency < 0 ? 0 : $0.latency }
+        return max(20, (values.max() ?? 0) * 1.2)
+    }
+
+    var body: some View {
+        let lineColor = monitor.status.color
+        let maxChartValue = self.maxChartValue
+
+        Chart {
+            ForEach(monitor.pingHistory) { sample in
+                if sample.latency >= 0 {
+                    LineMark(
+                        x: .value("Time", sample.timestamp),
+                        y: .value("Latency", sample.latency)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(lineColor)
+                }
+            }
+
+            ForEach(monitor.pingHistory.filter { $0.latency < 0 }) { sample in
+                PointMark(
+                    x: .value("Time", sample.timestamp),
+                    y: .value("Latency", maxChartValue * 0.9)
+                )
+                .symbolSize(40)
+                .foregroundStyle(AppTheme.danger)
+            }
+
+            RectangleMark(
+                xStart: .value("Start", Date().addingTimeInterval(-60)),
+                xEnd: .value("End", Date()),
+                yStart: .value("Low", 0),
+                yEnd: .value("Excellent", 20)
+            )
+            .foregroundStyle(AppTheme.ping.opacity(0.1))
+        }
+        .chartXScale(domain: Date().addingTimeInterval(-60)...Date())
+        .chartYScale(domain: 0...maxChartValue)
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                AxisValueLabel {
+                    if let date = value.as(Date.self) {
+                        Text(date.formatted(.dateTime.minute().second()))
+                    }
+                }
+                .foregroundStyle(AppTheme.tertiaryText)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
+                    .foregroundStyle(AppTheme.separator)
+                AxisValueLabel {
+                    if let ping = value.as(Double.self) {
+                        Text("\(Int(ping))")
+                    }
+                }
+                .foregroundStyle(AppTheme.tertiaryText)
+            }
+        }
+        .frame(height: 170)
+    }
+}
+
+// MARK: - Statistics
+
+private struct PingStatsRows: View {
+    @ObservedObject var monitor: PingMonitor
+
+    var body: some View {
+        AppRow(icon: "paperplane.fill", tint: AppTheme.download, title: "Sent") {
+            value("\(monitor.packetsSent)", color: .white)
+        }
+        AppRowDivider()
+        AppRow(icon: "xmark.octagon.fill", tint: AppTheme.danger, title: "Lost") {
+            value("\(monitor.packetsLost)", color: monitor.packetsLost > 0 ? AppTheme.danger : .white)
+        }
+        AppRowDivider()
+        AppRow(icon: "percent", tint: Color(red: 0.93, green: 0.30, blue: 0.60), title: "Packet Loss") {
+            value(
+                String(format: "%.0f%%", monitor.packetLossPercent),
+                color: monitor.packetLossPercent > 0 ? AppTheme.danger : .white
+            )
         }
     }
 
-    private func formatPing(_ value: Double) -> String {
-        value <= 0 ? "--" : String(format: "%.0f ms", value)
-    }
-}
-
-private struct PingCardModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
-    }
-}
-
-private extension View {
-    func pingCardStyle() -> some View {
-        modifier(PingCardModifier())
+    private func value(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.system(size: 17, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(color)
+            .contentTransition(.numericText())
     }
 }
 
 #Preview {
     PingMonitorView(monitor: PingMonitor())
+        .preferredColorScheme(.dark)
 }

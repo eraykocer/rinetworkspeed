@@ -204,98 +204,95 @@ private final class ResumableBox<T: Sendable>: @unchecked Sendable {
 
 struct TracerouteView: View {
     @StateObject private var vm = TracerouteViewModel()
-    private let bg = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
     private let accent = Color(red: 0.13, green: 0.72, blue: 0.52)
+    private let accentDeep = Color(red: 0.05, green: 0.41, blue: 0.30)
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                inputCard
-                if !vm.hops.isEmpty { hopsList }
+            VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                heroCard
+
+                if !vm.hops.isEmpty || vm.isRunning {
+                    hopsSection
+                }
+
                 if let err = vm.errorMessage {
-                    ContentUnavailableView("Trace Failed", systemImage: "exclamationmark.triangle.fill",
-                                          description: Text(err))
-                    .foregroundStyle(.white)
+                    ToolErrorCard(title: "Trace Failed", message: err)
+                } else if vm.hops.isEmpty && !vm.isRunning {
+                    AppEmptyState(
+                        icon: "point.3.connected.trianglepath.dotted",
+                        title: "No Trace Yet",
+                        message: "Enter a host and start a trace to see each hop along the route."
+                    )
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
         }
-        .background(bg.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
+        .appPageBackground()
         .navigationTitle("Traceroute")
         .navigationBarTitleDisplayMode(.large)
     }
 
-    // MARK: - Input Card
+    // MARK: - Hero Card
 
-    private var inputCard: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: "point.3.connected.trianglepath.dotted")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(accent)
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ToolHeroHeader(
+                icon: "point.3.connected.trianglepath.dotted",
+                title: "Hop-by-hop path analysis",
+                subtitle: "Probe each hop on the way to a host and measure its latency."
+            )
 
-                TextField("Target host (e.g. google.com)", text: $vm.targetHost)
-                    .font(.system(size: 15, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .onSubmit { if !vm.isRunning { vm.start() } }
+            AppInputField(icon: "globe", placeholder: "Target host (e.g. google.com)", text: $vm.targetHost) {
+                if !vm.isRunning { vm.start() }
             }
-            .padding(14)
-            .background(Color.white.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .heroInset()
 
             Button {
                 vm.isRunning ? vm.cancel() : vm.start()
             } label: {
                 HStack(spacing: 8) {
                     if vm.isRunning {
-                        ProgressView().tint(.white).scaleEffect(0.8)
+                        ProgressView().tint(accentDeep)
+                    } else {
+                        Image(systemName: "play.fill")
                     }
                     Text(vm.isRunning ? "Stop Trace" : "Start Trace")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .fill(vm.isRunning
-                            ? LinearGradient(colors: [.red, .pink], startPoint: .leading, endPoint: .trailing)
-                            : LinearGradient(colors: [accent, Color(red: 0.05, green: 0.41, blue: 0.30)],
-                                             startPoint: .leading, endPoint: .trailing))
-                )
             }
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
         }
-        .padding(16)
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .appHeroCard(colors: [accent, accentDeep])
     }
 
-    // MARK: - Hops List
+    // MARK: - Hops Section
 
-    private var hopsList: some View {
-        VStack(spacing: 0) {
+    private var hopsSection: some View {
+        AppSection("Route") {
             ForEach(vm.hops) { hop in
-                HopRow(hop: hop)
-                if hop.id != vm.hops.last?.id {
-                    HStack(spacing: 0) {
-                        Rectangle()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: 1, height: 16)
-                            .padding(.leading, 28)
-                        Spacer()
-                    }
+                HopRow(hop: hop, accent: accent)
+                if hop.id != vm.hops.last?.id || vm.isRunning {
+                    AppRowDivider()
                 }
             }
+
+            if vm.isRunning {
+                HStack(spacing: 14) {
+                    ProgressView()
+                        .tint(accent)
+                        .frame(width: 40, height: 40)
+                    Text("Probing next hop…")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(AppTheme.secondaryText)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
         }
-        .padding(4)
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 }
 
@@ -303,64 +300,66 @@ struct TracerouteView: View {
 
 private struct HopRow: View {
     let hop: TraceHop
+    let accent: Color
     @State private var visible = false
 
     private var latencyColor: Color {
-        guard let ms = hop.latency else { return .secondary }
-        if ms < 20  { return .green }
+        guard let ms = hop.latency else { return AppTheme.secondaryText }
+        if ms < 20  { return AppTheme.ping }
         if ms < 80  { return Color(red: 0.6, green: 0.9, blue: 0.2) }
-        if ms < 200 { return .orange }
-        return .red
+        if ms < 200 { return AppTheme.upload }
+        return AppTheme.danger
+    }
+
+    private var tileFill: AnyShapeStyle {
+        hop.isTimeout
+            ? AnyShapeStyle(Color.white.opacity(0.06))
+            : AnyShapeStyle(LinearGradient(colors: [accent, accent.opacity(0.6)],
+                                           startPoint: .topLeading, endPoint: .bottomTrailing))
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            // Hop number bubble
-            ZStack {
-                Circle()
-                    .fill(hop.isTimeout ? Color.white.opacity(0.08) : Color(red: 0.13, green: 0.72, blue: 0.52).opacity(0.20))
-                    .frame(width: 36, height: 36)
-                Text("\(hop.hopNumber)")
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
-                    .foregroundStyle(hop.isTimeout ? .white.opacity(0.35) : Color(red: 0.13, green: 0.72, blue: 0.52))
-            }
+            // Hop number tile
+            Text(verbatim: "\(hop.hopNumber)")
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(hop.isTimeout ? AppTheme.tertiaryText : .white)
+                .frame(width: 40, height: 40)
+                .background(tileFill, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(hop.isTimeout ? "* * *" : (hop.hostname ?? hop.ip))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(hop.isTimeout ? .white.opacity(0.30) : .white)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(hop.isTimeout ? AppTheme.tertiaryText : AppTheme.primaryText)
                     .lineLimit(1)
                 if !hop.isTimeout, let host = hop.hostname, host != hop.ip {
                     Text(hop.ip)
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.40))
+                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .textSelection(.enabled)
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 8)
 
             if hop.isTimeout {
-                Text("Timeout")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.30))
+                AppPill(text: "Timeout", tint: .white.opacity(0.55))
             } else if let ms = hop.latency {
-                VStack(alignment: .trailing, spacing: 4) {
+                VStack(alignment: .trailing, spacing: 5) {
                     Text(String(format: "%.1f ms", ms))
                         .font(.system(size: 13, weight: .semibold, design: .monospaced))
                         .foregroundStyle(latencyColor)
 
                     // Latency bar (max 300ms mapped to full width)
-                    GeometryReader { geo in
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(latencyColor.opacity(0.25))
-                            .frame(width: geo.size.width, height: 4)
-                            .overlay(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(latencyColor)
-                                    .frame(width: geo.size.width * min(ms / 300.0, 1.0), height: 4)
-                            }
-                    }
-                    .frame(width: 70, height: 4)
+                    Capsule()
+                        .fill(latencyColor.opacity(0.22))
+                        .frame(width: 64, height: 4)
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(latencyColor)
+                                .frame(width: 64 * min(ms / 300.0, 1.0), height: 4)
+                        }
                 }
             }
         }
@@ -376,8 +375,78 @@ private struct HopRow: View {
     }
 }
 
+// MARK: - Tool Page Components
+
+/// Icon tile + short description shown at the top of the tool's hero card.
+private struct ToolHeroHeader: View {
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private extension View {
+    /// Darkened inset so inputs and controls stay legible on the hero gradient.
+    func heroInset() -> some View {
+        background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+    }
+}
+
+/// Card explaining why the last run failed.
+private struct ToolErrorCard: View {
+    let title: LocalizedStringKey
+    let message: String
+    var icon = "exclamationmark.triangle.fill"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            AppIconTile(systemName: icon, tint: AppTheme.danger)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(verbatim: message)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .appCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(AppTheme.danger.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
 #Preview {
     NavigationStack {
         TracerouteView()
     }
+    .preferredColorScheme(.dark)
 }

@@ -13,9 +13,6 @@ import Network
 #if canImport(UIKit)
 import UIKit
 #endif
-#if canImport(WidgetKit)
-import WidgetKit
-#endif
 
 struct NetworkSnapshot {
     let bytesIn: UInt64
@@ -31,6 +28,24 @@ struct SpeedSample: Identifiable {
     let timestamp: Date
     let downloadSpeed: Double
     let uploadSpeed: Double
+}
+
+extension Array where Element == SpeedSample {
+    /// History is appended in time order, so the samples at or after `date`
+    /// are found with a binary search and returned as a slice (no full scan, no copy).
+    func samples(since date: Date) -> ArraySlice<SpeedSample> {
+        var low = startIndex
+        var high = endIndex
+        while low < high {
+            let mid = (low + high) / 2
+            if self[mid].timestamp < date {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+        return self[low...]
+    }
 }
 
 @available(iOS 16.1, *)
@@ -66,8 +81,7 @@ final class NetworkStatsMonitor: ObservableObject {
     private var timer: Timer?
     private var lastSnapshot: NetworkSnapshot?
     private var lastSampleDate: Date?
-    private var lastWidgetReloadDate: Date = .distantPast
-    private let sharedDefaults = UserDefaults(suiteName: "group.com.rinetworkspeed")
+    private let sharedDefaults = UserDefaults(suiteName: "group.rinetworkspeedapp")
     private let settingsDefaults = UserDefaults.standard
     private let maxHistoryDuration: TimeInterval = 30 * 60
     private var pushTokenTask: Task<Void, Never>?
@@ -298,7 +312,7 @@ final class NetworkStatsMonitor: ObservableObject {
     private var currentUpdateInterval: TimeInterval {
         settingsDefaults.double(forKey: "updateInterval") > 0
             ? settingsDefaults.double(forKey: "updateInterval")
-            : 0.5
+            : 1.0
     }
 
     private var currentSpeedUnit: String {
@@ -374,16 +388,6 @@ final class NetworkStatsMonitor: ObservableObject {
         sharedDefaults?.set(downloadSpeed, forKey: "downloadSpeed")
         sharedDefaults?.set(uploadSpeed, forKey: "uploadSpeed")
         sharedDefaults?.set(Date().timeIntervalSince1970, forKey: "lastUpdated")
-        requestWidgetReloadIfNeeded()
-    }
-
-    private func requestWidgetReloadIfNeeded() {
-#if canImport(WidgetKit)
-        let now = Date()
-        guard now.timeIntervalSince(lastWidgetReloadDate) >= 15 else { return }
-        lastWidgetReloadDate = now
-        WidgetCenter.shared.reloadTimelines(ofKind: "com.rinetworkspeed.NetworkWidget")
-#endif
     }
 
     func startLiveActivity() {
@@ -670,7 +674,6 @@ final class NetworkStatsMonitor: ObservableObject {
         cellularUploadSpeed = Double(cellularBytesOutDelta) / elapsed
 
         let currentThroughput = max(downloadSpeed, uploadSpeed)
-        notificationManager.checkSpeedDrop(current: currentThroughput)
         notificationManager.checkSpeedPeak(current: currentThroughput)
 
         appendHistorySample(at: now)

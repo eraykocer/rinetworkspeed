@@ -187,55 +187,54 @@ struct DNSLookupView: View {
     @StateObject private var vm = DNSLookupViewModel()
     @FocusState private var fieldFocused: Bool
 
-    private let bg = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
     private let accent = Color(red: 0.98, green: 0.62, blue: 0.16)
+    private let accentDeep = Color(red: 0.78, green: 0.39, blue: 0.05)
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
-                queryCard
-                if vm.isLoading { loadingView }
-                else if let err = vm.errorMessage { errorView(err) }
-                else if !vm.records.isEmpty { resultsList }
+            VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                heroCard
+
+                if vm.isLoading {
+                    ToolLoadingCard(message: "Querying \(vm.selectedServer.rawValue)…", tint: accent)
+                } else if let err = vm.errorMessage {
+                    ToolErrorCard(title: "No Results", message: err, icon: "globe.slash")
+                } else if !vm.records.isEmpty {
+                    resultsSection
+                } else {
+                    AppEmptyState(
+                        icon: "globe.americas.fill",
+                        title: "Enter a Domain",
+                        message: "Choose a record type and tap Lookup to query its DNS records."
+                    )
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
         }
-        .background(bg.ignoresSafeArea())
+        .scrollDismissesKeyboard(.interactively)
+        .appPageBackground()
         .navigationTitle("DNS Lookup")
         .navigationBarTitleDisplayMode(.large)
         .onTapGesture { fieldFocused = false }
     }
 
-    // MARK: - Query Card
+    // MARK: - Hero Card
 
-    private var queryCard: some View {
-        VStack(spacing: 14) {
-            // Domain input
-            HStack(spacing: 12) {
-                Image(systemName: "globe.americas.fill")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(accent)
+    private var heroCard: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            ToolHeroHeader(
+                icon: "globe.americas.fill",
+                title: "Query DNS records for any domain",
+                subtitle: "Resolve A, AAAA, MX, TXT, CNAME and NS records over DNS-over-HTTPS."
+            )
 
-                TextField("Domain (e.g. apple.com)", text: $vm.domain)
-                    .font(.system(size: 15, design: .monospaced))
-                    .foregroundStyle(.white)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .keyboardType(.URL)
-                    .focused($fieldFocused)
-                    .onSubmit { vm.lookup() }
-
-                if !vm.domain.isEmpty {
-                    Button { vm.domain = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(.white.opacity(0.35))
-                    }
-                }
+            AppInputField(icon: "globe", placeholder: "Domain (e.g. apple.com)", text: $vm.domain) {
+                vm.lookup()
             }
-            .padding(14)
-            .background(Color.white.opacity(0.06))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .focused($fieldFocused)
+            .heroInset()
 
             // Record type picker
             ScrollView(.horizontal, showsIndicators: false) {
@@ -244,22 +243,8 @@ struct DNSLookupView: View {
                         Button {
                             vm.selectedType = type
                         } label: {
-                            Text(type.rawValue)
-                                .font(.system(size: 13, weight: .bold, design: .monospaced))
-                                .foregroundStyle(vm.selectedType == type ? .white : .white.opacity(0.45))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(vm.selectedType == type
-                                              ? type.color.opacity(0.25)
-                                              : Color.white.opacity(0.06))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(vm.selectedType == type ? type.color.opacity(0.6) : Color.clear,
-                                                lineWidth: 1)
-                                )
+                            HeroChip(title: type.rawValue, isSelected: vm.selectedType == type,
+                                     selectedTint: type.color, monospaced: true)
                         }
                         .buttonStyle(.plain)
                     }
@@ -268,7 +253,7 @@ struct DNSLookupView: View {
             }
 
             // DNS Server & Lookup
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Menu {
                     ForEach(DNSServerOption.allCases) { server in
                         Button {
@@ -280,97 +265,53 @@ struct DNSLookupView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: vm.selectedServer.icon)
-                            .font(.system(size: 13))
-                        Text(vm.selectedServer.rawValue)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(verbatim: vm.selectedServer.rawValue)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
                         Image(systemName: "chevron.down")
                             .font(.system(size: 11, weight: .semibold))
                     }
-                    .foregroundStyle(.white.opacity(0.65))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color.white.opacity(0.06))
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 15)
+                    .background(Capsule().fill(.black.opacity(0.22)))
                 }
 
                 Button {
                     fieldFocused = false
                     vm.lookup()
                 } label: {
-                    Text("Lookup")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            LinearGradient(
-                                colors: [accent, Color(red: 0.78, green: 0.39, blue: 0.05)],
-                                startPoint: .leading, endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    HStack(spacing: 8) {
+                        if vm.isLoading {
+                            ProgressView().tint(accentDeep)
+                        } else {
+                            Image(systemName: "magnifyingglass")
+                        }
+                        Text("Lookup")
+                    }
                 }
-            }
-
-            // Query time
-            if let ms = vm.queryTime {
-                HStack {
-                    Image(systemName: "clock")
-                        .font(.system(size: 12))
-                    Text("Query time: \(String(format: "%.1f ms", ms))")
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                }
-                .foregroundStyle(.white.opacity(0.40))
-                .frame(maxWidth: .infinity, alignment: .trailing)
+                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
             }
         }
-        .padding(16)
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.10), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .appHeroCard(colors: [accent, accentDeep])
     }
 
     // MARK: - Results
 
-    private var loadingView: some View {
-        VStack(spacing: 12) {
-            ProgressView().tint(accent)
-            Text("Querying \(vm.selectedServer.rawValue)…")
-                .font(.system(size: 14, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
-        }
-        .padding(40)
+    private var queryTimeFooter: LocalizedStringKey? {
+        guard let ms = vm.queryTime else { return nil }
+        return "Query time: \(String(format: "%.1f ms", ms))"
     }
 
-    private func errorView(_ msg: String) -> some View {
-        ContentUnavailableView("No Results", systemImage: "globe.slash",
-                               description: Text(msg))
-        .foregroundStyle(.white)
-    }
-
-    private var resultsList: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("\(vm.records.count) record\(vm.records.count == 1 ? "" : "s")")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.55))
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            Divider().background(Color.white.opacity(0.08))
-
+    private var resultsSection: some View {
+        AppSection("\(vm.records.count) record\(vm.records.count == 1 ? "" : "s")", footer: queryTimeFooter) {
             ForEach(vm.records) { record in
                 DNSRecordRow(record: record, color: vm.selectedType.color)
                 if record.id != vm.records.last?.id {
-                    Divider().background(Color.white.opacity(0.06)).padding(.leading, 16)
+                    AppRowDivider(leadingInset: 16)
                 }
             }
         }
-        .background(Color.white.opacity(0.04))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 
@@ -381,31 +322,142 @@ private struct DNSRecordRow: View {
     let color: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(record.type)
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(color)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(color.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                AppPill(text: "\(record.type)", tint: color)
 
                 if let ttl = record.ttl {
                     Text("TTL \(ttl)s")
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.30))
+                        .foregroundStyle(AppTheme.tertiaryText)
                 }
             }
 
-            Text(record.value)
-                .font(.system(size: 13, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.85))
+            Text(verbatim: record.value)
+                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundStyle(AppTheme.primaryText)
                 .textSelection(.enabled)
                 .lineLimit(3)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+    }
+}
+
+// MARK: - Tool Page Components
+
+/// Icon tile + short description shown at the top of the tool's hero card.
+private struct ToolHeroHeader: View {
+    let icon: String
+    let title: LocalizedStringKey
+    let subtitle: LocalizedStringKey
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private extension View {
+    /// Darkened inset so inputs and controls stay legible on the hero gradient.
+    func heroInset() -> some View {
+        background(.black.opacity(0.22), in: RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
+    }
+}
+
+/// Card explaining why the last run failed.
+private struct ToolErrorCard: View {
+    let title: LocalizedStringKey
+    let message: String
+    var icon = "exclamationmark.triangle.fill"
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            AppIconTile(systemName: icon, tint: AppTheme.danger)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(verbatim: message)
+                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .appCard()
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
+                .stroke(AppTheme.danger.opacity(0.35), lineWidth: 1)
+        )
+    }
+}
+
+/// Inline progress card shown while a request is in flight.
+private struct ToolLoadingCard: View {
+    let message: LocalizedStringKey
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ProgressView()
+                .tint(tint)
+                .frame(width: 40, height: 40)
+            Text(message)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+                .lineLimit(2)
+            Spacer(minLength: 0)
+        }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .appCard(padding: nil)
+    }
+}
+
+/// Selectable capsule used for options inside the hero card.
+private struct HeroChip: View {
+    let title: String
+    var icon: String?
+    let isSelected: Bool
+    let selectedTint: Color
+    var monospaced = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            Text(verbatim: title)
+                .font(.system(size: 13, weight: .semibold, design: monospaced ? .monospaced : .rounded))
+        }
+        .foregroundStyle(isSelected ? selectedTint : .white.opacity(0.85))
+        .padding(.horizontal, 13)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(isSelected ? Color.white : Color.black.opacity(0.22)))
+        .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 }
 
@@ -413,4 +465,5 @@ private struct DNSRecordRow: View {
     NavigationStack {
         DNSLookupView()
     }
+    .preferredColorScheme(.dark)
 }

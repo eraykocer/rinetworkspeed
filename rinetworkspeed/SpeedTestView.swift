@@ -231,25 +231,23 @@ private struct NeedleShape: Shape {
 private struct SpeedWaveView: View {
     let amplitude: Double   // 0–1
     let color: Color
-    @State private var phase: Double = 0
 
     var body: some View {
-        TimelineView(.animation) { _ in
+        // Paused while flat so the canvas isn't redrawn every frame when idle.
+        TimelineView(.animation(paused: amplitude < 0.001)) { timeline in
+            // One full wave cycle every 1.8 s, derived from the timeline date.
+            let phase = timeline.date.timeIntervalSinceReferenceDate
+                .truncatingRemainder(dividingBy: 1.8) / 1.8 * 2 * Double.pi
             Canvas { ctx, size in
                 let amp = amplitude * 22
                 let freq = 2.0 * Double.pi / size.width
                 var path = Path()
                 path.move(to: CGPoint(x: 0, y: size.height / 2))
-                for x in stride(from: 0, through: size.width, by: 1) {
+                for x in stride(from: 0, through: size.width, by: 2) {
                     let y = size.height / 2 + amp * sin(freq * x * 2.5 + phase)
                     path.addLine(to: CGPoint(x: x, y: y))
                 }
                 ctx.stroke(path, with: .color(color.opacity(0.6)), lineWidth: 2)
-            }
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 1.8).repeatForever(autoreverses: false)) {
-                phase = 2 * Double.pi
             }
         }
     }
@@ -261,15 +259,11 @@ private struct PhaseStepperView: View {
     enum Phase: Int { case ping = 0, download = 1, upload = 2 }
     let current: Phase?          // nil = idle / done
 
-    private let pingColor    = Color(red: 168/255, green: 85/255,  blue: 247/255)
-    private let downloadColor = Color(red: 59/255,  green: 130/255, blue: 246/255)
-    private let uploadColor  = Color(red: 249/255, green: 115/255, blue: 22/255)
-
     private func color(for phase: Phase) -> Color {
         switch phase {
-        case .ping:     return pingColor
-        case .download: return downloadColor
-        case .upload:   return uploadColor
+        case .ping:     return AppTheme.ping
+        case .download: return AppTheme.download
+        case .upload:   return AppTheme.upload
         }
     }
 
@@ -292,8 +286,8 @@ private struct PhaseStepperView: View {
                 VStack(spacing: 6) {
                     ZStack {
                         Circle()
-                            .fill(isDone ? color(for: phase) : Color.white.opacity(0.08))
-                            .frame(width: 28, height: 28)
+                            .fill(isDone ? color(for: phase) : Color.white.opacity(0.06))
+                            .frame(width: 26, height: 26)
                             .scaleEffect(isActive && pulse ? 1.18 : 1)
                             .animation(
                                 isActive ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default,
@@ -301,37 +295,40 @@ private struct PhaseStepperView: View {
                             )
                         if isDone {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(size: 11, weight: .bold))
                                 .foregroundStyle(.white)
                         } else {
                             Circle()
                                 .stroke(
-                                    isActive ? color(for: phase) : Color.white.opacity(0.2),
+                                    isActive ? color(for: phase) : AppTheme.cardStroke,
                                     lineWidth: 2
                                 )
-                                .frame(width: 28, height: 28)
+                                .frame(width: 26, height: 26)
                             if isActive {
                                 Circle()
-                                    .fill(color(for: phase).opacity(0.35))
-                                    .frame(width: 14, height: 14)
+                                    .fill(color(for: phase))
+                                    .frame(width: 10, height: 10)
+                                    .shadow(color: color(for: phase).opacity(0.8), radius: 4)
                             }
                         }
                     }
                     Text(label(for: phase))
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .tracking(0.6)
                         .foregroundStyle(
                             isActive  ? color(for: phase) :
-                            isDone    ? .white.opacity(0.75) :
-                                        .white.opacity(0.3)
+                            isDone    ? AppTheme.secondaryText :
+                                        AppTheme.tertiaryText
                         )
                 }
 
                 if phase != .upload {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.15))
-                        .frame(height: 1)
+                    Capsule()
+                        .fill(isDone ? color(for: phase).opacity(0.6) : AppTheme.separator)
+                        .frame(height: 2)
                         .frame(maxWidth: .infinity)
-                        .padding(.bottom, 22)
+                        .padding(.horizontal, 6)
+                        .padding(.bottom, 20)
                 }
             }
         }
@@ -352,41 +349,39 @@ struct SpeedTestView: View {
     @State private var shimmerPhase: CGFloat = 0
     @State private var needleProgress: Double = 0
 
-    private let backgroundColor = Color(red: 10/255, green: 10/255, blue: 10/255)
-    private let pingColor    = Color(red: 168/255, green: 85/255,  blue: 247/255)
-    private let downloadColor = Color(red: 59/255,  green: 130/255, blue: 246/255)
-    private let uploadColor  = Color(red: 249/255, green: 115/255, blue: 22/255)
-    private let gaugeMaxSpeed: Double = 1_000
+    private let pingColor     = AppTheme.ping
+    private let downloadColor = AppTheme.download
+    private let uploadColor   = AppTheme.upload
+    /// Full-scale value of the speedometer in Mbps; user-selectable (250 / 500 / 1k).
+    @AppStorage("gaugeMaxSpeed") private var gaugeMaxSpeed: Double = 1_000
+    private let gaugeScaleOptions: [Double] = [250, 500, 1_000]
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    // ── Speedometer ──────────────────────────────────────
-                    speedometerSection
+                VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                    VStack(spacing: 14) {
+                        // ── Hero gauge (with phase stepper while testing) ──
+                        speedometerSection
 
-                    // ── Phase stepper (only while testing) ──────────────
-                    if isTesting || manager.state == .finished {
-                        PhaseStepperView(current: currentPhase)
-                            .padding(.horizontal, 24)
-                            .transition(.opacity.combined(with: .scale))
-                    }
+                        // ── Live metrics row ─────────────────────────────
+                        if isTesting || manager.state == .finished {
+                            liveMetricsRow
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
 
-                    // ── Live metrics row ─────────────────────────────────
-                    if isTesting || manager.state == .finished {
-                        liveMetricsRow
+                        // ── Control button ───────────────────────────────
+                        controlButton
                     }
 
                     // ── Result cards (after test) ────────────────────────
                     if manager.state == .finished {
-                        resultCards
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        shareCardButton
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        VStack(spacing: 14) {
+                            resultCards
+                            shareCardButton
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
-
-                    // ── Control button ───────────────────────────────────
-                    controlButton
 
                     // ── History ──────────────────────────────────────────
                     historySection
@@ -397,14 +392,15 @@ struct SpeedTestView: View {
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 20)
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 32)
                 .animation(.spring(response: 0.45, dampingFraction: 0.85), value: manager.state)
             }
-            .background(backgroundColor.ignoresSafeArea())
+            .appPageBackground()
             .navigationTitle("Speed Test")
         }
-        .background(backgroundColor.ignoresSafeArea())
+        .appPageBackground()
         .sheet(isPresented: $showShareSheet) {
             if let latest = manager.history.first {
                 SpeedSharePreviewSheet(
@@ -447,83 +443,114 @@ struct SpeedTestView: View {
 
     // MARK: - Speedometer section
 
-    private var speedometerSection: some View {
-        ZStack {
-            // Glow behind gauge
-            Circle()
-                .fill(glowColor.opacity(0.07))
-                .blur(radius: 40)
-                .frame(width: 280, height: 280)
-
-            VStack(spacing: 8) {
-                SpeedometerView(
-                    progress: needleProgress,
-                    maxSpeed: gaugeMaxSpeed,
-                    valueText: formattedCurrentSpeed.value,
-                    unitText: formattedCurrentSpeed.unit,
-                    subtitle: gaugeSubtitle,
-                    glowColor: glowColor
-                )
-                .frame(height: UIScreen.main.bounds.width * 0.85)
-
-                // Wave line
-                SpeedWaveView(amplitude: needleProgress, color: glowColor)
-                    .frame(height: 36)
-                    .padding(.horizontal, 30)
-                    .opacity(isTesting ? 1 : 0.2)
+    private var gaugeScalePicker: some View {
+        Picker("Gauge Scale", selection: $gaugeMaxSpeed) {
+            ForEach(gaugeScaleOptions, id: \.self) { option in
+                Text(option >= 1_000 ? "0–\(Int(option / 1_000))k" : "0–\(Int(option))")
+                    .tag(option)
             }
         }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 260)
+        .onChange(of: gaugeMaxSpeed) { _, _ in
+            updateNeedle()
+        }
+    }
+
+    /// Hero card holding the gauge: dark glass surface lit by the current phase color.
+    private var speedometerSection: some View {
+        VStack(spacing: 12) {
+            if isTesting || manager.state == .finished {
+                PhaseStepperView(current: currentPhase)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 4)
+                    .transition(.opacity.combined(with: .scale))
+            }
+
+            SpeedometerView(
+                progress: needleProgress,
+                maxSpeed: gaugeMaxSpeed,
+                valueText: formattedCurrentSpeed.value,
+                unitText: formattedCurrentSpeed.unit,
+                subtitle: gaugeSubtitle,
+                glowColor: glowColor
+            )
+            .aspectRatio(1.05, contentMode: .fit)
+            // The arc leaves empty space below its endpoints; tuck the wave up into it.
+            .padding(.bottom, -36)
+
+            // Wave line
+            SpeedWaveView(amplitude: needleProgress, color: glowColor)
+                .frame(height: 36)
+                .padding(.horizontal, 20)
+                .opacity(isTesting ? 1 : 0.2)
+
+            gaugeScalePicker
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .background {
+            ZStack {
+                AppTheme.cardFill
+                RadialGradient(
+                    colors: [glowColor.opacity(0.22), .clear],
+                    center: .top,
+                    startRadius: 0,
+                    endRadius: 320
+                )
+                LinearGradient(
+                    colors: [.white.opacity(0.04), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .animation(.easeInOut(duration: 0.6), value: manager.state)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [glowColor.opacity(0.35), AppTheme.cardStroke],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous))
+        .shadow(color: glowColor.opacity(0.18), radius: 24, x: 0, y: 10)
     }
 
     // MARK: - Live metrics row
 
     private var liveMetricsRow: some View {
         HStack(spacing: 0) {
-            liveMetricCell(
-                label: "Ping",
+            AppMetric(
+                icon: "timer",
                 value: manager.ping > 0 ? String(format: "%.0f", manager.ping) : "--",
                 unit: "ms",
-                color: pingColor
+                tint: pingColor,
+                caption: "Ping"
             )
-            Divider()
-                .frame(height: 36)
-                .background(Color.white.opacity(0.08))
-            liveMetricCell(
-                label: "Download",
+            AppMetricDivider()
+            AppMetric(
+                icon: "arrow.down",
                 value: manager.displayDownloadSpeed > 0 ? formatMbps(manager.displayDownloadSpeed) : (manager.finalDownload > 0 ? formatMbps(manager.finalDownload) : "--"),
                 unit: "Mbps",
-                color: downloadColor
+                tint: downloadColor,
+                caption: "Download"
             )
-            Divider()
-                .frame(height: 36)
-                .background(Color.white.opacity(0.08))
-            liveMetricCell(
-                label: "Upload",
+            AppMetricDivider()
+            AppMetric(
+                icon: "arrow.up",
                 value: manager.displayUploadSpeed > 0 ? formatMbps(manager.displayUploadSpeed) : (manager.finalUpload > 0 ? formatMbps(manager.finalUpload) : "--"),
                 unit: "Mbps",
-                color: uploadColor
+                tint: uploadColor,
+                caption: "Upload"
             )
         }
         .padding(.vertical, 14)
-        .speedTestCardStyle()
-    }
-
-    private func liveMetricCell(label: String, value: String, unit: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(color.opacity(0.85))
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(value)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .contentTransition(.numericText())
-                Text(unit)
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.45))
-            }
-        }
-        .frame(maxWidth: .infinity)
+        .appCard(padding: nil)
     }
 
     // MARK: - Control button
@@ -537,77 +564,42 @@ struct SpeedTestView: View {
                 Task { await manager.startTest() }
             }
         } label: {
-            ZStack {
-                if !isTesting {
-                    Capsule(style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 19/255, green: 41/255, blue: 79/255),
-                                    Color(red: 22/255, green: 63/255, blue: 126/255),
-                                    Color(red: 15/255, green: 102/255, blue: 170/255)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                    Capsule(style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    .white.opacity(0.22),
-                                    .clear,
-                                    .clear
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .padding(1)
-                    Capsule(style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [.clear, .white.opacity(0.14), .clear],
-                                startPoint: .init(x: shimmerPhase - 0.35, y: 0),
-                                endPoint: .init(x: shimmerPhase + 0.35, y: 0)
-                            )
-                        )
-                        .blendMode(.screen)
-                        .clipped()
-                } else {
-                    Capsule(style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color(red: 127/255, green: 29/255, blue: 29/255),
-                                    Color(red: 185/255, green: 28/255, blue: 28/255),
-                                    Color(red: 239/255, green: 68/255, blue: 68/255)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .scaleEffect(animatePulse ? 1.015 : 1)
-                        .animation(
-                            .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
-                            value: animatePulse
-                        )
-                }
+            HStack(spacing: 8) {
+                Image(systemName: isTesting ? "xmark" : "play.fill")
+                    .font(.system(size: 15, weight: .bold))
                 Text(isTesting ? "Cancel" : "Start Test")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .lineLimit(1)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .overlay(
-                Capsule(style: .continuous)
-                    .stroke(.white.opacity(isTesting ? 0.14 : 0.18), lineWidth: 1)
-            )
-            .shadow(color: (isTesting ? Color.red : Color(red: 15/255, green: 102/255, blue: 170/255)).opacity(0.35), radius: 18, x: 0, y: 10)
+            .padding(.vertical, 3)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AppPrimaryButtonStyle(colors: isTesting ? cancelGradient : AppTheme.heroGradient))
+        .overlay {
+            // Moving highlight sweeping across the idle button.
+            if !isTesting {
+                Capsule(style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [.clear, .white.opacity(0.18), .clear],
+                            startPoint: .init(x: shimmerPhase - 0.35, y: 0),
+                            endPoint: .init(x: shimmerPhase + 0.35, y: 0)
+                        )
+                    )
+                    .blendMode(.screen)
+                    .allowsHitTesting(false)
+            }
+        }
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(.white.opacity(0.16), lineWidth: 1)
+                .allowsHitTesting(false)
+        )
+        .scaleEffect(isTesting && animatePulse ? 1.015 : 1)
+        .animation(
+            isTesting ? .easeInOut(duration: 0.9).repeatForever(autoreverses: true) : .default,
+            value: animatePulse
+        )
+        .shadow(color: (isTesting ? AppTheme.danger : AppTheme.download).opacity(0.35), radius: 18, x: 0, y: 10)
         .onAppear {
             withAnimation(.linear(duration: 2).repeatForever(autoreverses: false)) {
                 shimmerPhase = 1.4
@@ -615,40 +607,45 @@ struct SpeedTestView: View {
         }
     }
 
+    private var cancelGradient: [Color] {
+        [AppTheme.danger, Color(red: 0.72, green: 0.12, blue: 0.20)]
+    }
+
     // MARK: - Result cards
 
     private var resultCards: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                resultCard(title: "Ping",      value: String(format: "%.0f", manager.ping),    unit: "ms",   icon: "timer",               color: pingColor)
-                resultCard(title: "Download",   value: formatMbps(manager.finalDownload),        unit: "Mbps", icon: "arrow.down.circle.fill", color: downloadColor)
-                resultCard(title: "Upload",   value: formatMbps(manager.finalUpload),          unit: "Mbps", icon: "arrow.up.circle.fill",   color: uploadColor)
-            }
-
-            // Quality score card
+        VStack(spacing: 12) {
+            // Quality score hero card
             HStack(spacing: 18) {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Network Quality Score")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Text(networkGrade)
-                        .font(.system(size: 56, weight: .black, design: .rounded))
-                        .foregroundStyle(gradeColor)
-                        .shadow(color: gradeColor.opacity(0.55), radius: 12)
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 6) {
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .textCase(.uppercase)
                     Text("\(networkScore) / 100")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .monospacedDigit()
                         .foregroundStyle(.white)
+                        .contentTransition(.numericText())
                     Text("puan")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .foregroundStyle(.white.opacity(0.65))
                 }
+                Spacer(minLength: 12)
+                Text(networkGrade)
+                    .font(.system(size: 44, weight: .black, design: .rounded))
+                    .foregroundStyle(gradeColor)
+                    .frame(width: 76, height: 76)
+                    .background(.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
-            .speedTestCardStyle()
+            .appHeroCard()
+
+            HStack(spacing: 12) {
+                resultCard(title: "Ping",     value: String(format: "%.0f", manager.ping), unit: "ms",   icon: "timer",      color: pingColor)
+                resultCard(title: "Download", value: formatMbps(manager.finalDownload),     unit: "Mbps", icon: "arrow.down", color: downloadColor)
+                resultCard(title: "Upload",   value: formatMbps(manager.finalUpload),       unit: "Mbps", icon: "arrow.up",   color: uploadColor)
+            }
         }
     }
 
@@ -656,231 +653,224 @@ struct SpeedTestView: View {
         Button {
             showShareSheet = true
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                 Text("Share")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
             }
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 15)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 22/255, green: 26/255, blue: 36/255),
-                                Color(red: 32/255, green: 39/255, blue: 57/255)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.12), .clear, .clear],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .padding(1)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [.white.opacity(0.18), .white.opacity(0.05)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-            )
-            .shadow(color: .black.opacity(0.28), radius: 16, x: 0, y: 10)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(AppSecondaryButtonStyle())
     }
 
     // MARK: - Network details section
 
     private var networkDetailsSection: some View {
-        DisclosureGroup(isExpanded: $isNetworkDetailsExpanded) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Spacer()
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                collapsibleHeader("📡 WiFi Network Details", isExpanded: $isNetworkDetailsExpanded)
+
+                if isNetworkDetailsExpanded {
                     Button {
                         Task { await wifiInfoManager.refresh() }
                     } label: {
                         HStack(spacing: 6) {
                             if wifiInfoManager.isRefreshing {
-                                ProgressView().tint(.white).scaleEffect(0.85)
+                                ProgressView().tint(.white).scaleEffect(0.75)
                             } else {
                                 Image(systemName: "arrow.clockwise")
                             }
                             Text("Yenile")
                         }
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.84))
+                        .foregroundStyle(AppTheme.download)
                     }
                     .buttonStyle(.plain)
-                }
-
-                if wifiInfoManager.hasLocationPermission {
-                    LazyVGrid(
-                        columns: [
-                            GridItem(.flexible(), spacing: 14, alignment: .top),
-                            GridItem(.flexible(), spacing: 14, alignment: .top)
-                        ],
-                        alignment: .leading,
-                        spacing: 14
-                    ) {
-                        networkDetailsColumn(title: "WiFi") {
-                            detailTile(title: "SSID", value: wifiInfoManager.ssid ?? "Unknown")
-                            detailTile(title: "BSSID", value: wifiInfoManager.bssid ?? "Unknown")
-                            detailTile(title: "Frekans", value: wifiInfoManager.frequencyBand)
-                            signalStrengthTile
-                        }
-                        networkDetailsColumn(title: "Address Info") {
-                            detailTile(title: "IP", value: wifiInfoManager.ipAddress ?? "--")
-                            detailTile(title: "Gateway", value: wifiInfoManager.routerIP ?? "--")
-                            detailTile(title: "DNS", value: wifiInfoManager.dnsServers.isEmpty ? "--" : wifiInfoManager.dnsServers.joined(separator: ", "))
-                            detailTile(title: "External IP", value: wifiInfoManager.externalIP ?? "--")
-                            detailTile(title: "ISP", value: wifiInfoManager.ispName ?? "--")
-                            detailTile(title: "NAT", value: wifiInfoManager.natType ?? "--")
-                        }
-                    }
-                } else {
-                    ContentUnavailableView {
-                        Label("Location Permission Required", systemImage: "location.slash.fill")
-                    } description: {
-                        Text("Location permission is required to view SSID and BSSID information.")
-                    } actions: {
-                        Button("Open Settings") { wifiInfoManager.openAppSettings() }
-                            .buttonStyle(.borderedProminent)
-                    }
-                    .padding(.top, 14)
+                    .transition(.opacity)
                 }
             }
-            .padding(.top, 10)
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "wifi")
-                    .foregroundStyle(downloadColor)
-                Text("📡 WiFi Network Details")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+
+            if isNetworkDetailsExpanded {
+                Group {
+                    if wifiInfoManager.hasLocationPermission {
+                        VStack(alignment: .leading, spacing: 18) {
+                            networkDetailsGroup(title: "WiFi") {
+                                detailRow(title: "SSID", value: wifiInfoManager.ssid ?? "Unknown")
+                                AppRowDivider(leadingInset: 16)
+                                detailRow(title: "BSSID", value: wifiInfoManager.bssid ?? "Unknown")
+                                AppRowDivider(leadingInset: 16)
+                                detailRow(title: "Frekans", value: wifiInfoManager.frequencyBand)
+                                AppRowDivider(leadingInset: 16)
+                                signalStrengthRow
+                            }
+                            networkDetailsGroup(title: "Address Info") {
+                                detailRow(title: "IP", value: wifiInfoManager.ipAddress ?? "--")
+                                AppRowDivider(leadingInset: 16)
+                                detailRow(title: "Gateway", value: wifiInfoManager.routerIP ?? "--")
+                                AppRowDivider(leadingInset: 16)
+                                detailRow(title: "DNS", value: wifiInfoManager.dnsServers.isEmpty ? "--" : wifiInfoManager.dnsServers.joined(separator: ", "))
+                                AppRowDivider(leadingInset: 16)
+                                detailRow(title: "External IP", value: wifiInfoManager.externalIP ?? "--")
+                                AppRowDivider(leadingInset: 16)
+                                detailRow(title: "ISP", value: wifiInfoManager.ispName ?? "--")
+                                AppRowDivider(leadingInset: 16)
+                                detailRow(title: "NAT", value: wifiInfoManager.natType ?? "--")
+                            }
+                        }
+                    } else {
+                        ContentUnavailableView {
+                            Label("Location Permission Required", systemImage: "location.slash.fill")
+                        } description: {
+                            Text("Location permission is required to view SSID and BSSID information.")
+                        } actions: {
+                            Button("Open Settings") { wifiInfoManager.openAppSettings() }
+                                .buttonStyle(.borderedProminent)
+                                .tint(AppTheme.download)
+                        }
+                        .padding(.vertical, 8)
+                        .appCard()
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .tint(.white)
-        .padding(18)
-        .speedTestCardStyle()
     }
 
     // MARK: - History section
 
     private var historySection: some View {
-        DisclosureGroup(isExpanded: $isHistoryExpanded) {
-            VStack(spacing: 10) {
-                if manager.history.isEmpty {
-                    Text("No recorded speed tests yet.")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.55))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 10)
-                } else {
-                    LazyVStack(spacing: 10) {
-                        ForEach(manager.history) { result in
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(result.date.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.white)
-                                    HStack(spacing: 10) {
-                                        historyMetric(systemImage: "arrow.down.circle.fill", value: formatMbps(result.downloadSpeed), unit: "Mbps", color: downloadColor)
-                                        historyMetric(systemImage: "arrow.up.circle.fill",   value: formatMbps(result.uploadSpeed),   unit: "Mbps", color: uploadColor)
-                                        historyMetric(systemImage: "timer",                   value: String(format: "%.0f", result.ping), unit: "ms", color: pingColor)
+        VStack(alignment: .leading, spacing: 10) {
+            collapsibleHeader("Past Tests", isExpanded: $isHistoryExpanded)
+
+            if isHistoryExpanded {
+                VStack(spacing: 0) {
+                    if manager.history.isEmpty {
+                        AppEmptyState(icon: "clock.arrow.circlepath", title: "No recorded speed tests yet.")
+                    } else {
+                        LazyVStack(spacing: 0) {
+                            ForEach(manager.history) { result in
+                                historyRow(result)
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) { delete(result) } label: {
+                                            Label("Sil", systemImage: "trash.fill")
+                                        }
                                     }
-                                }
-                                Spacer()
-                                Text(gradeFor(result))
-                                    .font(.system(size: 18, weight: .black, design: .rounded))
-                                    .foregroundStyle(gradeColorFor(result))
-                                    .shadow(color: gradeColorFor(result).opacity(0.5), radius: 6)
-                            }
-                            .padding(14)
-                            .speedTestCardStyle()
-                            .swipeActions(edge: .trailing) {
-                                Button(role: .destructive) { delete(result) } label: {
-                                    Label("Sil", systemImage: "trash.fill")
+
+                                if result.id != manager.history.last?.id {
+                                    AppRowDivider()
                                 }
                             }
                         }
+
+                        AppRowDivider(leadingInset: 0)
+
+                        Button {
+                            manager.clearHistory()
+                        } label: {
+                            Text("Clear History")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(AppTheme.danger)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 13)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(AppRowButtonStyle())
                     }
-                    .padding(.top, 8)
                 }
-                if !manager.history.isEmpty {
-                    Button("Clear History") { manager.clearHistory() }
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .buttonStyle(.plain)
-                        .padding(.top, 4)
-                }
-            }
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.fill")
-                    .foregroundStyle(downloadColor)
-                Text("Past Tests")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                .appCard(padding: nil)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .tint(.white)
-        .padding(18)
-        .speedTestCardStyle()
+    }
+
+    private func historyRow(_ result: SpeedTestResult) -> some View {
+        HStack(spacing: 14) {
+            AppIconTile(systemName: "gauge.with.dots.needle.67percent", tint: downloadColor)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(result.date.formatted(date: .abbreviated, time: .shortened))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
+                HStack(spacing: 10) {
+                    historyMetric(systemImage: "arrow.down", value: formatMbps(result.downloadSpeed), unit: "Mbps", color: downloadColor)
+                    historyMetric(systemImage: "arrow.up",   value: formatMbps(result.uploadSpeed),   unit: "Mbps", color: uploadColor)
+                    historyMetric(systemImage: "timer",      value: String(format: "%.0f", result.ping), unit: "ms", color: pingColor)
+                }
+            }
+
+            Spacer(minLength: 8)
+
+            let grade = gradeFor(result)
+            let color = gradeColorFor(result)
+            Text(grade)
+                .font(.system(size: 16, weight: .black, design: .rounded))
+                .foregroundStyle(color)
+                .frame(width: 34, height: 34)
+                .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 
     // MARK: - Small helpers (views)
 
-    private func resultCard(title: String, value: String, unit: String, icon: String, color: Color) -> some View {
+    /// Uppercase section header that toggles its section open/closed.
+    private func collapsibleHeader(_ title: LocalizedStringKey, isExpanded: Binding<Bool>) -> some View {
+        Button {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                isExpanded.wrappedValue.toggle()
+            }
+        } label: {
+            HStack(spacing: 6) {
+                AppSectionHeader(title)
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.tertiaryText)
+                    .rotationEffect(.degrees(isExpanded.wrappedValue ? 0 : -90))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func resultCard(title: LocalizedStringKey, value: String, unit: String, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(color)
-            Text(title)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.65))
-            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(value)
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.7)
-                    .contentTransition(.numericText())
-                Text(unit)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.55))
+            AppIconTile(systemName: icon, tint: color, size: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(value)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText())
+                    Text(unit)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.tertiaryText)
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .speedTestCardStyle()
+        .appCard(padding: 14)
     }
 
     private func historyMetric(systemImage: String, value: String, unit: String, color: Color) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(color)
             Text(value)
+                .monospacedDigit()
                 .foregroundStyle(.white.opacity(0.82))
             Text(unit)
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(AppTheme.tertiaryText)
         }
-        .font(.system(size: 11, weight: .semibold, design: .rounded))
+        .font(.system(size: 12, weight: .semibold, design: .rounded))
     }
 
     private func delete(_ result: SpeedTestResult) {
@@ -893,10 +883,10 @@ struct SpeedTestView: View {
 
     private var currentSpeedMbps: Double {
         switch manager.state {
-        case .downloadTesting: return manager.displayDownloadSpeed / 1_000_000
+        case .downloadTesting: return mbps(manager.displayDownloadSpeed)
         case .transitionToUpload: return 0
-        case .uploadTesting:   return manager.displayUploadSpeed   / 1_000_000
-        case .finished:        return max(manager.finalDownload, manager.finalUpload) / 1_000_000
+        case .uploadTesting:   return mbps(manager.displayUploadSpeed)
+        case .finished:        return mbps(max(manager.finalDownload, manager.finalUpload))
         default:               return 0
         }
     }
@@ -950,9 +940,9 @@ struct SpeedTestView: View {
     private var networkScore: Int {
         var score = 0
         if manager.ping < 20  { score += 30 } else if manager.ping < 50  { score += 18 } else if manager.ping < 100 { score += 8 }
-        let dl = manager.finalDownload / 1_000_000
+        let dl = mbps(manager.finalDownload)
         if dl > 100 { score += 40 } else if dl > 50 { score += 28 } else if dl > 20 { score += 16 } else if dl > 5 { score += 8 }
-        let ul = manager.finalUpload / 1_000_000
+        let ul = mbps(manager.finalUpload)
         if ul > 50  { score += 30 } else if ul > 25  { score += 20 } else if ul > 10 { score += 12 } else if ul > 2 { score += 6 }
         return min(score, 100)
     }
@@ -963,18 +953,18 @@ struct SpeedTestView: View {
     private func gradeFor(_ result: SpeedTestResult) -> String {
         var score = 0
         if result.ping < 20 { score += 30 } else if result.ping < 50 { score += 18 } else if result.ping < 100 { score += 8 }
-        let dl = result.downloadSpeed / 1_000_000
+        let dl = mbps(result.downloadSpeed)
         if dl > 100 { score += 40 } else if dl > 50 { score += 28 } else if dl > 20 { score += 16 } else if dl > 5 { score += 8 }
-        let ul = result.uploadSpeed / 1_000_000
+        let ul = mbps(result.uploadSpeed)
         if ul > 50 { score += 30 } else if ul > 25 { score += 20 } else if ul > 10 { score += 12 } else if ul > 2 { score += 6 }
         return gradeForScore(min(score, 100))
     }
     private func gradeColorFor(_ result: SpeedTestResult) -> Color {
         var score = 0
         if result.ping < 20 { score += 30 } else if result.ping < 50 { score += 18 } else if result.ping < 100 { score += 8 }
-        let dl = result.downloadSpeed / 1_000_000
+        let dl = mbps(result.downloadSpeed)
         if dl > 100 { score += 40 } else if dl > 50 { score += 28 } else if dl > 20 { score += 16 } else if dl > 5 { score += 8 }
-        let ul = result.uploadSpeed / 1_000_000
+        let ul = mbps(result.uploadSpeed)
         if ul > 50 { score += 30 } else if ul > 25 { score += 20 } else if ul > 10 { score += 12 } else if ul > 2 { score += 6 }
         return gradeColorForScore(min(score, 100))
     }
@@ -992,8 +982,13 @@ struct SpeedTestView: View {
         }
     }
 
+    /// Manager values are bytes/second; network speeds are shown in megabits/second.
+    private func mbps(_ bytesPerSecond: Double) -> Double {
+        bytesPerSecond * 8 / 1_000_000
+    }
+
     private func formatMbps(_ bytesPerSecond: Double) -> String {
-        String(format: "%.1f", bytesPerSecond / 1_000_000)
+        String(format: "%.1f", mbps(bytesPerSecond))
     }
 
     private func updateNeedle() {
@@ -1003,55 +998,59 @@ struct SpeedTestView: View {
         }
     }
 
-    // MARK: WiFi tile helpers
+    // MARK: WiFi row helpers
 
-    private var signalStrengthTile: some View {
-        VStack(alignment: .leading, spacing: 8) {
+    private var signalStrengthRow: some View {
+        HStack(spacing: 12) {
             Text("Signal Strength")
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
-            HStack(spacing: 10) {
-                WiFiStrengthIcon(color: wifiInfoManager.signalStrength.color, level: signalBarLevel)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(wifiInfoManager.signalStrength.title)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                    Text("\(wifiInfoManager.rssi) dBm")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(wifiInfoManager.signalStrength.color)
-                }
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+            Spacer(minLength: 8)
+            WiFiStrengthIcon(color: wifiInfoManager.signalStrength.color, level: signalBarLevel)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(wifiInfoManager.signalStrength.title)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text("\(wifiInfoManager.rssi) dBm")
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(wifiInfoManager.signalStrength.color)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.04)))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 
-    private func networkDetailsColumn<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.84))
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    private func detailTile(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func networkDetailsGroup<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(AppTheme.tertiaryText)
+                .textCase(.uppercase)
+                .padding(.leading, 4)
+            VStack(spacing: 0) {
+                content()
+            }
+            .appCard(padding: nil)
+        }
+    }
+
+    private func detailRow(title: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .foregroundStyle(AppTheme.secondaryText)
+            Spacer(minLength: 8)
             Text(value)
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .monospacedDigit()
                 .foregroundStyle(.white)
+                .multilineTextAlignment(.trailing)
                 .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(0.04)))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.08), lineWidth: 1))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 
     private var signalBarLevel: Int {
@@ -1086,21 +1085,7 @@ private struct WiFiStrengthIcon: View {
     }
 }
 
-// MARK: - Card modifier
-
-private struct SpeedTestCardModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        content
-            .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color.white.opacity(0.06)))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.white.opacity(0.12), lineWidth: 1))
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
-    }
-}
-
-private extension View {
-    func speedTestCardStyle() -> some View { modifier(SpeedTestCardModifier()) }
-}
-
 #Preview {
     SpeedTestView(manager: SpeedTestManager())
+        .preferredColorScheme(.dark)
 }

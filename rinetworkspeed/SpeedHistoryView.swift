@@ -11,8 +11,8 @@ import Charts
 struct SpeedHistoryView: View {
     @ObservedObject var monitor: NetworkStatsMonitor
 
-    private let downloadColor = Color(red: 59 / 255, green: 130 / 255, blue: 246 / 255)
-    private let uploadColor = Color(red: 249 / 255, green: 115 / 255, blue: 22 / 255)
+    private let downloadColor = AppTheme.download
+    private let uploadColor = AppTheme.upload
 
     private var now: Date { Date() }
     private var xStart: Date { now.addingTimeInterval(-60) }
@@ -25,10 +25,16 @@ struct SpeedHistoryView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Last 60 Seconds")
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.82))
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                AppIconTile(systemName: "waveform.path.ecg", tint: downloadColor, size: 32)
+                Text("Last 60 Seconds")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.primaryText)
+                Spacer(minLength: 8)
+                legendDot(color: downloadColor, systemImage: "arrow.down")
+                legendDot(color: uploadColor, systemImage: "arrow.up")
+            }
 
             Chart(monitor.history) { sample in
                 AreaMark(
@@ -86,7 +92,7 @@ struct SpeedHistoryView: View {
                             }
                         }
                     }
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(AppTheme.secondaryText)
                 }
             }
             .chartYAxis {
@@ -96,24 +102,25 @@ struct SpeedHistoryView: View {
                             Text(formatChartSpeed(speed))
                         }
                     }
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(AppTheme.secondaryText)
                 }
             }
             .chartPlotStyle { plot in
                 plot
                     .background(Color.clear)
             }
-            .frame(height: 220)
+            .frame(height: 200)
         }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color.white.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(Color.white.opacity(0.14), lineWidth: 1)
-        )
+        .appCard(padding: 16)
+    }
+
+    /// Small colored capsule identifying a chart series.
+    private func legendDot(color: Color, systemImage: String) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(color)
+            .frame(width: 22, height: 22)
+            .background(color.opacity(0.16), in: Circle())
     }
 
     private func formatChartSpeed(_ bytesPerSecond: Double) -> String {

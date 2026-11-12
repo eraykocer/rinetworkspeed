@@ -11,143 +11,147 @@ import UserNotifications
 struct NotificationsSettingsView: View {
     @StateObject private var manager = NotificationManager.shared
 
+    /// Rendered as rows inside the Settings "Notifications" `AppSection` card.
     var body: some View {
-        Group {
+        VStack(spacing: 0) {
             permissionRow
-                .notificationSettingsRowStyle()
-            notificationToggleRow(
-                title: "Speed Drop",
-                subtitle: "Notify when speed drops below threshold",
-                isOn: $manager.notifyOnSpeedDrop,
-                tint: .blue
-            )
-            .notificationSettingsRowStyle()
 
-            if manager.notifyOnSpeedDrop {
-                sliderRow(
-                    title: "Speed Drop Threshold",
-                    valueText: String(format: "%.1f MB/s", manager.speedDropThreshold),
-                    value: $manager.speedDropThreshold,
-                    range: 0.5...10.0,
-                    step: 0.5,
-                    tint: .blue
-                )
-                .notificationSettingsRowStyle()
-            }
+            AppRowDivider()
 
             notificationToggleRow(
+                icon: "wifi.slash",
                 title: "Disconnect",
                 subtitle: "Notify when disconnected",
                 isOn: $manager.notifyOnDisconnect,
-                tint: .red
+                tint: AppTheme.danger
             )
-            .notificationSettingsRowStyle()
 
-            notificationToggleRow(
-                title: "Data Limit",
-                subtitle: "Notify when approaching data limit",
-                isOn: $manager.notifyOnDataLimit,
-                tint: .orange
-            )
-            .notificationSettingsRowStyle()
+            AppRowDivider()
 
-            if manager.notifyOnDataLimit {
-                sliderRow(
-                    title: "Data Limit Threshold",
-                    valueText: String(format: "%.0f%%", manager.dataLimitThresholdPercent),
-                    value: $manager.dataLimitThresholdPercent,
-                    range: 50...95,
-                    step: 1,
-                    tint: .orange
+            VStack(spacing: 0) {
+                notificationToggleRow(
+                    icon: "chart.pie.fill",
+                    title: "Data Limit",
+                    subtitle: "Notify when approaching data limit",
+                    isOn: $manager.notifyOnDataLimit,
+                    tint: AppTheme.upload
                 )
-                .notificationSettingsRowStyle()
+
+                if manager.notifyOnDataLimit {
+                    sliderRow(
+                        title: "Data Limit Threshold",
+                        valueText: String(format: "%.0f%%", manager.dataLimitThresholdPercent),
+                        value: $manager.dataLimitThresholdPercent,
+                        range: 50...95,
+                        step: 1,
+                        tint: AppTheme.upload
+                    )
+                }
             }
 
-            notificationToggleRow(
-                title: "Speed Peak",
-                subtitle: "Notify on speed peak",
-                isOn: $manager.notifyOnSpeedPeak,
-                tint: .green
-            )
-            .notificationSettingsRowStyle()
+            AppRowDivider()
 
-            if manager.notifyOnSpeedPeak {
-                sliderRow(
-                    title: "Speed Peak Threshold",
-                    valueText: String(format: "%.0f MB/s", manager.speedPeakThreshold),
-                    value: $manager.speedPeakThreshold,
-                    range: 10...500,
-                    step: 5,
-                    tint: .green
+            VStack(spacing: 0) {
+                notificationToggleRow(
+                    icon: "bolt.fill",
+                    title: "Speed Peak",
+                    subtitle: "Notify on speed peak",
+                    isOn: $manager.notifyOnSpeedPeak,
+                    tint: AppTheme.ping
                 )
-                .notificationSettingsRowStyle()
+
+                if manager.notifyOnSpeedPeak {
+                    sliderRow(
+                        title: "Speed Peak Threshold",
+                        valueText: String(format: "%.0f MB/s", manager.speedPeakThreshold),
+                        value: $manager.speedPeakThreshold,
+                        range: 10...500,
+                        step: 5,
+                        tint: AppTheme.ping
+                    )
+                }
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: manager.notifyOnDataLimit)
+        .animation(.easeInOut(duration: 0.25), value: manager.notifyOnSpeedPeak)
         .task {
             await manager.refreshAuthorizationStatus()
         }
     }
 
     private var permissionRow: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
+            AppRow(
+                icon: "bell.badge.fill",
+                tint: permissionTint,
+                title: "Notification Permission",
+                subtitle: LocalizedStringKey(permissionDescription)
+            ) {
                 Toggle("Notification Permission", isOn: permissionBinding)
+                    .labelsHidden()
                     .tint(permissionTint)
                     .disabled(manager.authorizationStatus == .authorized || manager.authorizationStatus == .provisional)
-                    .foregroundStyle(.white)
-
-                Text(permissionDescription)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.58))
             }
 
             if shouldShowSettingsButton {
-                Button("Open Settings") {
+                Button {
                     manager.openAppSettings()
+                } label: {
+                    Label("Open Settings", systemImage: "gear")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.danger)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(AppTheme.danger.opacity(0.16), in: Capsule())
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.red)
+                .buttonStyle(AppPressableButtonStyle())
+                .padding(.leading, 70)
+                .padding(.bottom, 12)
             }
         }
     }
 
     private func notificationToggleRow(
-        title: String,
-        subtitle: String,
+        icon: String,
+        title: LocalizedStringKey,
+        subtitle: LocalizedStringKey,
         isOn: Binding<Bool>,
         tint: Color
     ) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        AppRow(icon: icon, tint: tint, title: title, subtitle: subtitle) {
             Toggle(title, isOn: isOn)
+                .labelsHidden()
                 .tint(tint)
-                .foregroundStyle(.white)
-
-            Text(subtitle)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.58))
         }
     }
 
+    /// Threshold slider indented under its toggle row (aligned with the row text).
     private func sliderRow(
-        title: String,
+        title: LocalizedStringKey,
         valueText: String,
         value: Binding<Double>,
         range: ClosedRange<Double>,
         step: Double,
         tint: Color
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
-                    .foregroundStyle(.white)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.secondaryText)
                 Spacer()
                 Text(valueText)
-                    .foregroundStyle(.white.opacity(0.58))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
             }
 
             Slider(value: value, in: range, step: step)
                 .tint(tint)
         }
+        .padding(.leading, 70)
+        .padding(.trailing, 16)
+        .padding(.bottom, 12)
     }
 
     private var permissionBinding: Binding<Bool> {
@@ -189,11 +193,11 @@ struct NotificationsSettingsView: View {
     private var permissionTint: Color {
         switch manager.authorizationStatus {
         case .authorized, .provisional, .ephemeral:
-            return .green
+            return AppTheme.ping
         case .denied:
-            return .red
+            return AppTheme.danger
         case .notDetermined:
-            return .orange
+            return AppTheme.upload
         @unknown default:
             return .gray
         }
@@ -201,19 +205,12 @@ struct NotificationsSettingsView: View {
 }
 
 #Preview {
-    List {
-        Section("Notifications") {
+    ScrollView {
+        AppSection("Notifications") {
             NotificationsSettingsView()
         }
+        .padding(AppTheme.pagePadding)
     }
-    .scrollContentBackground(.hidden)
-    .background(Color.black)
-}
-
-private extension View {
-    func notificationSettingsRowStyle() -> some View {
-        listRowInsets(EdgeInsets(top: 10, leading: 14, bottom: 10, trailing: 14))
-            .listRowBackground(Color(red: 0.11, green: 0.11, blue: 0.13))
-            .listRowSeparatorTint(.white.opacity(0.08))
-    }
+    .appPageBackground()
+    .preferredColorScheme(.dark)
 }
