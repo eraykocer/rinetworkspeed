@@ -32,7 +32,7 @@ struct NotificationsSettingsView: View {
                 notificationToggleRow(
                     icon: "chart.pie.fill",
                     title: "Data Limit",
-                    subtitle: "Notify when approaching data limit",
+                    subtitle: "Notify when approaching your cellular data limit",
                     isOn: $manager.notifyOnDataLimit,
                     tint: AppTheme.upload
                 )
@@ -40,7 +40,7 @@ struct NotificationsSettingsView: View {
                 if manager.notifyOnDataLimit {
                     sliderRow(
                         title: "Data Limit Threshold",
-                        valueText: String(format: "%.0f%%", manager.dataLimitThresholdPercent),
+                        valueText: (manager.dataLimitThresholdPercent / 100).formatted(.percent.precision(.fractionLength(0))),
                         value: $manager.dataLimitThresholdPercent,
                         range: 50...95,
                         step: 1,
@@ -48,6 +48,16 @@ struct NotificationsSettingsView: View {
                     )
                 }
             }
+
+            AppRowDivider()
+
+            notificationToggleRow(
+                icon: "arrow.down.right.circle.fill",
+                title: "Speed Drop",
+                subtitle: "Notify when a speed test is far below your usual result",
+                isOn: $manager.notifyOnSpeedDrop,
+                tint: AppTheme.warning
+            )
 
             AppRowDivider()
 
@@ -63,7 +73,7 @@ struct NotificationsSettingsView: View {
                 if manager.notifyOnSpeedPeak {
                     sliderRow(
                         title: "Speed Peak Threshold",
-                        valueText: String(format: "%.0f MB/s", manager.speedPeakThreshold),
+                        valueText: manager.speedPeakThreshold.fixed(0) + " MB/s",
                         value: $manager.speedPeakThreshold,
                         range: 10...500,
                         step: 5,
@@ -98,7 +108,7 @@ struct NotificationsSettingsView: View {
                     manager.openAppSettings()
                 } label: {
                     Label("Open Settings", systemImage: "gear")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .appFont(size: 13, weight: .semibold, design: .rounded)
                         .foregroundStyle(AppTheme.danger)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
@@ -137,13 +147,13 @@ struct NotificationsSettingsView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .appFont(size: 13, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                 Spacer()
                 Text(valueText)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .appFont(size: 13, weight: .semibold, design: .rounded)
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.ink)
             }
 
             Slider(value: value, in: range, step: step)
@@ -176,17 +186,17 @@ struct NotificationsSettingsView: View {
     private var permissionDescription: String {
         switch manager.authorizationStatus {
         case .authorized:
-            return "Notifications enabled."
+            return String(localized: "Notifications enabled.")
         case .provisional:
-            return "Provisional notification permission enabled."
+            return String(localized: "Provisional notification permission enabled.")
         case .denied:
-            return "Notification permission denied."
+            return String(localized: "Notification permission denied.")
         case .notDetermined:
-            return "Permission not yet granted."
+            return String(localized: "Permission not yet granted.")
         case .ephemeral:
-            return "Ephemeral session permission active."
+            return String(localized: "Ephemeral session permission active.")
         @unknown default:
-            return "Notification status unknown."
+            return String(localized: "Notification status unknown.")
         }
     }
 

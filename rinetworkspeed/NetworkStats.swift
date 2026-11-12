@@ -73,10 +73,10 @@ final class NetworkStatsMonitor: ObservableObject {
     var cellularUploadSpeed: Double = 0
     @Published var activeInterface: NetworkInterface = .none
     @Published var history: [SpeedSample] = []
-    @Published var connectionName: String = "Offline"
+    @Published var connectionName: String = String(localized: "Offline")
     @Published var latencyMs: Double?
     @Published var ipAddress: String = "--"
-    @Published var wifiSignalDescription: String = "Unavailable"
+    @Published var wifiSignalDescription: String = String(localized: "Unavailable")
 
     private var timer: Timer?
     private var lastSnapshot: NetworkSnapshot?
@@ -148,6 +148,7 @@ final class NetworkStatsMonitor: ObservableObject {
     /// Call `start()` to resume — it will detect the existing session and
     /// skip resetting history / monitorStartDate.
     func stopSampling() {
+        SpeedHistoryArchive.shared.flush()
         updateLiveActivity()
         timer?.invalidate()
         timer = nil
@@ -162,6 +163,7 @@ final class NetworkStatsMonitor: ObservableObject {
 
     /// Full stop: tears down everything including the Live Activity.
     func stop() {
+        SpeedHistoryArchive.shared.flush()
         timer?.invalidate()
         timer = nil
         stopLiveActivityTimer()
@@ -176,10 +178,10 @@ final class NetworkStatsMonitor: ObservableObject {
         cellularDownloadSpeed = 0
         cellularUploadSpeed = 0
         activeInterface = .none
-        connectionName = "Offline"
+        connectionName = String(localized: "Offline")
         latencyMs = nil
         ipAddress = "--"
-        wifiSignalDescription = "Unavailable"
+        wifiSignalDescription = String(localized: "Unavailable")
         history = []
         stopPathMonitor()
         saveLatestSpeedsToSharedDefaults()
@@ -190,6 +192,9 @@ final class NetworkStatsMonitor: ObservableObject {
     }
 
     func prepareForBackground() {
+        // The process may be suspended or killed at any point from here on.
+        SpeedHistoryArchive.shared.flush()
+
         guard isLiveActivityEnabled else {
             stopSampling()
             return
@@ -251,7 +256,7 @@ final class NetworkStatsMonitor: ObservableObject {
             DispatchQueue.main.async {
                 self?.notificationManager.checkDisconnect(isConnected: isConnected)
                 self?.activeInterface = interface
-                self?.connectionName = self?.displayName(for: interface) ?? "Offline"
+                self?.connectionName = self?.displayName(for: interface) ?? String(localized: "Offline")
             }
         }
         monitor.start(queue: pathMonitorQueue)
@@ -280,10 +285,10 @@ final class NetworkStatsMonitor: ObservableObject {
         }
 
         if unitIndex == 0 {
-            return String(format: "%.0f %@", value, units[unitIndex])
+            return value.fixed(0) + " " + units[unitIndex]
         }
 
-        return String(format: "%.1f %@", value, units[unitIndex])
+        return value.fixed(1) + " " + units[unitIndex]
     }
 
     func formattedSpeedComponents(_ bytesPerSec: Double) -> (value: String, unit: String) {
@@ -303,8 +308,8 @@ final class NetworkStatsMonitor: ObservableObject {
         }
 
         let formattedValue = unitIndex == 0
-            ? String(format: "%.0f", value)
-            : String(format: "%.1f", value)
+            ? value.fixed(0)
+            : value.fixed(1)
 
         return (formattedValue, units[unitIndex])
     }
@@ -680,13 +685,6 @@ final class NetworkStatsMonitor: ObservableObject {
         refreshConnectionDetailsIfNeeded(at: now)
         saveLatestSpeedsToSharedDefaults()
         // Live Activity is updated by its own dedicated 1 Hz timer.
-        #if os(iOS)
-        WatchConnectivityManager.shared.updateSpeeds(
-            download: downloadSpeed,
-            upload: uploadSpeed,
-            activeInterface: activeInterface
-        )
-        #endif
 
         lastSnapshot = snapshot
         lastSampleDate = now
@@ -703,13 +701,16 @@ final class NetworkStatsMonitor: ObservableObject {
 
         let cutoff = timestamp.addingTimeInterval(-maxHistoryDuration)
         history.removeAll { $0.timestamp < cutoff }
+
+        // Longer ranges (24 h, 7 days) are read back from the on-disk archive.
+        SpeedHistoryArchive.shared.record(download: downloadSpeed, upload: uploadSpeed, at: timestamp)
     }
 
     private func refreshConnectionDetailsIfNeeded(at now: Date) {
         guard now.timeIntervalSince(lastDetailsRefreshDate) >= 5 else { return }
         lastDetailsRefreshDate = now
         ipAddress = currentIPAddress()
-        wifiSignalDescription = activeInterface == .wifi ? "Connected" : "Unavailable"
+        wifiSignalDescription = activeInterface == .wifi ? String(localized: "Connected") : String(localized: "Unavailable")
         measureLatency()
     }
 
@@ -783,11 +784,11 @@ final class NetworkStatsMonitor: ObservableObject {
     private func displayName(for interface: NetworkInterface) -> String {
         switch interface {
         case .wifi:
-            return "WiFi"
+            return String(localized: "Wi-Fi")
         case .cellular:
-            return "Cellular"
+            return String(localized: "Cellular")
         case .none:
-            return "Offline"
+            return String(localized: "Offline")
         }
     }
 

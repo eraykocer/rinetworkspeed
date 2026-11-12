@@ -4,26 +4,41 @@
 //
 //  Shared visual language for every screen. Based on the Network Tools redesign:
 //  near-black background, grouped translucent cards with hairline borders,
-//  uppercase section headers, gradient icon tiles and a gradient hero card.
+//  uppercase section headers, solid icon tiles and a solid accent hero card.
+//  The UI intentionally uses flat colors only (no gradients).
 //
 
 import SwiftUI
+import UIKit
 
 // MARK: - Theme
 
 enum AppTheme {
-    /// Page background used behind every screen.
-    static let background = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
-    /// Fill for grouped cards and list rows.
-    static let cardFill = Color.white.opacity(0.05)
-    /// Hairline border around cards.
-    static let cardStroke = Color.white.opacity(0.08)
-    /// Separator between rows inside a card.
-    static let separator = Color.white.opacity(0.08)
+    /// Foreground "ink": white in dark mode, near-black in light mode. Use it
+    /// (with opacity) for text, icons and subtle fills on neutral surfaces.
+    /// On colored surfaces (hero cards, filled buttons, icon tiles) use plain
+    /// `.white`, or force the dark color scheme as `appHeroCard` does.
+    static let ink = adaptive(dark: .white, light: UIColor(red: 0.07, green: 0.07, blue: 0.09, alpha: 1))
 
-    static let primaryText = Color.white
-    static let secondaryText = Color.white.opacity(0.55)
-    static let tertiaryText = Color.white.opacity(0.35)
+    /// Page background used behind every screen.
+    static let background = adaptive(
+        dark: UIColor(red: 10 / 255, green: 10 / 255, blue: 10 / 255, alpha: 1),
+        light: UIColor(red: 0.95, green: 0.95, blue: 0.97, alpha: 1)
+    )
+    /// Fill for grouped cards and list rows.
+    static let cardFill = adaptive(dark: UIColor.white.withAlphaComponent(0.05), light: .white)
+    /// Hairline border around cards.
+    static let cardStroke = ink.opacity(0.08)
+    /// Separator between rows inside a card.
+    static let separator = ink.opacity(0.08)
+
+    static let primaryText = ink
+    static let secondaryText = ink.opacity(0.55)
+    static let tertiaryText = ink.opacity(0.4)
+
+    private static func adaptive(dark: UIColor, light: UIColor) -> Color {
+        Color(UIColor { traits in traits.userInterfaceStyle == .light ? light : dark })
+    }
 
     static let cardRadius: CGFloat = 18
     static let heroRadius: CGFloat = 24
@@ -37,9 +52,6 @@ enum AppTheme {
     static let accent = Color(red: 0.42, green: 0.22, blue: 0.93)
     static let warning = Color(red: 0.98, green: 0.75, blue: 0.18)
     static let danger = Color(red: 0.99, green: 0.37, blue: 0.37)
-
-    /// Default gradient for hero cards and primary actions.
-    static let heroGradient = [download, accent]
 }
 
 // MARK: - Page Background
@@ -63,16 +75,17 @@ extension View {
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous))
     }
 
-    /// Wraps content in a gradient hero card used for the most important item on a page.
-    func appHeroCard(colors: [Color] = AppTheme.heroGradient) -> some View {
+    /// Wraps content in a solid-color hero card used for the most important item on a page.
+    func appHeroCard(tint: Color = AppTheme.accent) -> some View {
         self
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
+            .background(tint)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous))
-            .shadow(color: (colors.first ?? .blue).opacity(0.35), radius: 16, x: 0, y: 8)
+            .shadow(color: tint.opacity(0.35), radius: 16, x: 0, y: 8)
+            // Content sits on a saturated color in both themes, so theme
+            // tokens inside it must resolve to their light-on-dark values.
+            .environment(\.colorScheme, .dark)
     }
 }
 
@@ -103,7 +116,7 @@ struct AppSection<Content: View>: View {
 
             if let footer {
                 Text(footer)
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                    .appFont(size: 12, weight: .regular, design: .rounded)
                     .foregroundStyle(AppTheme.tertiaryText)
                     .padding(.horizontal, 4)
             }
@@ -120,10 +133,11 @@ struct AppSectionHeader: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white.opacity(0.5))
+            .appFont(size: 13, weight: .semibold, design: .rounded)
+            .foregroundStyle(AppTheme.ink.opacity(0.5))
             .textCase(.uppercase)
             .padding(.leading, 4)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
@@ -141,7 +155,7 @@ struct AppRowDivider: View {
 
 // MARK: - Icon Tile
 
-/// Rounded gradient square holding an SF Symbol.
+/// Rounded solid-color square holding an SF Symbol.
 struct AppIconTile: View {
     let systemName: String
     let tint: Color
@@ -149,17 +163,13 @@ struct AppIconTile: View {
 
     var body: some View {
         Image(systemName: systemName)
+            // Tiles have a fixed frame, so their glyph must not grow with Dynamic Type.
             .font(.system(size: size * 0.45, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(
-                LinearGradient(
-                    colors: [tint, tint.opacity(0.6)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                in: RoundedRectangle(cornerRadius: size * 0.275, style: .continuous)
-            )
+            .background(tint, in: RoundedRectangle(cornerRadius: size * 0.275, style: .continuous))
+            // Decorative: the row title next to it already says what it is.
+            .accessibilityHidden(true)
     }
 }
 
@@ -193,11 +203,11 @@ struct AppRow<Trailing: View>: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                 if let subtitle {
                     Text(subtitle)
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .appFont(size: 12, weight: .regular, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -218,8 +228,9 @@ struct AppRow<Trailing: View>: View {
 struct AppChevron: View {
     var body: some View {
         Image(systemName: "chevron.right")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.3))
+            .appFont(size: 13, weight: .semibold)
+            .foregroundStyle(AppTheme.ink.opacity(0.3))
+            .accessibilityHidden(true)
     }
 }
 
@@ -230,34 +241,35 @@ struct AppMetric: View {
     let icon: String?
     let value: String
     let unit: String
-    var tint: Color = .white
+    var tint: Color = AppTheme.ink
     var caption: LocalizedStringKey?
 
     var body: some View {
         VStack(spacing: 4) {
             if let caption {
                 Text(caption)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .appFont(size: 11, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textCase(.uppercase)
             }
             HStack(spacing: 4) {
                 if let icon {
                     Image(systemName: icon)
-                        .font(.system(size: 11, weight: .bold))
+                        .appFont(size: 11, weight: .bold)
                         .foregroundStyle(tint)
                 }
                 Text(value)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .appFont(size: 17, weight: .bold, design: .rounded)
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.ink)
                     .contentTransition(.numericText())
             }
             Text(unit)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.6))
+                .appFont(size: 11, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -265,30 +277,31 @@ struct AppMetric: View {
 struct AppMetricDivider: View {
     var body: some View {
         Rectangle()
-            .fill(.white.opacity(0.18))
+            .fill(AppTheme.ink.opacity(0.18))
             .frame(width: 1, height: 28)
     }
 }
 
 // MARK: - Buttons
 
-/// Full-width primary action. Use `.inverted` on top of a hero gradient.
+/// Full-width primary action. Use `.inverted` on top of a hero card, passing
+/// the card's tint so the label matches it.
 struct AppPrimaryButtonStyle: ButtonStyle {
-    enum Variant { case gradient, inverted }
+    enum Variant { case filled, inverted }
 
-    var variant: Variant = .gradient
-    var colors: [Color] = AppTheme.heroGradient
+    var variant: Variant = .filled
+    var tint: Color = AppTheme.accent
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
-            .foregroundStyle(variant == .inverted ? (colors.last ?? .blue) : .white)
+            .appFont(size: 16, weight: .semibold, design: .rounded)
+            .foregroundStyle(variant == .inverted ? tint : .white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background {
                 switch variant {
-                case .gradient:
-                    Capsule().fill(LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing))
+                case .filled:
+                    Capsule().fill(tint)
                 case .inverted:
                     Capsule().fill(.white)
                 }
@@ -303,11 +316,11 @@ struct AppPrimaryButtonStyle: ButtonStyle {
 struct AppSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 15, weight: .semibold, design: .rounded))
-            .foregroundStyle(.white)
+            .appFont(size: 15, weight: .semibold, design: .rounded)
+            .foregroundStyle(AppTheme.ink)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Capsule().fill(.white.opacity(configuration.isPressed ? 0.14 : 0.08)))
+            .background(Capsule().fill(AppTheme.ink.opacity(configuration.isPressed ? 0.14 : 0.08)))
             .overlay(Capsule().stroke(AppTheme.cardStroke, lineWidth: 1))
     }
 }
@@ -325,7 +338,7 @@ struct AppPressableButtonStyle: ButtonStyle {
 struct AppRowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Color.white.opacity(0.08) : Color.clear)
+            .background(configuration.isPressed ? AppTheme.ink.opacity(0.08) : Color.clear)
     }
 }
 
@@ -342,11 +355,11 @@ struct AppInputField: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
+                .appFont(size: 15, weight: .semibold)
                 .foregroundStyle(AppTheme.secondaryText)
             TextField(placeholder, text: $text)
-                .font(.system(size: 16, weight: .medium, design: .rounded))
-                .foregroundStyle(.white)
+                .appFont(size: 16, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.ink)
                 .keyboardType(keyboard)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -379,14 +392,14 @@ struct AppEmptyState: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 34, weight: .semibold))
+                .appFont(size: 34, weight: .semibold)
                 .foregroundStyle(AppTheme.tertiaryText)
             Text(title)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.8))
+                .appFont(size: 17, weight: .semibold, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.8))
             if let message {
                 Text(message)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .appFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .multilineTextAlignment(.center)
             }
@@ -406,10 +419,107 @@ struct AppPill: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 11, weight: .bold, design: .rounded))
+            .appFont(size: 11, weight: .bold, design: .rounded)
             .foregroundStyle(tint)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .background(tint.opacity(0.16), in: Capsule())
+    }
+}
+
+// MARK: - Dynamic Type
+
+/// System font that keeps the design's point size at the default text size and
+/// scales with the user's Dynamic Type setting. Prefer this over
+/// `.font(.system(size:))`, which ignores the setting.
+private struct AppScaledFont: ViewModifier {
+    @ScaledMetric private var size: CGFloat
+    private let weight: Font.Weight
+    private let design: Font.Design
+
+    init(size: CGFloat, weight: Font.Weight, design: Font.Design) {
+        _size = ScaledMetric(wrappedValue: size, relativeTo: Self.textStyle(for: size))
+        self.weight = weight
+        self.design = design
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size, weight: weight, design: design))
+    }
+
+    /// The text style whose scaling curve best matches a given point size.
+    private static func textStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 28...: return .largeTitle
+        case 22..<28: return .title2
+        case 20..<22: return .title3
+        case 17..<20: return .body
+        case 15..<17: return .subheadline
+        case 13..<15: return .footnote
+        case 12..<13: return .caption
+        default: return .caption2
+        }
+    }
+}
+
+extension View {
+    func appFont(size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> some View {
+        modifier(AppScaledFont(size: size, weight: weight, design: design))
+    }
+}
+
+// MARK: - Adaptive Layout
+
+/// Lays its children out side by side, or stacked at accessibility text sizes
+/// where side-by-side cards would truncate their titles and values.
+struct AppAdaptiveStack<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    var spacing: CGFloat = 12
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: spacing))
+            : AnyLayout(HStackLayout(spacing: spacing))
+        layout { content }
+    }
+}
+
+// MARK: - Appearance
+
+/// User-selected theme, stored under the "appearance" key.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case system
+    case light
+    case dark
+
+    var id: String { rawValue }
+
+    var title: LocalizedStringKey {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    /// Nil follows the system setting.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+}
+
+// MARK: - Number Formatting
+
+extension BinaryFloatingPoint {
+    /// Locale-aware fixed-precision number without grouping, e.g. "12.5" in
+    /// English and "12,5" in Turkish. Use instead of `String(format: "%.1f")`,
+    /// which always uses a period.
+    nonisolated func fixed(_ fractionDigits: Int) -> String {
+        Double(self).formatted(.number.precision(.fractionLength(fractionDigits)).grouping(.never))
     }
 }

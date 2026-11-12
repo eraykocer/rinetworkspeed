@@ -171,12 +171,12 @@ final class DNSLookupViewModel: ObservableObject {
 
     private func dnsStatusMessage(_ code: Int) -> String {
         switch code {
-        case 1: return "Format Error"
-        case 2: return "Server Failure"
-        case 3: return "Domain Not Found (NXDOMAIN)"
-        case 4: return "Not Implemented"
-        case 5: return "Query Refused"
-        default: return "DNS Error \(code)"
+        case 1: return String(localized: "Format Error")
+        case 2: return String(localized: "Server Failure")
+        case 3: return String(localized: "Domain Not Found (NXDOMAIN)")
+        case 4: return String(localized: "Not Implemented")
+        case 5: return String(localized: "Query Refused")
+        default: return String(localized: "DNS Error \(code)")
         }
     }
 }
@@ -265,13 +265,13 @@ struct DNSLookupView: View {
                 } label: {
                     HStack(spacing: 6) {
                         Image(systemName: vm.selectedServer.icon)
-                            .font(.system(size: 13, weight: .semibold))
+                            .appFont(size: 13, weight: .semibold)
                         Text(verbatim: vm.selectedServer.rawValue)
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .appFont(size: 14, weight: .semibold, design: .rounded)
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 11, weight: .semibold))
+                            .appFont(size: 11, weight: .semibold)
                     }
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.ink)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 15)
                     .background(Capsule().fill(.black.opacity(0.22)))
@@ -290,21 +290,21 @@ struct DNSLookupView: View {
                         Text("Lookup")
                     }
                 }
-                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
+                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: accentDeep))
             }
         }
-        .appHeroCard(colors: [accent, accentDeep])
+        .appHeroCard(tint: accentDeep)
     }
 
     // MARK: - Results
 
     private var queryTimeFooter: LocalizedStringKey? {
         guard let ms = vm.queryTime else { return nil }
-        return "Query time: \(String(format: "%.1f ms", ms))"
+        return "Query time: \(ms.fixed(1) + " ms")"
     }
 
     private var resultsSection: some View {
-        AppSection("\(vm.records.count) record\(vm.records.count == 1 ? "" : "s")", footer: queryTimeFooter) {
+        AppSection("\(vm.records.count) records", footer: queryTimeFooter) {
             ForEach(vm.records) { record in
                 DNSRecordRow(record: record, color: vm.selectedType.color)
                 if record.id != vm.records.last?.id {
@@ -328,13 +328,13 @@ private struct DNSRecordRow: View {
 
                 if let ttl = record.ttl {
                     Text("TTL \(ttl)s")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .appFont(size: 11, weight: .medium, design: .monospaced)
                         .foregroundStyle(AppTheme.tertiaryText)
                 }
             }
 
             Text(verbatim: record.value)
-                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                .appFont(size: 14, weight: .medium, design: .monospaced)
                 .foregroundStyle(AppTheme.primaryText)
                 .textSelection(.enabled)
                 .lineLimit(3)
@@ -356,18 +356,18 @@ private struct ToolHeroHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
+                .appFont(size: 24, weight: .semibold)
+                .foregroundStyle(AppTheme.ink)
                 .frame(width: 52, height: 52)
-                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .appFont(size: 19, weight: .bold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -395,10 +395,10 @@ private struct ToolErrorCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                 Text(verbatim: message)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .appFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -425,7 +425,7 @@ private struct ToolLoadingCard: View {
                 .tint(tint)
                 .frame(width: 40, height: 40)
             Text(message)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .appFont(size: 14, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
                 .lineLimit(2)
             Spacer(minLength: 0)
@@ -448,15 +448,15 @@ private struct HeroChip: View {
         HStack(spacing: 5) {
             if let icon {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(size: 11, weight: .semibold)
             }
             Text(verbatim: title)
-                .font(.system(size: 13, weight: .semibold, design: monospaced ? .monospaced : .rounded))
+                .appFont(size: 13, weight: .semibold, design: monospaced ? .monospaced : .rounded)
         }
-        .foregroundStyle(isSelected ? selectedTint : .white.opacity(0.85))
+        .foregroundStyle(isSelected ? selectedTint : AppTheme.ink.opacity(0.85))
         .padding(.horizontal, 13)
         .padding(.vertical, 8)
-        .background(Capsule().fill(isSelected ? Color.white : Color.black.opacity(0.22)))
+        .background(Capsule().fill(isSelected ? AppTheme.ink : Color.black.opacity(0.22)))
         .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 }

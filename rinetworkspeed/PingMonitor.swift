@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import Network
 
 enum ConnectionStatus {
     case excellent
@@ -32,6 +33,8 @@ final class PingMonitor: ObservableObject {
     @Published var packetsSent: Int = 0
     @Published var packetsLost: Int = 0
     @Published var packetLossPercent: Double = 0
+    /// Mean absolute difference between consecutive successful samples (RFC 3550 style).
+    @Published var jitter: Double = 0
     @Published var pingHistory: [PingSample] = []
     @Published var status: ConnectionStatus = .good
 
@@ -86,6 +89,7 @@ final class PingMonitor: ObservableObject {
         packetsSent = 0
         packetsLost = 0
         packetLossPercent = 0
+        jitter = 0
         pingHistory = []
         status = .good
     }
@@ -111,33 +115,45 @@ final class PingMonitor: ObservableObject {
     }
 
     private func measurePing(host: String) async -> Double {
-        guard let url = URL(string: "https://\(host)") else {
-            return -1
-        }
+        await Self.tcpConnectTime(host: host, port: 443, timeout: timeout)
+    }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "HEAD"
-        request.timeoutInterval = timeout
-        request.cachePolicy = .reloadIgnoringLocalCacheData
+    /// Measures how long a TCP handshake takes (SYN → SYN-ACK), which is one
+    /// network round trip. The previous HTTPS HEAD on a fresh session also
+    /// included the TLS handshake and server time, inflating the value
+    /// several times over. Hostname lookups are served from the system DNS
+    /// cache after the first sample.
+    nonisolated static func tcpConnectTime(host: String, port: UInt16, timeout: TimeInterval) async -> Double {
+        guard !host.isEmpty, let nwPort = NWEndpoint.Port(rawValue: port) else { return -1 }
 
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = timeout
-        configuration.timeoutIntervalForResource = timeout
-        configuration.waitsForConnectivity = false
+        let parameters = NWParameters.tcp
+        parameters.preferNoProxies = true
+        let connection = NWConnection(host: NWEndpoint.Host(host), port: nwPort, using: parameters)
+        let queue = DispatchQueue(label: "rinetworkspeed.ping.probe")
 
-        let session = URLSession(configuration: configuration)
-        // Sessions are not released until invalidated; one was leaked per ping.
-        defer { session.finishTasksAndInvalidate() }
-        let start = Date()
+        return await withCheckedContinuation { continuation in
+            let result = OnceContinuation(continuation)
+            let start = DispatchTime.now().uptimeNanoseconds
 
-        do {
-            let (_, response) = try await session.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse, (200...599).contains(httpResponse.statusCode) else {
-                return -1
+            connection.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    let elapsed = Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000
+                    result.resume(elapsed)
+                    connection.cancel()
+                case .waiting, .failed:
+                    result.resume(-1)
+                    connection.cancel()
+                default:
+                    break
+                }
             }
-            return Date().timeIntervalSince(start) * 1000
-        } catch {
-            return -1
+
+            connection.start(queue: queue)
+            queue.asyncAfter(deadline: .now() + timeout) {
+                result.resume(-1)
+                connection.cancel()
+            }
         }
     }
 
@@ -154,6 +170,9 @@ final class PingMonitor: ObservableObject {
         minPing = validLatencies.min() ?? 0
         maxPing = validLatencies.max() ?? 0
         avgPing = validLatencies.isEmpty ? 0 : validLatencies.reduce(0, +) / Double(validLatencies.count)
+
+        let deltas = zip(validLatencies.dropFirst(), validLatencies).map { abs($0 - $1) }
+        jitter = deltas.isEmpty ? 0 : deltas.reduce(0, +) / Double(deltas.count)
 
         packetLossPercent = packetsSent == 0 ? 0 : (Double(packetsLost) / Double(packetsSent)) * 100
     }

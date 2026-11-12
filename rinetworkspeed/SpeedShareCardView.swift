@@ -30,27 +30,13 @@ struct SpeedShareCardView: View {
     let ssid: String?
     let isWifi: Bool
 
-    private var downloadMB: Double { result.downloadSpeed / (1024 * 1024) }
-    private var uploadMB:   Double { result.uploadSpeed  / (1024 * 1024) }
+    // Same unit as the result screen (megabits per second).
+    private var downloadMbps: Double { result.score.downloadMbps }
+    private var uploadMbps:   Double { result.score.uploadMbps }
     private var isStory: Bool { format == .story }
 
-    private var grade: String {
-        if result.ping < 20, downloadMB > 60, uploadMB > 25 { return "A" }
-        if result.ping < 35, downloadMB > 30, uploadMB > 12 { return "B" }
-        if result.ping < 60, downloadMB > 15, uploadMB > 6  { return "C" }
-        if result.ping < 90, downloadMB > 5,  uploadMB > 2  { return "D" }
-        return "F"
-    }
-
-    private var gradeColor: Color {
-        switch grade {
-        case "A": return AppTheme.ping
-        case "B": return AppTheme.download
-        case "C": return AppTheme.warning
-        case "D": return AppTheme.upload
-        default:  return AppTheme.danger
-        }
-    }
+    private var grade: String { result.score.grade }
+    private var gradeColor: Color { result.score.gradeColor }
 
     var body: some View {
         ZStack {
@@ -58,6 +44,8 @@ struct SpeedShareCardView: View {
             content
         }
         .frame(width: format.size.width, height: format.size.height)
+        // The shared image keeps the dark design regardless of the app theme.
+        .environment(\.colorScheme, .dark)
     }
 
     // MARK: Background
@@ -65,20 +53,6 @@ struct SpeedShareCardView: View {
     private var background: some View {
         ZStack {
             AppTheme.background
-
-            // Soft brand glows in opposite corners
-            RadialGradient(
-                colors: [AppTheme.download.opacity(0.45), .clear],
-                center: .topLeading,
-                startRadius: 0,
-                endRadius: format.size.height * 0.75
-            )
-            RadialGradient(
-                colors: [AppTheme.accent.opacity(0.40), .clear],
-                center: .bottomTrailing,
-                startRadius: 0,
-                endRadius: format.size.height * 0.75
-            )
 
             // Subtle grid
             Canvas { ctx, size in
@@ -122,17 +96,10 @@ struct SpeedShareCardView: View {
                 .font(.system(size: isStory ? 64 : 46, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: isStory ? 132 : 96, height: isStory ? 132 : 96)
-                .background(
-                    LinearGradient(
-                        colors: AppTheme.heroGradient,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: isStory ? 36 : 26, style: .continuous)
-                )
-                .shadow(color: AppTheme.download.opacity(0.45), radius: 30, x: 0, y: 12)
+                .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: isStory ? 36 : 26, style: .continuous))
+                .shadow(color: AppTheme.accent.opacity(0.45), radius: 30, x: 0, y: 12)
 
-            Text("NetworkSpeed")
+            Text(verbatim: "RiNetwork")
                 .font(.system(size: isStory ? 56 : 40, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
@@ -152,13 +119,7 @@ struct SpeedShareCardView: View {
                 Circle()
                     .fill(gradeColor.opacity(0.12))
                     .overlay(
-                        Circle().stroke(
-                            LinearGradient(
-                                colors: [gradeColor.opacity(0.8), gradeColor.opacity(0.3)],
-                                startPoint: .top, endPoint: .bottom
-                            ),
-                            lineWidth: 4
-                        )
+                        Circle().stroke(gradeColor.opacity(0.7), lineWidth: 4)
                     )
                     .frame(width: isStory ? 190 : 150, height: isStory ? 190 : 150)
 
@@ -185,8 +146,8 @@ struct SpeedShareCardView: View {
                 speedCard(
                     icon: "arrow.down.circle.fill",
                     label: "Download",
-                    value: String(format: "%.1f", downloadMB),
-                    unit: "MB/s",
+                    value: downloadMbps.fixed(1),
+                    unit: "Mbps",
                     color: AppTheme.download
                 )
 
@@ -197,8 +158,8 @@ struct SpeedShareCardView: View {
                 speedCard(
                     icon: "arrow.up.circle.fill",
                     label: "Upload",
-                    value: String(format: "%.1f", uploadMB),
-                    unit: "MB/s",
+                    value: uploadMbps.fixed(1),
+                    unit: "Mbps",
                     color: AppTheme.upload
                 )
             }
@@ -231,14 +192,7 @@ struct SpeedShareCardView: View {
                 .font(.system(size: isStory ? 30 : 24, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: isStory ? 68 : 54, height: isStory ? 68 : 54)
-                .background(
-                    LinearGradient(
-                        colors: [color, color.opacity(0.6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: isStory ? 19 : 15, style: .continuous)
-                )
+                .background(color, in: RoundedRectangle(cornerRadius: isStory ? 19 : 15, style: .continuous))
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(value)
@@ -264,7 +218,7 @@ struct SpeedShareCardView: View {
             Image(systemName: "timer")
                 .font(.system(size: isStory ? 22 : 16, weight: .semibold))
                 .foregroundStyle(AppTheme.ping)
-            Text(String(format: "%.0f ms", result.ping))
+            Text(result.ping.fixed(0) + " ms")
                 .font(.system(size: isStory ? 28 : 21, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.white)
@@ -313,7 +267,7 @@ struct SpeedShareCardView: View {
                     .foregroundStyle(.white.opacity(0.3))
             }
             Spacer()
-            Text("NetworkSpeed App")
+            Text(verbatim: "RiNetwork")
                 .font(.system(size: isStory ? 20 : 14, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.2))
         }
@@ -407,7 +361,7 @@ struct SpeedSharePreviewSheet: View {
                             .padding(.vertical, 2)
                         }
                         .buttonStyle(AppPrimaryButtonStyle())
-                        .shadow(color: AppTheme.download.opacity(0.35), radius: 16, x: 0, y: 8)
+                        .shadow(color: AppTheme.accent.opacity(0.35), radius: 16, x: 0, y: 8)
                         .disabled(isSharing)
                         .padding(.horizontal, 20)
                     }
@@ -419,7 +373,7 @@ struct SpeedSharePreviewSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(.white.opacity(0.75))
+                        .foregroundStyle(AppTheme.secondaryText)
                 }
             }
         }

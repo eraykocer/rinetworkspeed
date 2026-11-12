@@ -73,7 +73,7 @@ final class IPScannerViewModel: ObservableObject {
 
     func startScan() {
         guard !subnetBase.isEmpty else {
-            errorMessage = "Could not determine local subnet."
+            errorMessage = String(localized: "Could not determine local subnet.")
             return
         }
         isScanning = true
@@ -249,9 +249,7 @@ struct IPScannerView: View {
 
     private let accentBlue = Color(red: 0.24, green: 0.45, blue: 0.99)
 
-    private var heroColors: [Color] {
-        [accentBlue, Color(red: 0.12, green: 0.25, blue: 0.72)]
-    }
+    private let heroTint = Color(red: 0.12, green: 0.25, blue: 0.72)
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -278,33 +276,33 @@ struct IPScannerView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Local Network")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.75))
+                        .appFont(size: 13, weight: .semibold, design: .rounded)
+                        .foregroundStyle(AppTheme.ink.opacity(0.75))
                         .textCase(.uppercase)
                     Text(vm.subnetBase.isEmpty ? "Not Connected" : "\(vm.subnetBase).1–254")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .appFont(size: 24, weight: .bold, design: .rounded)
                         .monospacedDigit()
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.ink)
                     if !vm.localIP.isEmpty {
                         Text("Your IP: \(vm.localIP)")
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .appFont(size: 13, weight: .medium, design: .rounded)
                             .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.75))
+                            .foregroundStyle(AppTheme.ink.opacity(0.75))
                     }
                 }
 
                 Spacer(minLength: 12)
 
                 Image(systemName: "network")
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .appFont(size: 30, weight: .semibold)
+                    .foregroundStyle(AppTheme.ink)
                     .frame(width: 58, height: 58)
-                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
 
             Text("Discover devices on local network")
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.75))
+                .appFont(size: 13, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.75))
 
             if vm.isScanning || vm.scannedCount > 0 {
                 progressSummary
@@ -312,8 +310,8 @@ struct IPScannerView: View {
 
             if let errorMessage = vm.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .appFont(size: 13, weight: .semibold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink)
             }
 
             Button {
@@ -324,16 +322,16 @@ struct IPScannerView: View {
                     Text(vm.isScanning ? "Stop" : "Scan")
                 }
             }
-            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: heroColors))
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: heroTint))
         }
-        .appHeroCard(colors: heroColors)
+        .appHeroCard(tint: heroTint)
     }
 
     private var progressSummary: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(vm.isScanning ? "Scanning…" : "Scan Complete")
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.65))
+                .appFont(size: 11, weight: .semibold, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.65))
                 .textCase(.uppercase)
 
             VStack(spacing: 12) {
@@ -348,9 +346,9 @@ struct IPScannerView: View {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule()
-                            .fill(.white.opacity(0.18))
+                            .fill(AppTheme.ink.opacity(0.18))
                         Capsule()
-                            .fill(.white)
+                            .fill(AppTheme.ink)
                             .frame(width: geo.size.width * vm.progress)
                             .animation(.linear(duration: 0.2), value: vm.progress)
                     }
@@ -385,7 +383,7 @@ struct IPScannerView: View {
             AppEmptyState(icon: "dot.radiowaves.left.and.right", title: "Scanning…")
                 .appCard(padding: nil)
         } else {
-            AppSection("\(vm.discoveredDevices.count) device\(vm.discoveredDevices.count == 1 ? "" : "s") found") {
+            AppSection("\(vm.discoveredDevices.count) devices found") {
                 ForEach(vm.discoveredDevices) { device in
                     Button {
                         selectedDevice = device
@@ -413,13 +411,13 @@ private struct ScannerHeroStat: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .appFont(size: 17, weight: .bold, design: .rounded)
                 .monospacedDigit()
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.ink)
                 .contentTransition(.numericText())
             Text(label)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.6))
+                .appFont(size: 11, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
     }
@@ -451,13 +449,13 @@ private struct DeviceRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(device.hostname ?? device.ip)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
                 if device.hostname != nil {
                     Text(device.ip)
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .appFont(size: 12, weight: .regular, design: .rounded)
                         .monospacedDigit()
                         .foregroundStyle(AppTheme.secondaryText)
                 }
@@ -469,7 +467,7 @@ private struct DeviceRow: View {
                 AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
                     .monospacedDigit()
                 Text(":\(device.openPort)")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .appFont(size: 11, weight: .medium, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(AppTheme.tertiaryText)
             }
@@ -516,9 +514,9 @@ struct DeviceDetailSheet: View {
                         if isScanning {
                             HStack(spacing: 10) {
                                 ProgressView()
-                                    .tint(.white)
+                                    .tint(AppTheme.ink)
                                 Text("Scanning common ports…")
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .appFont(size: 14, weight: .medium, design: .rounded)
                                     .foregroundStyle(AppTheme.secondaryText)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -526,7 +524,7 @@ struct DeviceDetailSheet: View {
                             .padding(.vertical, 14)
                         } else if openPorts.isEmpty {
                             Text("No additional open ports found")
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .appFont(size: 14, weight: .medium, design: .rounded)
                                 .foregroundStyle(AppTheme.secondaryText)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 16)
@@ -538,7 +536,7 @@ struct DeviceDetailSheet: View {
                                         .fill(AppTheme.ping)
                                         .frame(width: 8, height: 8)
                                     Text("\(port)")
-                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                        .appFont(size: 15, weight: .semibold, design: .rounded)
                                         .monospacedDigit()
                                         .foregroundStyle(AppTheme.primaryText)
                                     Spacer()
@@ -582,13 +580,13 @@ struct DeviceDetailSheet: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(device.hostname ?? device.ip)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .appFont(size: 18, weight: .bold, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
                 if device.hostname != nil {
                     Text(device.ip)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .appFont(size: 13, weight: .medium, design: .rounded)
                         .monospacedDigit()
                         .foregroundStyle(AppTheme.secondaryText)
                 }
@@ -605,11 +603,11 @@ struct DeviceDetailSheet: View {
     private func infoRow(label: LocalizedStringKey, value: String) -> some View {
         HStack(spacing: 12) {
             Text(label)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .appFont(size: 15, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
             Spacer(minLength: 8)
             Text(value)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .appFont(size: 15, weight: .semibold, design: .rounded)
                 .monospacedDigit()
                 .foregroundStyle(AppTheme.primaryText)
                 .multilineTextAlignment(.trailing)

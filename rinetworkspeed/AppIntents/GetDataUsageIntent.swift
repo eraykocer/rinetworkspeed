@@ -31,7 +31,6 @@ struct GetDataUsageIntent: AppIntent {
         let cellularStr = formatIntentBytes(cellularBytes)
         let totalStr    = formatIntentBytes(totalBytes)
 
-        let dialog = "Today you used \(wifiStr) WiFi and \(cellularStr) Cellular. Total: \(totalStr)."
-        return .result(dialog: IntentDialog(stringLiteral: dialog))
+        return .result(dialog: "Today you used \(wifiStr) on Wi-Fi and \(cellularStr) on cellular. Total: \(totalStr).")
     }
 }

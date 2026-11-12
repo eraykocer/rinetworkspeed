@@ -55,7 +55,7 @@ final class TracerouteViewModel: ObservableObject {
     private func runTrace(target: String) async {
         // ── Hop 1: Local Gateway ──────────────────────────────────────────
         let gwHop = await discoverGateway()
-        appendHop(gwHop ?? TraceHop(hopNumber: 1, ip: "* * *", hostname: "Local Gateway",
+        appendHop(gwHop ?? TraceHop(hopNumber: 1, ip: "* * *", hostname: String(localized: "Local Gateway"),
                                      latency: nil, isTimeout: true))
         guard !Task.isCancelled else { return }
         try? await Task.sleep(for: .milliseconds(250))
@@ -91,7 +91,7 @@ final class TracerouteViewModel: ObservableObject {
             } else {
                 appendHop(TraceHop(hopNumber: 4, ip: "* * *",
                                    hostname: target, latency: nil, isTimeout: true))
-                errorMessage = "Could not resolve \(target)"
+                errorMessage = String(localized: "Could not resolve \(target)")
             }
         }
     }
@@ -112,7 +112,7 @@ final class TracerouteViewModel: ObservableObject {
             if ok {
                 let hostname = await IPScannerViewModel.reverseDNS(ip)
                 return TraceHop(hopNumber: 1, ip: ip,
-                                hostname: hostname ?? "Local Gateway",
+                                hostname: hostname ?? String(localized: "Local Gateway"),
                                 latency: ms, isTimeout: false)
             }
         }
@@ -263,9 +263,9 @@ struct TracerouteView: View {
                     Text(vm.isRunning ? "Stop Trace" : "Start Trace")
                 }
             }
-            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: accentDeep))
         }
-        .appHeroCard(colors: [accent, accentDeep])
+        .appHeroCard(tint: accentDeep)
     }
 
     // MARK: - Hops Section
@@ -285,7 +285,7 @@ struct TracerouteView: View {
                         .tint(accent)
                         .frame(width: 40, height: 40)
                     Text("Probing next hop…")
-                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .appFont(size: 14, weight: .medium, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                     Spacer(minLength: 0)
                 }
@@ -313,16 +313,15 @@ private struct HopRow: View {
 
     private var tileFill: AnyShapeStyle {
         hop.isTimeout
-            ? AnyShapeStyle(Color.white.opacity(0.06))
-            : AnyShapeStyle(LinearGradient(colors: [accent, accent.opacity(0.6)],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing))
+            ? AnyShapeStyle(AppTheme.ink.opacity(0.06))
+            : AnyShapeStyle(accent)
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             // Hop number tile
             Text(verbatim: "\(hop.hopNumber)")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .appFont(size: 16, weight: .bold, design: .rounded)
                 .monospacedDigit()
                 .foregroundStyle(hop.isTimeout ? AppTheme.tertiaryText : .white)
                 .frame(width: 40, height: 40)
@@ -330,12 +329,12 @@ private struct HopRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(hop.isTimeout ? "* * *" : (hop.hostname ?? hop.ip))
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .appFont(size: 15, weight: .semibold, design: .rounded)
                     .foregroundStyle(hop.isTimeout ? AppTheme.tertiaryText : AppTheme.primaryText)
                     .lineLimit(1)
                 if !hop.isTimeout, let host = hop.hostname, host != hop.ip {
                     Text(hop.ip)
-                        .font(.system(size: 12, weight: .regular, design: .monospaced))
+                        .appFont(size: 12, weight: .regular, design: .monospaced)
                         .foregroundStyle(AppTheme.secondaryText)
                         .textSelection(.enabled)
                 }
@@ -344,11 +343,11 @@ private struct HopRow: View {
             Spacer(minLength: 8)
 
             if hop.isTimeout {
-                AppPill(text: "Timeout", tint: .white.opacity(0.55))
+                AppPill(text: "Timeout", tint: AppTheme.ink.opacity(0.55))
             } else if let ms = hop.latency {
                 VStack(alignment: .trailing, spacing: 5) {
-                    Text(String(format: "%.1f ms", ms))
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    Text(ms.fixed(1) + " ms")
+                        .appFont(size: 13, weight: .semibold, design: .monospaced)
                         .foregroundStyle(latencyColor)
 
                     // Latency bar (max 300ms mapped to full width)
@@ -386,18 +385,18 @@ private struct ToolHeroHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
+                .appFont(size: 24, weight: .semibold)
+                .foregroundStyle(AppTheme.ink)
                 .frame(width: 52, height: 52)
-                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .appFont(size: 19, weight: .bold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -425,10 +424,10 @@ private struct ToolErrorCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                 Text(verbatim: message)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .appFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)

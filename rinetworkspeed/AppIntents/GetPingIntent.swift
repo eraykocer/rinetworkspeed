@@ -27,49 +27,30 @@ struct GetPingIntent: AppIntent {
 
         let ms      = Int(latency.rounded())
         let quality = pingQuality(latency)
-        let dialog  = "Connection latency is \(ms) ms, connection quality: \(quality)."
-        return .result(dialog: IntentDialog(stringLiteral: dialog))
+        return .result(dialog: "Connection latency is \(ms) ms, connection quality: \(quality).")
     }
 
     // MARK: - Private
 
-    /// Sends 3 HEAD requests to 1.1.1.1 and returns the average RTT in milliseconds.
+    /// Average TCP handshake time to 1.1.1.1 over three samples, in milliseconds.
+    /// Uses the same measurement as the Ping Monitor, so the numbers match.
     private func measurePing() async -> Double {
-        guard let url = URL(string: "https://1.1.1.1") else { return -1 }
-
-        var request              = URLRequest(url: url)
-        request.httpMethod       = "HEAD"
-        request.timeoutInterval  = 5
-        request.cachePolicy      = .reloadIgnoringLocalCacheData
-
-        let config                            = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest      = 5
-        config.timeoutIntervalForResource     = 5
-        config.waitsForConnectivity           = false
-        let session                           = URLSession(configuration: config)
-
         var samples: [Double] = []
         for _ in 0..<3 {
-            let start = Date()
-            if let (_, response) = try? await session.data(for: request),
-               let http = response as? HTTPURLResponse,
-               (200...599).contains(http.statusCode)
-            {
-                samples.append(Date().timeIntervalSince(start) * 1_000)
-            }
+            let ms = await PingMonitor.tcpConnectTime(host: "1.1.1.1", port: 443, timeout: 5)
+            if ms >= 0 { samples.append(ms) }
         }
-
         guard !samples.isEmpty else { return -1 }
         return samples.reduce(0, +) / Double(samples.count)
     }
 
     private func pingQuality(_ ms: Double) -> String {
         switch ms {
-        case ..<0:    return "No Connection"
-        case 0..<30:  return "Excellent"
-        case 30..<80: return "Good"
-        case 80..<150: return "Fair"
-        default:      return "Poor"
+        case ..<0:    return String(localized: "No Connection")
+        case 0..<30:  return String(localized: "Excellent")
+        case 30..<80: return String(localized: "Good")
+        case 80..<150: return String(localized: "Fair")
+        default:      return String(localized: "Poor")
         }
     }
 }

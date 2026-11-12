@@ -1,0 +1,116 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Last Test": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son Test"
+          }
+        }
+      }
+    },
+    "Mbps": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mbps"
+          }
+        }
+      }
+    },
+    "Network Status": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ Durumu"
+          }
+        }
+      }
+    },
+    "No test yet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz test yok"
+          }
+        }
+      }
+    },
+    "Open the app to update usage.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanımı güncellemek için uygulamayı açın."
+          }
+        }
+      }
+    },
+    "Opens RiNetwork and starts a speed test.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RiNetwork'ü açar ve bir hız testi başlatır."
+          }
+        }
+      }
+    },
+    "Speed Test": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Testi"
+          }
+        }
+      }
+    },
+    "Start Speed Test": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Testi Başlat"
+          }
+        }
+      }
+    },
+    "Tap to run your first speed test.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlk hız testinizi yapmak için dokunun."
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugün"
+          }
+        }
+      }
+    },
+    "Your last speed test and today's data usage. Tap to run a new test.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son hız testiniz ve bugünkü veri kullanımınız. Yeni test için dokunun."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

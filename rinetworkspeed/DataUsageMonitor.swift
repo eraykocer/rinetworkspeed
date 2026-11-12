@@ -22,6 +22,10 @@ final class DataUsageMonitor: ObservableObject {
     @Published var todayCellularBytes: UInt64 = 0
     @Published var weeklyWifiBytes: UInt64 = 0
     @Published var weeklyCellularBytes: UInt64 = 0
+    /// Usage since the start of the current billing period (see `dataLimitResetDay`).
+    /// The data limit is a carrier plan limit, so it is compared against cellular only.
+    @Published private(set) var periodWifiBytes: UInt64 = 0
+    @Published private(set) var periodCellularBytes: UInt64 = 0
     /// False until the first counter sample has been taken, so the UI can show
     /// a loading state only during startup instead of whenever usage is zero.
     @Published private(set) var hasInitialSample = false
@@ -138,6 +142,42 @@ final class DataUsageMonitor: ObservableObject {
         todayCellularBytes = 0
         saveDailyTotals()
         recalculateWeeklyTotals()
+        recalculatePeriodTotals()
+    }
+
+    /// Reset day chosen in Settings, clamped to 1...28 (0 means "never set").
+    private var resetDay: Int {
+        min(max(defaults.integer(forKey: "dataLimitResetDay"), 1), 28)
+    }
+
+    /// First day of the billing period that contains `date`.
+    func billingPeriodStart(resetDay: Int, for date: Date = Date()) -> Date {
+        let today = calendar.startOfDay(for: date)
+        var components = calendar.dateComponents([.year, .month], from: today)
+        components.day = resetDay
+        let thisMonthReset = calendar.date(from: components) ?? today
+
+        if today >= thisMonthReset {
+            return thisMonthReset
+        }
+        return calendar.date(byAdding: .month, value: -1, to: thisMonthReset) ?? thisMonthReset
+    }
+
+    /// Re-reads the reset day and recomputes the billing-period totals, e.g.
+    /// after the user changes the reset day in Settings.
+    func recalculatePeriodTotals() {
+        let periodStart = billingPeriodStart(resetDay: resetDay)
+        var wifi: UInt64 = 0
+        var cellular: UInt64 = 0
+
+        for (key, usage) in dailyTotals {
+            guard let date = date(from: key), date >= periodStart else { continue }
+            wifi += usage.wifi
+            cellular += usage.cellular
+        }
+
+        if periodWifiBytes != wifi { periodWifiBytes = wifi }
+        if periodCellularBytes != cellular { periodCellularBytes = cellular }
     }
 
     func daysUntilReset(resetDay: Int) -> Int {
@@ -177,25 +217,32 @@ final class DataUsageMonitor: ObservableObject {
         if !hasInitialSample { hasInitialSample = true }
 
         #if os(iOS)
-        WatchConnectivityManager.shared.updateDataUsage(
-            todayWifi: todayWifi,
-            todayCellular: todayCellular
-        )
-        // Persist today's totals to the shared App Group so AppIntents can
-        // read them even when the main app process is not running.
-        let intentDefaults = UserDefaults(suiteName: "group.rinetworkspeedapp")
-        intentDefaults?.set(Int(todayWifi),     forKey: "intentTodayWifi")
-        intentDefaults?.set(Int(todayCellular), forKey: "intentTodayCellular")
+        // Persist today's totals to the shared App Group so AppIntents and
+        // widgets can read them even when the main app process is not running.
+        WidgetSharedStore.saveTodayUsage(wifi: todayWifi, cellular: todayCellular)
         #endif
 
-        if defaults.bool(forKey: "dataLimitEnabled") {
-            let totalUsedGB = Double(todayWifi + todayCellular) / 1_073_741_824
-            let limitGB = max(defaults.double(forKey: "dataLimitGB"), 0)
-            notificationManager.checkDataLimit(usedGB: totalUsedGB, limitGB: limitGB)
-        }
-
         recalculateWeeklyTotals()
+        recalculatePeriodTotals()
+
+        if defaults.bool(forKey: "dataLimitEnabled") {
+            let usedGB = Double(periodCellularBytes) / 1_073_741_824
+            let limitGB = max(defaults.double(forKey: "dataLimitGB"), 0)
+            let periodStart = billingPeriodStart(resetDay: resetDay)
+            notificationManager.checkDataLimit(
+                usedGB: usedGB,
+                limitGB: limitGB,
+                periodID: Self.periodIDFormatter.string(from: periodStart)
+            )
+        }
     }
+
+    private static let periodIDFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 
     private func recalculateWeeklyTotals() {
         let samples = usageForLast7Days()

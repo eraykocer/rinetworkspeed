@@ -2,7 +2,8 @@
 //  NetworkWidgetControl.swift
 //  NetworkWidget
 //
-//  Created by Eray Koçer on 9.04.2026.
+//  Control Center / Lock Screen / Action button control that opens the app
+//  and starts a speed test right away (handled by AppRouter in the app).
 //
 
 import AppIntents
@@ -13,65 +14,14 @@ struct NetworkWidgetControl: ControlWidget {
     static let kind: String = "com.rinetworkspeed.NetworkWidget"
 
     var body: some ControlWidgetConfiguration {
-        AppIntentControlConfiguration(
-            kind: Self.kind,
-            provider: Provider()
-        ) { value in
-            ControlWidgetToggle(
-                "Start Timer",
-                isOn: value.isRunning,
-                action: StartTimerIntent(value.name)
-            ) { isRunning in
-                Label(isRunning ? "On" : "Off", systemImage: "timer")
+        StaticControlConfiguration(kind: Self.kind) {
+            ControlWidgetButton(action: OpenURLIntent(Self.speedTestURL)) {
+                Label("Speed Test", systemImage: "gauge.with.dots.needle.67percent")
             }
         }
-        .displayName("Timer")
-        .description("A an example control that runs a timer.")
-    }
-}
-
-extension NetworkWidgetControl {
-    struct Value {
-        var isRunning: Bool
-        var name: String
+        .displayName("Start Speed Test")
+        .description("Opens RiNetwork and starts a speed test.")
     }
 
-    struct Provider: AppIntentControlValueProvider {
-        func previewValue(configuration: TimerConfiguration) -> Value {
-            NetworkWidgetControl.Value(isRunning: false, name: configuration.timerName)
-        }
-
-        func currentValue(configuration: TimerConfiguration) async throws -> Value {
-            let isRunning = true // Check if the timer is running
-            return NetworkWidgetControl.Value(isRunning: isRunning, name: configuration.timerName)
-        }
-    }
-}
-
-struct TimerConfiguration: ControlConfigurationIntent {
-    static let title: LocalizedStringResource = "Timer Name Configuration"
-
-    @Parameter(title: "Timer Name", default: "Timer")
-    var timerName: String
-}
-
-struct StartTimerIntent: SetValueIntent {
-    static let title: LocalizedStringResource = "Start a timer"
-
-    @Parameter(title: "Timer Name")
-    var name: String
-
-    @Parameter(title: "Timer is running")
-    var value: Bool
-
-    init() {}
-
-    init(_ name: String) {
-        self.name = name
-    }
-
-    func perform() async throws -> some IntentResult {
-        // Start the timer…
-        return .result()
-    }
+    private static let speedTestURL = URL(string: "rinetworkspeed://speedtest")!
 }

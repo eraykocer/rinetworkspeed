@@ -18,9 +18,11 @@ struct ContentView: View {
     let speedTestManager: SpeedTestManager
     let pingMonitor: PingMonitor
     @Binding var selectedTab: Int
+    @Binding var speedTestRequested: Bool
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = true
     @State private var showingSpeedTest = false
     @State private var showingPingMonitor = false
+    @State private var showingPaywall = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -36,6 +38,29 @@ struct ContentView: View {
             .padding(.bottom, 32)
         }
         .appPageBackground()
+        // Attached to the page, not to the tools section: that section lives in
+        // a LazyVStack and is not built until scrolled to, so a sheet attached
+        // there cannot be presented programmatically (widget, control, etc.).
+        .sheet(isPresented: $showingSpeedTest) {
+            SpeedTestView(manager: speedTestManager)
+        }
+        .sheet(isPresented: $showingPingMonitor) {
+            PingMonitorView(monitor: pingMonitor)
+        }
+        .task {
+            // On a cold launch (widget, control, notification) the request is
+            // already set before this view is in a window, and a sheet
+            // presented that early is silently dropped.
+            guard speedTestRequested else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            startRequestedSpeedTest()
+        }
+        .onChange(of: speedTestRequested) { _, isRequested in
+            if isRequested { startRequestedSpeedTest() }
+        }
+        .fullScreenCover(isPresented: $showingPaywall) {
+            PaywallView()
+        }
         .onChange(of: liveActivityEnabled) { _, isEnabled in
             withAnimation(.easeInOut(duration: 0.3)) {
                 if isEnabled {
@@ -44,6 +69,32 @@ struct ContentView: View {
                     monitor.stopLiveActivity()
                 }
             }
+        }
+    }
+
+    /// Opens the speed test sheet and starts a test, as requested from a
+    /// widget, the Control Center control or a notification action.
+    private func startRequestedSpeedTest() {
+        guard speedTestRequested else { return }
+        speedTestRequested = false
+
+        guard PurchaseManager.shared.isPro else {
+            showingPaywall = true
+            return
+        }
+
+        showingPingMonitor = false
+        showingSpeedTest = true
+
+        let isRunning: Bool
+        switch speedTestManager.state {
+        case .pingTesting, .downloadTesting, .transitionToUpload, .uploadTesting:
+            isRunning = true
+        case .idle, .finished, .failed:
+            isRunning = false
+        }
+        if !isRunning {
+            Task { await speedTestManager.startTest() }
         }
     }
 
@@ -64,6 +115,8 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 CanvasSpeedChart(monitor: monitor)
                     .frame(height: 160)
+                    .accessibilityElement()
+                    .accessibilityLabel(Text("Download and upload speed over the last 60 seconds"))
                     .padding(.horizontal, 14)
                     .padding(.top, 16)
                     .padding(.bottom, 12)
@@ -96,9 +149,9 @@ struct ContentView: View {
                     HStack(spacing: 4) {
                         Text("Details")
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
+                            .appFont(size: 11, weight: .bold)
                     }
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .appFont(size: 13, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.download)
                 }
                 .buttonStyle(.plain)
@@ -150,19 +203,13 @@ struct ContentView: View {
             .buttonStyle(AppRowButtonStyle())
             .proGated(feature: .pingMonitor)
         }
-        .sheet(isPresented: $showingSpeedTest) {
-            SpeedTestView(manager: speedTestManager)
-        }
-        .sheet(isPresented: $showingPingMonitor) {
-            PingMonitorView(monitor: pingMonitor)
-        }
     }
 
     private func legendDot(color: Color, label: LocalizedStringKey) -> some View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text(label)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .appFont(size: 11, weight: .semibold, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
         }
     }
@@ -191,16 +238,16 @@ private struct HomeLiveSpeedSection: View {
         HStack(spacing: 12) {
             HStack(spacing: 10) {
                 Image(systemName: activeConnectionIcon)
-                    .font(.system(size: 18, weight: .semibold))
+                    .appFont(size: 18, weight: .semibold)
                     .foregroundStyle(activeConnectionColor)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(monitor.connectionName)
-                        .font(.system(size: 19, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .appFont(size: 19, weight: .bold, design: .rounded)
+                        .foregroundStyle(AppTheme.ink)
                     Text(activeConnectionSubtitle)
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .appFont(size: 12, weight: .medium, design: .rounded)
+                        .foregroundStyle(AppTheme.ink.opacity(0.5))
                 }
             }
 
@@ -210,8 +257,9 @@ private struct HomeLiveSpeedSection: View {
                 liveActivityEnabled.toggle()
             } label: {
                 Image(systemName: liveActivityEnabled ? "stop.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 28, weight: .semibold))
+                    .appFont(size: 28, weight: .semibold)
                     .foregroundStyle(liveActivityEnabled ? .red : .green)
+                    .accessibilityLabel(liveActivityEnabled ? Text("Stop Live Activity") : Text("Start Live Activity"))
             }
             .buttonStyle(.plain)
             .proGated(feature: .widget)
@@ -221,7 +269,7 @@ private struct HomeLiveSpeedSection: View {
     }
 
     private var speedCards: some View {
-        HStack(spacing: 14) {
+        AppAdaptiveStack(spacing: 14) {
             speedCard(
                 title: "Download",
                 systemImage: "arrow.down.circle.fill",
@@ -238,46 +286,49 @@ private struct HomeLiveSpeedSection: View {
         }
     }
 
-    private func speedCard(title: String, systemImage: String, color: Color, speed: Double) -> some View {
+    private func speedCard(title: LocalizedStringKey, systemImage: String, color: Color, speed: Double) -> some View {
         let components = monitor.formattedSpeedComponents(speed)
 
         return VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 10) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 24, weight: .semibold))
+                    .appFont(size: 24, weight: .semibold)
                     .foregroundStyle(color)
 
                 Text(title)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.82))
+                    .appFont(size: 18, weight: .semibold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.82))
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(components.value)
-                        .font(.system(size: 38, weight: .bold, design: .rounded))
+                        .appFont(size: 38, weight: .bold, design: .rounded)
                         .monospacedDigit()
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.ink)
                         .contentTransition(.numericText())
                         // Shrink long values (e.g. "1024.0") instead of wrapping.
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                     Text(components.unit)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.58))
+                        .appFont(size: 16, weight: .semibold, design: .rounded)
+                        .foregroundStyle(AppTheme.ink.opacity(0.58))
                         .lineLimit(1)
                         .fixedSize()
                 }
                 .transaction { t in t.animation = .easeOut(duration: 0.2) }
 
                 Text(speedUnit == "bits" ? "Megabit speed format" : "Byte speed format")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.42))
+                    .appFont(size: 12, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.42))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .premiumCardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(title))
+        .accessibilityValue(Text(verbatim: "\(components.value) \(components.unit)"))
     }
 
     private var activeConnectionIcon: String {
@@ -298,18 +349,18 @@ private struct HomeLiveSpeedSection: View {
         case .cellular:
             return uploadColor
         case .none:
-            return .white.opacity(0.5)
+            return AppTheme.ink.opacity(0.5)
         }
     }
 
     private var activeConnectionSubtitle: String {
         switch monitor.activeInterface {
         case .wifi:
-            return "Wireless connection active"
+            return String(localized: "Wireless connection active")
         case .cellular:
-            return "Mobile data active"
+            return String(localized: "Mobile data active")
         case .none:
-            return "No network connection detected"
+            return String(localized: "No network connection detected")
         }
     }
 
@@ -355,7 +406,7 @@ private struct HomeUsageRows: View {
 
     private func valueText(_ value: String) -> some View {
         Text(value)
-            .font(.system(size: 17, weight: .bold, design: .rounded))
+            .appFont(size: 17, weight: .bold, design: .rounded)
             .monospacedDigit()
             .foregroundStyle(AppTheme.primaryText)
             .lineLimit(1)
@@ -372,7 +423,7 @@ private struct HomeConnectionRows: View {
             valueText(latencyText)
         }
         AppRowDivider()
-        AppRow(icon: "wifi", tint: AppTheme.download, title: "WiFi RSSI") {
+        AppRow(icon: "wifi", tint: AppTheme.download, title: "Wi-Fi") {
             valueText(monitor.wifiSignalDescription)
         }
         AppRowDivider()
@@ -383,12 +434,12 @@ private struct HomeConnectionRows: View {
 
     private var latencyText: String {
         guard let latency = monitor.latencyMs else { return "--" }
-        return String(format: "%.0f ms", latency)
+        return latency.fixed(0) + " ms"
     }
 
     private func valueText(_ value: String) -> some View {
         Text(value)
-            .font(.system(size: 15, weight: .semibold, design: .rounded))
+            .appFont(size: 15, weight: .semibold, design: .rounded)
             .monospacedDigit()
             .foregroundStyle(AppTheme.secondaryText)
             .lineLimit(1)
@@ -512,7 +563,7 @@ private struct CanvasSpeedChart: View {
             var path = Path()
             path.move(to: CGPoint(x: plot.minX, y: y))
             path.addLine(to: CGPoint(x: plot.maxX, y: y))
-            ctx.stroke(path, with: .color(tick == 0 ? Color.white.opacity(0.14) : gridColor),
+            ctx.stroke(path, with: .color(tick == 0 ? AppTheme.ink.opacity(0.14) : gridColor),
                        style: StrokeStyle(lineWidth: 0.5, dash: tick == 0 ? [] : [4, 4]))
 
             ctx.draw(axisText(scale.label(forTick: tick)),
@@ -551,12 +602,12 @@ private struct CanvasSpeedChart: View {
         var path = Path()
         path.move(to: CGPoint(x: plot.minX, y: y))
         path.addLine(to: CGPoint(x: plot.maxX, y: y))
-        ctx.stroke(path, with: .color(Color.white.opacity(0.28)),
+        ctx.stroke(path, with: .color(AppTheme.ink.opacity(0.28)),
                    style: StrokeStyle(lineWidth: 0.75, dash: [2, 3]))
 
         let text = Text(verbatim: label)
             .font(.system(size: 9, weight: .bold, design: .rounded).monospacedDigit())
-            .foregroundStyle(Color.white.opacity(0.75))
+            .foregroundStyle(AppTheme.ink.opacity(0.75))
         // Place the label just above the line, or below it when the peak touches the top.
         let labelY = y - plot.minY > 12 ? y - 2 : y + 2
         ctx.draw(text,
@@ -577,19 +628,13 @@ private struct CanvasSpeedChart: View {
         // Build smooth path using Catmull-Rom → Cubic Bézier conversion
         let linePath = catmullRomPath(through: points)
 
-        // ── Gradient fill under the curve ─────────────────────────
+        // ── Flat fill under the curve ─────────────────────────────
         var fillPath = linePath
         fillPath.addLine(to: CGPoint(x: last.x, y: plot.maxY))
         fillPath.addLine(to: CGPoint(x: first.x, y: plot.maxY))
         fillPath.closeSubpath()
 
-        let gradient = Gradient(stops: [
-            .init(color: color.opacity(fillOpacity), location: 0),
-            .init(color: color.opacity(0), location: 1)
-        ])
-        ctx.fill(fillPath, with: .linearGradient(gradient,
-                                                  startPoint: CGPoint(x: plot.midX, y: plot.minY),
-                                                  endPoint: CGPoint(x: plot.midX, y: plot.maxY)))
+        ctx.fill(fillPath, with: .color(color.opacity(fillOpacity * 0.5)))
 
         // ── Glow line (wider, blurred) ────────────────────────────
         ctx.stroke(linePath,
@@ -705,11 +750,11 @@ private struct AxisScale {
 
     func peakLabel(for bytesPerSecond: Double) -> String {
         let value = bytesPerSecond * (usesBits ? 8 : 1) / unitDivisor
-        return String(format: "Peak %.1f %@", value, unit)
+        return String(localized: "Peak \(value.fixed(1)) \(unit)")
     }
 
     private static func format(_ value: Double) -> String {
-        value.rounded() == value ? String(format: "%.0f", value) : String(format: "%.1f", value)
+        value.rounded() == value ? value.fixed(0) : value.fixed(1)
     }
 
     private static func niceStep(for rough: Double) -> Double {
@@ -735,13 +780,13 @@ private struct PremiumCardModifier: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
+                    .fill(AppTheme.cardFill)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 26, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    .stroke(AppTheme.cardStroke, lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.3), radius: 10, x: 0, y: 6)
+            .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 6)
     }
 }
 
@@ -757,6 +802,7 @@ private extension View {
         dataUsage: DataUsageMonitor(),
         speedTestManager: SpeedTestManager(),
         pingMonitor: PingMonitor(),
-        selectedTab: .constant(0)
+        selectedTab: .constant(0),
+        speedTestRequested: .constant(false)
     )
 }

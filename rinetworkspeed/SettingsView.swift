@@ -19,6 +19,7 @@ struct SettingsView: View {
     @AppStorage("dataLimitEnabled") private var dataLimitEnabled: Bool = false
     @AppStorage("dataLimitGB") private var dataLimitGB: Double = 5.0
     @AppStorage("dataLimitResetDay") private var dataLimitResetDay: Int = 1
+    @AppStorage("appearance") private var appearance: AppAppearance = .system
 
     @State private var showingPaywall = false
 
@@ -47,7 +48,7 @@ struct SettingsView: View {
                 PaywallView()
             }
         }
-        .tint(.white)
+        .tint(AppTheme.ink)
         .appPageBackground()
         .onAppear {
             monitor.applyUpdateInterval()
@@ -78,15 +79,15 @@ struct SettingsView: View {
                 heroIcon
                 VStack(alignment: .leading, spacing: 4) {
                     Text("ri Pro")
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .appFont(size: 22, weight: .bold, design: .rounded)
+                        .foregroundStyle(AppTheme.ink)
                     Text("All Pro features unlocked")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .appFont(size: 13, weight: .medium, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 24, weight: .semibold))
+                    .appFont(size: 24, weight: .semibold)
                     .foregroundStyle(AppTheme.ping)
             }
             .appCard(padding: 20)
@@ -99,10 +100,10 @@ struct SettingsView: View {
                     HStack(alignment: .top, spacing: 14) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("ri Pro")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
+                                .appFont(size: 24, weight: .bold, design: .rounded)
+                                .foregroundStyle(AppTheme.ink)
                             Text("Unlock all features")
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .appFont(size: 13, weight: .medium, design: .rounded)
                                 .foregroundStyle(AppTheme.secondaryText)
                                 .multilineTextAlignment(.leading)
                         }
@@ -114,7 +115,7 @@ struct SettingsView: View {
                         Image(systemName: "crown.fill")
                         Text("Upgrade")
                     }
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
@@ -131,7 +132,7 @@ struct SettingsView: View {
 
     private var heroIcon: some View {
         Image(systemName: "crown.fill")
-            .font(.system(size: 26, weight: .semibold))
+            .appFont(size: 26, weight: .semibold)
             .foregroundStyle(proTint)
             .frame(width: 56, height: 56)
             .background(proTint.opacity(0.15), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -141,6 +142,21 @@ struct SettingsView: View {
 
     private var generalSection: some View {
         AppSection("General") {
+            VStack(spacing: 0) {
+                AppRow(icon: "circle.lefthalf.filled", tint: .indigo, title: "Appearance")
+
+                Picker("Appearance", selection: $appearance) {
+                    ForEach(AppAppearance.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 14)
+            }
+
+            AppRowDivider()
+
             VStack(spacing: 0) {
                 AppRow(icon: "timer", tint: AppTheme.accent, title: "Update Interval")
 
@@ -186,8 +202,8 @@ struct SettingsView: View {
 
     private var dataLimitSection: some View {
         AppSection("Data Limit") {
-            AppRow(icon: "externaldrive.fill.badge.wifi", tint: AppTheme.upload, title: "Data Limit Alert") {
-                Toggle("Data Limit Alert", isOn: $dataLimitEnabled)
+            AppRow(icon: "externaldrive.fill.badge.wifi", tint: AppTheme.upload, title: "Cellular Data Limit") {
+                Toggle("Cellular Data Limit", isOn: $dataLimitEnabled)
                     .labelsHidden()
                     .tint(AppTheme.upload)
             }
@@ -199,7 +215,7 @@ struct SettingsView: View {
                 VStack(spacing: 0) {
                     AppRow(icon: "chart.bar.xaxis", tint: AppTheme.upload, title: "Limit") {
                         Text("\(dataLimitGB, specifier: "%.1f") GB")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .appFont(size: 15, weight: .semibold, design: .rounded)
                             .monospacedDigit()
                             .foregroundStyle(AppTheme.secondaryText)
                     }
@@ -221,7 +237,7 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.menu)
-                    .tint(.white)
+                    .tint(AppTheme.ink)
                 }
             }
         }
@@ -279,8 +295,8 @@ struct SettingsView: View {
             }
             .appCard(padding: nil)
 
-            Text("You can say commands like \"Show my speed with rinetworkspeed\" to Siri. Automations can be created in the Shortcuts app.")
-                .font(.system(size: 12, weight: .regular, design: .rounded))
+            Text("You can say commands like \"Show my speed with RiNetwork\" to Siri. Automations can be created in the Shortcuts app.")
+                .appFont(size: 12, weight: .regular, design: .rounded)
                 .foregroundStyle(AppTheme.tertiaryText)
                 .padding(.horizontal, 4)
         }
@@ -292,7 +308,7 @@ struct SettingsView: View {
         AppSection("About") {
             AppRow(icon: "app.badge.fill", tint: .cyan, title: "App Version") {
                 Text(appVersion)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .appFont(size: 15, weight: .medium, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
             }
 
@@ -301,8 +317,8 @@ struct SettingsView: View {
             AppRow(icon: "heart.fill", tint: .pink, title: "Developer") {
                 Label("Eray", systemImage: "heart.fill")
                     .labelStyle(.titleAndIcon)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.82), .pink)
+                    .appFont(size: 15, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.82), .pink)
             }
 
             if let url = Self.feedbackURL {
@@ -322,8 +338,8 @@ struct SettingsView: View {
 
     private var externalLinkIcon: some View {
         Image(systemName: "arrow.up.right")
-            .font(.system(size: 13, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.3))
+            .appFont(size: 13, weight: .semibold)
+            .foregroundStyle(AppTheme.ink.opacity(0.3))
     }
 
     private func proLockedRow(feature: ProFeature) -> some View {
@@ -337,8 +353,8 @@ struct SettingsView: View {
                 HStack(spacing: 8) {
                     AppPill(text: "Pro")
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.3))
+                        .appFont(size: 13, weight: .semibold)
+                        .foregroundStyle(AppTheme.ink.opacity(0.3))
                 }
             }
         }

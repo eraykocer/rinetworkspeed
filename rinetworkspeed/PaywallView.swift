@@ -25,7 +25,6 @@ struct PricingCard: View {
     let isSelected: Bool
     let onTap: () -> Void
 
-    private let gradient = AppTheme.heroGradient
 
     var body: some View {
         Button(action: onTap) {
@@ -33,12 +32,12 @@ struct PricingCard: View {
                 // Selection indicator
                 ZStack {
                     Circle()
-                        .stroke(isSelected ? Color.clear : Color.white.opacity(0.2), lineWidth: 2)
+                        .stroke(isSelected ? Color.clear : AppTheme.ink.opacity(0.2), lineWidth: 2)
                     if isSelected {
                         Circle()
-                            .fill(LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .fill(AppTheme.accent)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .heavy))
+                            .appFont(size: 11, weight: .heavy)
                             .foregroundStyle(.white)
                     }
                 }
@@ -47,25 +46,25 @@ struct PricingCard: View {
                 // Labels
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
-                        Text(LocalizedStringKey(plan.title))
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(isSelected ? AppTheme.primaryText : .white.opacity(0.7))
+                        Text(verbatim: plan.title)
+                            .appFont(size: 16, weight: .bold, design: .rounded)
+                            .foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.ink.opacity(0.7))
 
                         if let badge = plan.badge {
-                            Text(LocalizedStringKey(badge))
-                                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                            Text(verbatim: badge)
+                                .appFont(size: 10, weight: .heavy, design: .rounded)
                                 .textCase(.uppercase)
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
                                 .background(
-                                    Capsule().fill(LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing))
+                                    Capsule().fill(AppTheme.accent)
                                 )
                         }
                     }
 
-                    Text(LocalizedStringKey(plan.period))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                    Text(verbatim: plan.period)
+                        .appFont(size: 12, weight: .medium, design: .rounded)
                         .foregroundStyle(isSelected ? AppTheme.secondaryText : AppTheme.tertiaryText)
                 }
 
@@ -73,9 +72,9 @@ struct PricingCard: View {
 
                 // Price
                 Text(plan.price)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .appFont(size: 20, weight: .bold, design: .rounded)
                     .monospacedDigit()
-                    .foregroundStyle(isSelected ? AppTheme.primaryText : .white.opacity(0.6))
+                    .foregroundStyle(isSelected ? AppTheme.primaryText : AppTheme.ink.opacity(0.6))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 16)
@@ -86,9 +85,7 @@ struct PricingCard: View {
             .overlay {
                 RoundedRectangle(cornerRadius: AppTheme.cardRadius, style: .continuous)
                     .strokeBorder(
-                        isSelected
-                            ? LinearGradient(colors: gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
-                            : LinearGradient(colors: [AppTheme.cardStroke], startPoint: .top, endPoint: .bottom),
+                        isSelected ? AppTheme.accent : AppTheme.cardStroke,
                         lineWidth: isSelected ? 2 : 1
                     )
             }
@@ -107,7 +104,6 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedIndex: Int = 1   // default = Annual
-    @State private var animateGradient: Bool = false
     @State private var isRestoring: Bool = false
 
     private static let privacyURL = URL(string: "https://rinetworkspeed.app/privacy")
@@ -131,10 +127,10 @@ struct PaywallView: View {
             // Dismiss ×
             Button { dismiss() } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .appFont(size: 13, weight: .bold)
+                    .foregroundStyle(AppTheme.ink.opacity(0.8))
                     .frame(width: 32, height: 32)
-                    .background(.white.opacity(0.1), in: Circle())
+                    .background(AppTheme.ink.opacity(0.1), in: Circle())
                     .overlay(Circle().stroke(AppTheme.cardStroke, lineWidth: 1))
             }
             .buttonStyle(AppPressableButtonStyle())
@@ -157,21 +153,21 @@ struct PaywallView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("ri Pro")
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
+                        .appFont(size: 34, weight: .heavy, design: .rounded)
+                        .foregroundStyle(AppTheme.ink)
                     Text("Monitor your network at full power")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.8))
+                        .appFont(size: 15, weight: .medium, design: .rounded)
+                        .foregroundStyle(AppTheme.ink.opacity(0.8))
                         .multilineTextAlignment(.leading)
                 }
 
                 Spacer(minLength: 12)
 
                 Image(systemName: "network.badge.shield.half.filled")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .appFont(size: 32, weight: .semibold)
+                    .foregroundStyle(AppTheme.ink)
                     .frame(width: 64, height: 64)
-                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
 
             // Quick glance at what's included
@@ -181,8 +177,8 @@ struct PaywallView: View {
                         AppMetricDivider()
                     }
                     Image(systemName: feature.systemImage)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .appFont(size: 17, weight: .semibold)
+                        .foregroundStyle(AppTheme.ink)
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -192,19 +188,11 @@ struct PaywallView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: animateGradient
-                    ? [AppTheme.accent, AppTheme.download, AppTheme.upload]
-                    : [AppTheme.download, AppTheme.accent, AppTheme.upload.opacity(0.9)],
-                startPoint: animateGradient ? .topTrailing : .topLeading,
-                endPoint: animateGradient ? .bottomLeading : .bottomTrailing
-            )
-            .animation(.easeInOut(duration: 3).repeatForever(autoreverses: true), value: animateGradient)
-        )
+        .background(AppTheme.accent)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.heroRadius, style: .continuous))
+        // White-on-accent in both themes, like `appHeroCard`.
+        .environment(\.colorScheme, .dark)
         .shadow(color: AppTheme.accent.opacity(0.35), radius: 16, x: 0, y: 8)
-        .onAppear { animateGradient = true }
     }
 
     // MARK: - Features
@@ -215,7 +203,7 @@ struct PaywallView: View {
             ForEach(features, id: \.rawValue) { feature in
                 AppRow(icon: feature.systemImage, tint: feature.paywallTint, title: LocalizedStringKey(feature.rawValue)) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 18, weight: .semibold))
+                        .appFont(size: 18, weight: .semibold)
                         .foregroundStyle(AppTheme.ping)
                 }
 
@@ -255,24 +243,24 @@ struct PaywallView: View {
         let offering = purchaseManager.offerings?.current
         return [
             PricingPlan(
-                title:   "Monthly",
+                title:   String(localized: "Monthly"),
                 badge:   nil,
                 price:   offering?.monthly?.displayPrice ?? "₺49,99",
-                period:  "/ month",
+                period:  String(localized: "/ month"),
                 product: offering?.monthly
             ),
             PricingPlan(
-                title:   "Annual",
-                badge:   "Most Popular",
+                title:   String(localized: "Annual"),
+                badge:   String(localized: "Most Popular"),
                 price:   offering?.annual?.displayPrice ?? "₺299,99",
-                period:  "/ year",
+                period:  String(localized: "/ year"),
                 product: offering?.annual
             ),
             PricingPlan(
-                title:   "Lifetime",
+                title:   String(localized: "Lifetime"),
                 badge:   nil,
                 price:   offering?.lifetime?.displayPrice ?? "₺599,99",
-                period:  "Forever",
+                period:  String(localized: "Forever"),
                 product: offering?.lifetime
             )
         ]
@@ -295,10 +283,10 @@ struct PaywallView: View {
                     Text("Get Started")
                         .opacity(purchaseManager.isLoading ? 0 : 1)
                     if purchaseManager.isLoading {
-                        ProgressView().tint(.white)
+                        ProgressView().tint(AppTheme.ink)
                     }
                 }
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .appFont(size: 17, weight: .bold, design: .rounded)
                 .padding(.vertical, 2)
             }
             .buttonStyle(AppPrimaryButtonStyle())
@@ -311,7 +299,7 @@ struct PaywallView: View {
                 } icon: {
                     Image(systemName: "exclamationmark.triangle.fill")
                 }
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .appFont(size: 13, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.danger)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
@@ -337,7 +325,7 @@ struct PaywallView: View {
                             .tint(AppTheme.secondaryText)
                     }
                     Text("Restore Purchases")
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .appFont(size: 14, weight: .semibold, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                 }
             }
@@ -349,12 +337,12 @@ struct PaywallView: View {
                     Link("Privacy Policy", destination: privacyURL)
                 }
                 Text("•")
-                    .foregroundStyle(.white.opacity(0.2))
+                    .foregroundStyle(AppTheme.ink.opacity(0.2))
                 if let termsURL = Self.termsURL {
                     Link("Terms of Use", destination: termsURL)
                 }
             }
-            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .appFont(size: 12, weight: .medium, design: .rounded)
             .foregroundStyle(AppTheme.tertiaryText)
             .tint(AppTheme.tertiaryText)
         }
@@ -370,7 +358,6 @@ private extension ProFeature {
         case .widget:        return AppTheme.accent
         case .speedTest:     return AppTheme.download
         case .pingMonitor:   return AppTheme.ping
-        case .appleWatch:    return Color(red: 0.84, green: 0.28, blue: 0.74)
         case .notifications: return AppTheme.danger
         case .history:       return Color(red: 0.20, green: 0.75, blue: 0.99)
         case .dataLimit:     return AppTheme.upload

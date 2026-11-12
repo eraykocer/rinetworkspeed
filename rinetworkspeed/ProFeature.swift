@@ -13,7 +13,6 @@ enum ProFeature: String, CaseIterable {
     case widget       = "Widget & Live Activity"
     case speedTest    = "Speed Test"
     case pingMonitor  = "Ping Monitor"
-    case appleWatch   = "Apple Watch"
     case notifications = "Smart Notifications"
     case history      = "History Reports"
     case dataLimit    = "Data Limit"
@@ -23,7 +22,6 @@ enum ProFeature: String, CaseIterable {
         case .widget:        return "square.stack.3d.up.fill"
         case .speedTest:     return "bolt.fill"
         case .pingMonitor:   return "dot.radiowaves.left.and.right"
-        case .appleWatch:    return "applewatch"
         case .notifications: return "bell.badge.fill"
         case .history:       return "clock.arrow.circlepath"
         case .dataLimit:     return "externaldrive.fill.badge.wifi"
@@ -75,7 +73,7 @@ struct ShimmerModifier: ViewModifier {
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: phase - 0.2),
-                            .init(color: .white.opacity(0.13), location: phase),
+                            .init(color: AppTheme.ink.opacity(0.13), location: phase),
                             .init(color: .clear, location: phase + 0.2)
                         ],
                         startPoint: .leading,

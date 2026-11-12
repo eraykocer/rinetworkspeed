@@ -6,15 +6,15 @@
 //
 
 import SwiftUI
-import WatchConnectivity
 
 @main
 struct rinetworkspeedApp: App {
 
     init() {
         PurchaseManager.shared.configure()
-        // Start WatchConnectivity session early so the watch can receive data
-        _ = WatchConnectivityManager.shared
+        // The notification delegate must be set before launch finishes, or a
+        // tap that cold-launches the app is never delivered to it.
+        _ = NotificationManager.shared
     }
 
     var body: some Scene {

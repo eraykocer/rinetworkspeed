@@ -13,10 +13,12 @@ private enum GraphRange: String, CaseIterable, Identifiable {
     case lastMinute
     case lastFiveMinutes
     case lastThirtyMinutes
+    case lastDay
+    case lastWeek
 
     var id: String { rawValue }
 
-    var title: String {
+    var title: LocalizedStringKey {
         switch self {
         case .lastMinute:
             return "60s"
@@ -24,6 +26,10 @@ private enum GraphRange: String, CaseIterable, Identifiable {
             return "5m"
         case .lastThirtyMinutes:
             return "30m"
+        case .lastDay:
+            return "24h"
+        case .lastWeek:
+            return "7d"
         }
     }
 
@@ -35,7 +41,21 @@ private enum GraphRange: String, CaseIterable, Identifiable {
             return 5 * 60
         case .lastThirtyMinutes:
             return 30 * 60
+        case .lastDay:
+            return 24 * 3600
+        case .lastWeek:
+            return 7 * 24 * 3600
         }
+    }
+
+    /// Ranges longer than the in-memory history are read from `SpeedHistoryArchive`.
+    var isArchived: Bool {
+        self == .lastDay || self == .lastWeek
+    }
+
+    /// Width of one bar in the archived chart.
+    var binSize: TimeInterval {
+        self == .lastWeek ? 3 * 3600 : 30 * 60
     }
 }
 
@@ -51,7 +71,7 @@ struct GraphView: View {
     // Not observed here: the chart, stats and export subviews observe the
     // monitor themselves, so per-tick history updates only re-render them.
     let monitor: NetworkStatsMonitor
-    @State private var selectedRange: GraphRange = .lastMinute
+    @AppStorage("graphRange") private var selectedRange: GraphRange = .lastMinute
 
     var body: some View {
         NavigationStack {
@@ -59,7 +79,7 @@ struct GraphView: View {
                 VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
                     Picker("Time Range", selection: $selectedRange) {
                         ForEach(GraphRange.allCases) { range in
-                            Text(verbatim: range.title).tag(range)
+                            Text(range.title).tag(range)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -75,12 +95,20 @@ struct GraphView: View {
                             .padding(.trailing, 4)
                         }
 
-                        GraphChartCard(monitor: monitor, range: selectedRange)
+                        if selectedRange.isArchived {
+                            ArchiveChartCard(monitor: monitor, range: selectedRange)
+                        } else {
+                            GraphChartCard(monitor: monitor, range: selectedRange)
+                        }
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
                         AppSectionHeader("Statistics")
-                        GraphStatsGrid(monitor: monitor, range: selectedRange)
+                        if selectedRange.isArchived {
+                            ArchiveStatsGrid(monitor: monitor, range: selectedRange)
+                        } else {
+                            GraphStatsGrid(monitor: monitor, range: selectedRange)
+                        }
                     }
 
                     GraphExportButton(monitor: monitor)
@@ -99,7 +127,7 @@ struct GraphView: View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 6, height: 6)
             Text(label)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .appFont(size: 11, weight: .semibold, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
         }
     }
@@ -162,13 +190,7 @@ private struct GraphChartCard: View {
                     series: .value("Series", "Download")
                 )
                 .interpolationMethod(.monotone)
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [downloadColor.opacity(0.35), downloadColor.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .foregroundStyle(downloadColor.opacity(0.15))
 
                 LineMark(
                     x: .value("Time", sample.timestamp),
@@ -187,13 +209,7 @@ private struct GraphChartCard: View {
                     series: .value("Series", "Upload")
                 )
                 .interpolationMethod(.monotone)
-                .foregroundStyle(
-                    .linearGradient(
-                        colors: [uploadColor.opacity(0.3), uploadColor.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
+                .foregroundStyle(uploadColor.opacity(0.15))
 
                 LineMark(
                     x: .value("Time", sample.timestamp),
@@ -206,7 +222,7 @@ private struct GraphChartCard: View {
 
                 if let selectedSample {
                     RuleMark(x: .value("Selected", selectedSample.timestamp))
-                        .foregroundStyle(Color.white.opacity(0.35))
+                        .foregroundStyle(AppTheme.ink.opacity(0.35))
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                 }
             }
@@ -290,12 +306,13 @@ private struct GraphChartCard: View {
             Label(monitor.formatSpeed(sample.uploadSpeed), systemImage: "arrow.up")
                 .foregroundStyle(uploadColor)
         }
-        .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
+        .appFont(size: 13, weight: .semibold, design: .rounded)
+        .monospacedDigit()
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.black.opacity(0.35))
+                .fill(AppTheme.ink.opacity(0.06))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -315,21 +332,156 @@ private struct GraphChartCard: View {
             return date.formatted(.dateTime.minute().second())
         case .lastFiveMinutes:
             return date.formatted(.dateTime.minute())
-        case .lastThirtyMinutes:
+        case .lastThirtyMinutes, .lastDay, .lastWeek:
             return date.formatted(.dateTime.hour().minute())
         }
     }
 
     private func formatAxisRate(_ bytesPerSecond: Double) -> String {
-        let baseValue = speedUnit == "bits" ? bytesPerSecond * 8 : bytesPerSecond
-        let kbValue = baseValue / 1024
-        let unitPrefix = speedUnit == "bits" ? "bps" : "B/s"
+        graphAxisRate(bytesPerSecond, speedUnit: speedUnit)
+    }
+}
 
-        if kbValue >= 1024 {
-            let major = kbValue / 1024
-            return String(format: "%.1f M%@", major, unitPrefix)
+/// Compact axis label such as "12.5 MB/s" or "800 Kbps".
+private func graphAxisRate(_ bytesPerSecond: Double, speedUnit: String) -> String {
+    let baseValue = speedUnit == "bits" ? bytesPerSecond * 8 : bytesPerSecond
+    let kbValue = baseValue / 1024
+    let unitPrefix = speedUnit == "bits" ? "bps" : "B/s"
+
+    if kbValue >= 1024 {
+        let major = kbValue / 1024
+        return major.fixed(1) + " M" + unitPrefix
+    }
+    return kbValue.fixed(0) + " K" + unitPrefix
+}
+
+// MARK: - Archived Ranges (24 h, 7 days)
+
+private struct ArchiveBin: Identifiable {
+    let start: Date
+    let end: Date
+    let averageDownload: Double
+    let averageUpload: Double
+    let peakDownload: Double
+    let peakUpload: Double
+    let minutes: Int
+
+    var id: Date { start }
+
+    static func make(from buckets: [SpeedMinuteBucket], size: TimeInterval) -> [ArchiveBin] {
+        let grouped = Dictionary(grouping: buckets) { bucket in
+            (bucket.start.timeIntervalSince1970 / size).rounded(.down) * size
         }
-        return String(format: "%.0f K%@", kbValue, unitPrefix)
+        return grouped.map { key, items in
+            let count = Double(items.count)
+            return ArchiveBin(
+                start: Date(timeIntervalSince1970: key),
+                end: Date(timeIntervalSince1970: key + size),
+                averageDownload: items.reduce(0) { $0 + $1.averageDownload } / count,
+                averageUpload: items.reduce(0) { $0 + $1.averageUpload } / count,
+                peakDownload: items.map(\.peakDownload).max() ?? 0,
+                peakUpload: items.map(\.peakUpload).max() ?? 0,
+                minutes: items.count
+            )
+        }
+        .sorted { $0.start < $1.start }
+    }
+}
+
+private struct ArchiveChartCard: View {
+    /// Observed only so the chart refreshes as new minutes are recorded.
+    @ObservedObject var monitor: NetworkStatsMonitor
+    let range: GraphRange
+    @AppStorage("speedUnit") private var speedUnit: String = "bytes"
+
+    var body: some View {
+        let now = Date()
+        let start = now.addingTimeInterval(-range.duration)
+        let bins = ArchiveBin.make(from: SpeedHistoryArchive.shared.buckets(since: start), size: range.binSize)
+        let gap = range.binSize * 0.08
+
+        VStack(alignment: .leading, spacing: 12) {
+            if bins.isEmpty {
+                AppEmptyState(icon: "chart.bar.xaxis", title: "No history for this period yet.")
+                    .frame(height: 220)
+            } else {
+                Chart(bins) { bin in
+                    // Download in the left half of the slot, upload in the right half.
+                    BarMark(
+                        xStart: .value("Start", bin.start.addingTimeInterval(gap)),
+                        xEnd: .value("End", bin.start.addingTimeInterval(range.binSize / 2)),
+                        y: .value("Download", bin.averageDownload)
+                    )
+                    .foregroundStyle(AppTheme.download)
+
+                    BarMark(
+                        xStart: .value("Start", bin.start.addingTimeInterval(range.binSize / 2)),
+                        xEnd: .value("End", bin.end.addingTimeInterval(-gap)),
+                        y: .value("Upload", bin.averageUpload)
+                    )
+                    .foregroundStyle(AppTheme.upload)
+                }
+                .chartXScale(domain: start...now)
+                .chartXAxis {
+                    AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                            .foregroundStyle(AppTheme.separator)
+                        AxisValueLabel {
+                            if let date = value.as(Date.self) {
+                                Text(verbatim: range == .lastWeek
+                                     ? date.formatted(.dateTime.weekday(.abbreviated))
+                                     : date.formatted(.dateTime.hour()))
+                            }
+                        }
+                        .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
+                        .foregroundStyle(AppTheme.tertiaryText)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4, 4]))
+                            .foregroundStyle(AppTheme.separator)
+                        AxisValueLabel {
+                            if let speed = value.as(Double.self) {
+                                Text(verbatim: graphAxisRate(speed, speedUnit: speedUnit))
+                            }
+                        }
+                        .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
+                        .foregroundStyle(AppTheme.tertiaryText)
+                    }
+                }
+                .frame(height: 220)
+                .accessibilityLabel(Text("Average download and upload speed"))
+            }
+
+            Text("Average speed while the app was open. iOS does not allow measuring in the background, so periods when the app was closed are empty.")
+                .appFont(size: 12, weight: .regular, design: .rounded)
+                .foregroundStyle(AppTheme.tertiaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .appCard()
+    }
+}
+
+private struct ArchiveStatsGrid: View {
+    @ObservedObject var monitor: NetworkStatsMonitor
+    let range: GraphRange
+
+    var body: some View {
+        let buckets = SpeedHistoryArchive.shared.buckets(since: Date().addingTimeInterval(-range.duration))
+        let count = Double(max(buckets.count, 1))
+        let totalBytes = buckets.reduce(0.0) { $0 + ($1.averageDownload + $1.averageUpload) * 60 }
+
+        let stats = [
+            GraphStat(id: "maxDownload", title: "Max Download", value: monitor.formatSpeed(buckets.map(\.peakDownload).max() ?? 0), icon: "arrow.down.circle.fill", color: AppTheme.download),
+            GraphStat(id: "maxUpload", title: "Max Upload", value: monitor.formatSpeed(buckets.map(\.peakUpload).max() ?? 0), icon: "arrow.up.circle.fill", color: AppTheme.upload),
+            GraphStat(id: "avgDownload", title: "Avg Download", value: monitor.formatSpeed(buckets.reduce(0) { $0 + $1.averageDownload } / count), icon: "arrow.down.and.line.horizontal.and.arrow.up", color: AppTheme.download),
+            GraphStat(id: "avgUpload", title: "Avg Upload", value: monitor.formatSpeed(buckets.reduce(0) { $0 + $1.averageUpload } / count), icon: "arrow.up.and.line.horizontal.and.arrow.down", color: AppTheme.upload),
+            GraphStat(id: "totalTransfer", title: "Total Transfer", value: ByteCountFormatter.string(fromByteCount: Int64(totalBytes), countStyle: .binary), icon: "chart.bar.fill", color: AppTheme.accent),
+            GraphStat(id: "monitored", title: "Time Recorded", value: Duration.seconds(buckets.count * 60).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated)), icon: "timer", color: AppTheme.ping)
+        ]
+
+        GraphStatsCards(stats: stats)
     }
 }
 
@@ -377,33 +529,7 @@ private struct GraphStatsGrid: View {
 
     var body: some View {
         let samples = monitor.history.samples(since: Date().addingTimeInterval(-range.duration))
-
-        LazyVGrid(columns: [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
-        ], spacing: 12) {
-            ForEach(stats(for: samples)) { stat in
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 10) {
-                        AppIconTile(systemName: stat.icon, tint: stat.color, size: 30)
-                        Text(stat.title)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(AppTheme.secondaryText)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.8)
-                    }
-
-                    Text(stat.value)
-                        .font(.system(size: 21, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(AppTheme.primaryText)
-                        .contentTransition(.numericText())
-                        .minimumScaleFactor(0.7)
-                        .lineLimit(1)
-                }
-                .appCard()
-            }
-        }
+        GraphStatsCards(stats: stats(for: samples))
     }
 
     private static let transferFormatter: ByteCountFormatter = {
@@ -419,13 +545,41 @@ private struct GraphStatsGrid: View {
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration / 60)
-        if minutes >= 60 {
-            let hours = minutes / 60
-            let remainingMinutes = minutes % 60
-            return "\(hours)h \(remainingMinutes)m"
+        Duration.seconds(duration).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
+    }
+}
+
+/// Two-column grid of statistic cards.
+private struct GraphStatsCards: View {
+    let stats: [GraphStat]
+
+    var body: some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ], spacing: 12) {
+            ForEach(stats) { stat in
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 10) {
+                        AppIconTile(systemName: stat.icon, tint: stat.color, size: 30)
+                        Text(stat.title)
+                            .appFont(size: 13, weight: .semibold, design: .rounded)
+                            .foregroundStyle(AppTheme.secondaryText)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                    }
+
+                    Text(stat.value)
+                        .appFont(size: 21, weight: .bold, design: .rounded)
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.primaryText)
+                        .contentTransition(.numericText())
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                }
+                .appCard()
+            }
         }
-        return "\(minutes) m"
     }
 }
 

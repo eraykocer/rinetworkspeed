@@ -27,11 +27,17 @@ struct RunSpeedTestIntent: AppIntent {
 
         switch manager.state {
         case .finished:
-            let down    = formatIntentSpeed(manager.finalDownload)
-            let up      = formatIntentSpeed(manager.finalUpload)
-            let ping    = String(format: "%.0f ms", manager.ping)
-            let dialog  = "Speed test complete. Download: \(down), upload: \(up), latency: \(ping)."
-            return .result(dialog: IntentDialog(stringLiteral: dialog))
+            // Same unit as the in-app result (megabits per second).
+            let score   = SpeedTestScore(
+                downloadBytesPerSecond: manager.finalDownload,
+                uploadBytesPerSecond: manager.finalUpload,
+                ping: manager.ping,
+                jitter: manager.jitter
+            )
+            let down    = score.downloadMbps.formatted(.number.precision(.fractionLength(1)))
+            let up      = score.uploadMbps.formatted(.number.precision(.fractionLength(1)))
+            let ping    = Int(manager.ping.rounded())
+            return .result(dialog: "Speed test complete. Download: \(down) Mbps, upload: \(up) Mbps, latency: \(ping) ms.")
 
         case .failed:
             return .result(dialog: "Speed test failed. Please check your connection and try again.")

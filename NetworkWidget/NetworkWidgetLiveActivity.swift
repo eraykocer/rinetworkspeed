@@ -40,13 +40,7 @@ struct NetworkSpeedLiveActivityView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            LinearGradient(
-                colors: [Color.black, Color(red: 0.08, green: 0.09, blue: 0.13)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .background(Color.black)
     }
 
     private func speedMetric(title: String, icon: String, color: Color, speed: Double) -> some View {

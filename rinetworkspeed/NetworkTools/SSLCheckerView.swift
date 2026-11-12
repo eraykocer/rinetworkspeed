@@ -38,11 +38,11 @@ struct CertificateInfo {
     }
 
     var statusLabel: String {
-        guard let d = daysRemaining else { return "Unknown" }
-        if d < 0  { return "Expired \(abs(d)) days ago" }
-        if d == 0 { return "Expires today" }
-        if d < 30 { return "\(d) days remaining — expiring soon" }
-        return "\(d) days remaining"
+        guard let d = daysRemaining else { return String(localized: "Unknown") }
+        if d < 0  { return String(localized: "Expired \(abs(d)) days ago") }
+        if d == 0 { return String(localized: "Expires today") }
+        if d < 30 { return String(localized: "\(d) days remaining — expiring soon") }
+        return String(localized: "\(d) days remaining")
     }
 }
 
@@ -133,7 +133,7 @@ final class SSLCheckerViewModel: ObservableObject {
             do {
                 certInfo = try await fetchCert(host: host)
                 if certInfo == nil {
-                    errorMessage = "No certificate information could be extracted."
+                    errorMessage = String(localized: "No certificate information could be extracted.")
                 }
             } catch {
                 errorMessage = error.localizedDescription
@@ -231,9 +231,9 @@ struct SSLCheckerView: View {
                     Text("Check")
                 }
             }
-            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: accentDeep))
         }
-        .appHeroCard(colors: [accent, accentDeep])
+        .appHeroCard(tint: accentDeep)
     }
 
     // MARK: - Status Card
@@ -252,11 +252,11 @@ struct SSLCheckerView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(info.subjectSummary)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .appFont(size: 17, weight: .bold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
                 Text(info.statusLabel)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
                     .foregroundStyle(info.statusColor)
             }
 
@@ -286,10 +286,10 @@ struct SSLCheckerView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("SHA-256 Fingerprint")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                 Text(info.sha256Fingerprint)
-                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .appFont(size: 11, weight: .regular, design: .monospaced)
                     .foregroundStyle(AppTheme.primaryText.opacity(0.85))
                     .textSelection(.enabled)
                     .lineLimit(4)
@@ -307,7 +307,7 @@ struct SSLCheckerView: View {
             ForEach(Array(info.chain.enumerated()), id: \.offset) { index, name in
                 HStack(spacing: 14) {
                     Text(verbatim: "\(index + 1)")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .appFont(size: 16, weight: .bold, design: .rounded)
                         .monospacedDigit()
                         .foregroundStyle(index == 0 ? .white : AppTheme.secondaryText)
                         .frame(width: 40, height: 40)
@@ -315,7 +315,7 @@ struct SSLCheckerView: View {
                                     in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
                     Text(name)
-                        .font(.system(size: 15, weight: index == 0 ? .semibold : .regular, design: .rounded))
+                        .appFont(size: 15, weight: index == 0 ? .semibold : .regular, design: .rounded)
                         .foregroundStyle(index == 0 ? AppTheme.primaryText : AppTheme.secondaryText)
                         .lineLimit(1)
                         .textSelection(.enabled)
@@ -334,9 +334,8 @@ struct SSLCheckerView: View {
 
     private func chainTileFill(isLeaf: Bool) -> AnyShapeStyle {
         isLeaf
-            ? AnyShapeStyle(LinearGradient(colors: [accent, accent.opacity(0.6)],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing))
-            : AnyShapeStyle(Color.white.opacity(0.06))
+            ? AnyShapeStyle(accent)
+            : AnyShapeStyle(AppTheme.ink.opacity(0.06))
     }
 }
 
@@ -351,18 +350,18 @@ private struct ToolHeroHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
+                .appFont(size: 24, weight: .semibold)
+                .foregroundStyle(AppTheme.ink)
                 .frame(width: 52, height: 52)
-                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .appFont(size: 19, weight: .bold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -390,10 +389,10 @@ private struct ToolErrorCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                 Text(verbatim: message)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .appFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -420,7 +419,7 @@ private struct ToolLoadingCard: View {
                 .tint(tint)
                 .frame(width: 40, height: 40)
             Text(message)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .appFont(size: 14, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
                 .lineLimit(2)
             Spacer(minLength: 0)
@@ -439,11 +438,11 @@ private struct KeyValueRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(label)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .appFont(size: 13, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
                 .frame(width: 96, alignment: .leading)
             Text(verbatim: value)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .appFont(size: 13, weight: .medium, design: .monospaced)
                 .foregroundStyle(AppTheme.primaryText)
                 .textSelection(.enabled)
                 .multilineTextAlignment(.leading)

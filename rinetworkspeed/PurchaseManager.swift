@@ -22,13 +22,19 @@ struct AppOffering {
 @MainActor
 final class PurchaseManager: ObservableObject {
 
-    private let proAccessForced = true
+    #if DEBUG
+    /// Debug-only escape hatch for working on gated screens without StoreKit:
+    /// add `-forceProAccess YES` to the scheme's launch arguments.
+    private let proAccessForced = UserDefaults.standard.bool(forKey: "forceProAccess")
+    #else
+    private let proAccessForced = false
+    #endif
 
     // MARK: - Singleton
     static let shared = PurchaseManager()
 
     // MARK: - Published State
-    @Published var isPro: Bool = true
+    @Published var isPro: Bool = false
     @Published var offerings: AppOfferings?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -39,13 +45,33 @@ final class PurchaseManager: ObservableObject {
         "rinetworkspeed.pro.lifetime"
     ]
 
+    private var transactionUpdatesTask: Task<Void, Never>?
+
     private init() {}
 
     // MARK: - Configuration
     func configure() {
-        isPro = true
-        offerings = nil
         errorMessage = nil
+
+        guard !proAccessForced else {
+            isPro = true
+            return
+        }
+
+        guard transactionUpdatesTask == nil else { return }
+
+        // Purchases made outside the app (renewals, Ask to Buy, refunds,
+        // another device) arrive here rather than through `purchase(product:)`.
+        transactionUpdatesTask = Task { [weak self] in
+            for await update in Transaction.updates {
+                if case .verified(let transaction) = update {
+                    await transaction.finish()
+                }
+                await self?.checkProStatus()
+            }
+        }
+
+        Task { await checkProStatus() }
     }
 
     // MARK: - Offerings
@@ -163,6 +189,6 @@ private enum StoreError: LocalizedError {
     case failedVerification
 
     var errorDescription: String? {
-        "Purchase could not be verified."
+        String(localized: "Purchase could not be verified.")
     }
 }

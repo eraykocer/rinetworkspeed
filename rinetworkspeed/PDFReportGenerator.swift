@@ -132,7 +132,7 @@ final class PDFReportGenerator {
 
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy_MM"
-        let fileName = "NetworkSpeed_\(fmt.string(from: month)).pdf"
+        let fileName = "RiNetwork_\(fmt.string(from: month)).pdf"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         do {
             try data.write(to: url)
@@ -159,13 +159,12 @@ final class PDFReportGenerator {
         formatBytes: (UInt64) -> String
     ) {
         fillBackground(ctx)
-        drawGradientOverlay(ctx)
-        drawHeader(ctx, title: "NetworkSpeed", pageNumber: 1)
+        drawHeader(ctx, title: "RiNetwork", pageNumber: 1)
 
         // Title block
-        centeredText(ctx, "NetworkSpeed",
+        centeredText(ctx, "RiNetwork",
                      font: .systemFont(ofSize: 30, weight: .bold), color: white, y: 130)
-        centeredText(ctx, "Monthly Usage Report",
+        centeredText(ctx, String(localized: "Monthly Usage Report"),
                      font: .systemFont(ofSize: 16, weight: .medium), color: dimWhite, y: 172)
 
         let mf = DateFormatter(); mf.dateFormat = "MMMM yyyy"
@@ -183,11 +182,11 @@ final class PDFReportGenerator {
         let avgDaily: UInt64 = activeDays > 0 ? (wifi + cellular) / UInt64(activeDays) : 0
 
         let half = (pageW - margin * 2 - 16) / 2
-        statBox(ctx, x: margin,          y: 300, w: half, label: "Total Used",      value: formatBytes(wifi + cellular), accent: accentBlue)
-        statBox(ctx, x: margin + half + 16, y: 300, w: half, label: "Days Tracked", value: "\(activeDays)",              accent: accentPurp)
-        statBox(ctx, x: margin,          y: 408, w: half, label: "WiFi",            value: formatBytes(wifi),            accent: accentBlue)
-        statBox(ctx, x: margin + half + 16, y: 408, w: half, label: "Cellular",     value: formatBytes(cellular),        accent: accentOra)
-        statBox(ctx, x: margin,          y: 516, w: pageW - margin * 2, label: "Daily Average", value: formatBytes(avgDaily), accent: accentPurp)
+        statBox(ctx, x: margin,          y: 300, w: half, label: String(localized: "Total Used"),      value: formatBytes(wifi + cellular), accent: accentBlue)
+        statBox(ctx, x: margin + half + 16, y: 300, w: half, label: String(localized: "Days Tracked"), value: "\(activeDays)",              accent: accentPurp)
+        statBox(ctx, x: margin,          y: 408, w: half, label: String(localized: "Wi-Fi"),            value: formatBytes(wifi),            accent: accentBlue)
+        statBox(ctx, x: margin + half + 16, y: 408, w: half, label: String(localized: "Cellular"),     value: formatBytes(cellular),        accent: accentOra)
+        statBox(ctx, x: margin,          y: 516, w: pageW - margin * 2, label: String(localized: "Daily Average"), value: formatBytes(avgDaily), accent: accentPurp)
 
         drawFooter(ctx, pageNumber: 1)
     }
@@ -199,7 +198,7 @@ final class PDFReportGenerator {
         formatBytes: (UInt64) -> String, pageNumber: Int
     ) {
         fillBackground(ctx)
-        drawHeader(ctx, title: "Daily Data Usage", pageNumber: pageNumber)
+        drawHeader(ctx, title: String(localized: "Daily Data Usage"), pageNumber: pageNumber)
 
         let df = DateFormatter(); df.dateFormat = "dd MMM"
         let cols: [CGFloat] = [margin, margin + 100, margin + 240, margin + 360, margin + 470]
@@ -208,7 +207,7 @@ final class PDFReportGenerator {
 
         // Table header
         tableHeaderRow(ctx, y: startY, rowH: rowH,
-                       cols: cols, titles: ["Date", "WiFi", "Cellular", "Total", ""])
+                       cols: cols, titles: [String(localized: "Date"), String(localized: "Wi-Fi"), String(localized: "Cellular"), String(localized: "Total"), ""])
 
         let cellFont = UIFont.systemFont(ofSize: 10.5, weight: .medium)
 
@@ -237,7 +236,7 @@ final class PDFReportGenerator {
         _ ctx: CGContext, history: [SpeedTestResult], pageNumber: Int
     ) {
         fillBackground(ctx)
-        drawHeader(ctx, title: "Speed Test History", pageNumber: pageNumber)
+        drawHeader(ctx, title: String(localized: "Speed Test History"), pageNumber: pageNumber)
 
         let df = DateFormatter(); df.dateFormat = "dd.MM.yy HH:mm"
         let cols: [CGFloat] = [margin, margin + 115, margin + 225, margin + 335, margin + 420]
@@ -245,7 +244,7 @@ final class PDFReportGenerator {
         let startY: CGFloat = 70
 
         tableHeaderRow(ctx, y: startY, rowH: rowH,
-                       cols: cols, titles: ["Date", "Download", "Upload", "Ping", "Grade"])
+                       cols: cols, titles: [String(localized: "Date"), String(localized: "Download"), String(localized: "Upload"), String(localized: "Ping"), String(localized: "Grade")])
 
         let cellFont = UIFont.systemFont(ofSize: 10, weight: .medium)
 
@@ -258,13 +257,14 @@ final class PDFReportGenerator {
                 ctx.fill(CGRect(x: margin, y: y, width: pageW - margin * 2, height: rowH))
             }
 
-            let dl = result.downloadSpeed / (1024 * 1024)
-            let ul = result.uploadSpeed   / (1024 * 1024)
-            let gr = grade(download: dl, upload: ul, ping: result.ping)
+            let score = result.score
+            let dl = score.downloadMbps
+            let ul = score.uploadMbps
+            let gr = score.grade
 
             at(ctx, df.string(from: result.date),    font: cellFont, color: white,              pt: CGPoint(x: cols[0] + 6, y: y + 7))
-            at(ctx, String(format: "%.1f MB/s", dl), font: cellFont, color: accentBlue,         pt: CGPoint(x: cols[1] + 6, y: y + 7))
-            at(ctx, String(format: "%.1f MB/s", ul), font: cellFont, color: accentPurp,         pt: CGPoint(x: cols[2] + 6, y: y + 7))
+            at(ctx, String(format: "%.1f Mbps", dl), font: cellFont, color: accentBlue,         pt: CGPoint(x: cols[1] + 6, y: y + 7))
+            at(ctx, String(format: "%.1f Mbps", ul), font: cellFont, color: accentPurp,         pt: CGPoint(x: cols[2] + 6, y: y + 7))
             at(ctx, String(format: "%.0f ms", result.ping), font: cellFont, color: accentOra,   pt: CGPoint(x: cols[3] + 6, y: y + 7))
             at(ctx, gr,                              font: .systemFont(ofSize: 12, weight: .bold),
                                                      color: gradeColor(gr),                      pt: CGPoint(x: cols[4] + 6, y: y + 6))
@@ -282,7 +282,7 @@ final class PDFReportGenerator {
         pageNumber: Int
     ) {
         fillBackground(ctx)
-        drawHeader(ctx, title: "Usage Chart", pageNumber: pageNumber)
+        drawHeader(ctx, title: String(localized: "Usage Chart"), pageNumber: pageNumber)
 
         if let image = chartImage {
             let imgRect = CGRect(x: margin, y: 80, width: pageW - margin * 2, height: 320)
@@ -293,11 +293,11 @@ final class PDFReportGenerator {
         let wifi     = samples.reduce(0) { $0 + $1.wifiBytes }
         let cellular = samples.reduce(0) { $0 + $1.cellularBytes }
         let summaryFont = UIFont.systemFont(ofSize: 12, weight: .medium)
-        at(ctx, "WiFi: \(formatBytes(wifi))",
+        at(ctx, String(localized: "Wi-Fi: \(formatBytes(wifi))"),
            font: summaryFont, color: accentBlue, pt: CGPoint(x: margin, y: 420))
-        at(ctx, "Cellular: \(formatBytes(cellular))",
+        at(ctx, String(localized: "Cellular: \(formatBytes(cellular))"),
            font: summaryFont, color: accentOra,  pt: CGPoint(x: margin, y: 440))
-        at(ctx, "Total: \(formatBytes(wifi + cellular))",
+        at(ctx, String(localized: "Total: \(formatBytes(wifi + cellular))"),
            font: UIFont.systemFont(ofSize: 12, weight: .bold), color: white,
            pt: CGPoint(x: margin, y: 460))
 
@@ -311,20 +311,6 @@ final class PDFReportGenerator {
         ctx.fill(CGRect(x: 0, y: 0, width: pageW, height: pageH))
     }
 
-    private func drawGradientOverlay(_ ctx: CGContext) {
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let colors = [
-            UIColor(red: 10/255, green: 20/255, blue: 60/255, alpha: 0.55).cgColor,
-            UIColor(red: 55/255, green: 10/255, blue: 80/255, alpha: 0.35).cgColor
-        ] as CFArray
-        let locs: [CGFloat] = [0, 1]
-        guard let gradient = CGGradient(colorsSpace: colorSpace, colors: colors, locations: locs) else { return }
-        ctx.drawLinearGradient(gradient,
-                               start: CGPoint(x: 0, y: 0),
-                               end:   CGPoint(x: pageW, y: pageH),
-                               options: [])
-    }
-
     private func drawHeader(_ ctx: CGContext, title: String, pageNumber: Int) {
         // Header bar
         ctx.setFillColor(UIColor.white.withAlphaComponent(0.05).cgColor)
@@ -332,11 +318,11 @@ final class PDFReportGenerator {
         ctx.setFillColor(UIColor.white.withAlphaComponent(0.08).cgColor)
         ctx.fill(CGRect(x: 0, y: 43, width: pageW, height: 1))
 
-        at(ctx, "NetworkSpeed", font: .systemFont(ofSize: 12, weight: .bold),   color: white,    pt: CGPoint(x: margin, y: 13))
+        at(ctx, "RiNetwork", font: .systemFont(ofSize: 12, weight: .bold),   color: white,    pt: CGPoint(x: margin, y: 13))
         at(ctx, title,          font: .systemFont(ofSize: 11, weight: .medium),  color: dimWhite, pt: CGPoint(x: margin + 120, y: 14))
 
         let dateStr = Date().formatted(date: .abbreviated, time: .omitted)
-        let headerRight = "Generated: \(dateStr)"
+        let headerRight = String(localized: "Generated: \(dateStr)")
         let rW = textWidth(headerRight, font: .systemFont(ofSize: 10, weight: .medium))
         at(ctx, headerRight, font: .systemFont(ofSize: 10, weight: .medium), color: dimWhite,
            pt: CGPoint(x: pageW - margin - rW, y: 15))
@@ -347,9 +333,9 @@ final class PDFReportGenerator {
         ctx.setFillColor(UIColor.white.withAlphaComponent(0.07).cgColor)
         ctx.fill(CGRect(x: 0, y: y, width: pageW, height: 1))
 
-        at(ctx, "NetworkSpeed App", font: .systemFont(ofSize: 9, weight: .medium), color: dimWhite,
+        at(ctx, "RiNetwork", font: .systemFont(ofSize: 9, weight: .medium), color: dimWhite,
            pt: CGPoint(x: margin, y: y + 9))
-        let pg = "Page \(pageNumber) / 4"
+        let pg = String(localized: "Page \(pageNumber) of 4")
         let pgW = textWidth(pg, font: .systemFont(ofSize: 9, weight: .medium))
         at(ctx, pg, font: .systemFont(ofSize: 9, weight: .medium), color: dimWhite,
            pt: CGPoint(x: pageW - margin - pgW, y: y + 9))
@@ -402,14 +388,6 @@ final class PDFReportGenerator {
     }
 
     // MARK: – Grade helpers
-
-    private func grade(download: Double, upload: Double, ping: Double) -> String {
-        if ping < 20, download > 60, upload > 25 { return "A" }
-        if ping < 35, download > 30, upload > 12 { return "B" }
-        if ping < 60, download > 15, upload > 6  { return "C" }
-        if ping < 90, download > 5,  upload > 2  { return "D" }
-        return "F"
-    }
 
     private func gradeColor(_ grade: String) -> UIColor {
         switch grade {

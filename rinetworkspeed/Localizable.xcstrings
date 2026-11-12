@@ -1,0 +1,5004 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%.1f GB": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.1f GB"
+          }
+        }
+      }
+    },
+    "%@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@"
+          }
+        }
+      }
+    },
+    "%@.1–254": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@.1–254"
+          }
+        }
+      }
+    },
+    "%lld": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
+    "%lld / 100": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld / 100"
+          }
+        }
+      }
+    },
+    "%lld days (~%lld years)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld days (~%2$lld years)"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld gün (~%2$lld yıl)"
+          }
+        }
+      }
+    },
+    "%lld days remaining": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day remaining"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days remaining"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld gün kaldı"
+          }
+        }
+      }
+    },
+    "%lld days remaining — expiring soon": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld day remaining — expiring soon"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld days remaining — expiring soon"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld gün kaldı — süresi yakında doluyor"
+          }
+        }
+      }
+    },
+    "%lld devices found": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld device found"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld devices found"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld cihaz bulundu"
+          }
+        }
+      }
+    },
+    "%lld ms": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld ms"
+          }
+        }
+      }
+    },
+    "%lld records": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld record"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld records"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld kayıt"
+          }
+        }
+      }
+    },
+    "-%llds": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "-%llds"
+          }
+        }
+      }
+    },
+    "/ month": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/ ay"
+          }
+        }
+      }
+    },
+    "/ year": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "/ yıl"
+          }
+        }
+      }
+    },
+    "0.5s": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0,5 sn"
+          }
+        }
+      }
+    },
+    "0–%lld": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0–%lld"
+          }
+        }
+      }
+    },
+    "0–%lldk": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "0–%lldk"
+          }
+        }
+      }
+    },
+    "1s": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 sn"
+          }
+        }
+      }
+    },
+    "24h": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "24 sa"
+          }
+        }
+      }
+    },
+    "2s": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 sn"
+          }
+        }
+      }
+    },
+    "30m": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "30 dk"
+          }
+        }
+      }
+    },
+    "4K streaming": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4K yayın"
+          }
+        }
+      }
+    },
+    "5m": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 dk"
+          }
+        }
+      }
+    },
+    "60s": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "60 sn"
+          }
+        }
+      }
+    },
+    "7d": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "7 g"
+          }
+        }
+      }
+    },
+    ":%lld": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ":%lld"
+          }
+        }
+      }
+    },
+    "About": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hakkında"
+          }
+        }
+      }
+    },
+    "Actions": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eylemler"
+          }
+        }
+      }
+    },
+    "Active Duration": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aktif Süre"
+          }
+        }
+      }
+    },
+    "Address Info": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adres Bilgisi"
+          }
+        }
+      }
+    },
+    "All": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tümü"
+          }
+        }
+      }
+    },
+    "All Pro features unlocked": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tüm Pro özellikleri açık"
+          }
+        }
+      }
+    },
+    "All Time": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tüm Zamanlar"
+          }
+        }
+      }
+    },
+    "Allow Location Access": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konum Erişimine İzin Ver"
+          }
+        }
+      }
+    },
+    "Allow Notifications": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildirimlere İzin Ver"
+          }
+        }
+      }
+    },
+    "Annual": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yıllık"
+          }
+        }
+      }
+    },
+    "App Version": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uygulama Sürümü"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Görünüm"
+          }
+        }
+      }
+    },
+    "Average download and upload speed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ortalama indirme ve yükleme hızı"
+          }
+        }
+      }
+    },
+    "Average speed while the app was open. iOS does not allow measuring in the background, so periods when the app was closed are empty.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uygulama açıkken ölçülen ortalama hız. iOS arka planda ölçüme izin vermediği için uygulamanın kapalı olduğu dönemler boş görünür."
+          }
+        }
+      }
+    },
+    "Averages": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ortalamalar"
+          }
+        }
+      }
+    },
+    "Avg Download": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort. İndirme"
+          }
+        }
+      }
+    },
+    "Avg Ping": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort. Ping"
+          }
+        }
+      }
+    },
+    "Avg Upload": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ort. Yükleme"
+          }
+        }
+      }
+    },
+    "BSSID": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "BSSID"
+          }
+        }
+      }
+    },
+    "Billing period resets in %lld days": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Billing period resets in %lld day"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Billing period resets in %lld days"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fatura dönemi %lld gün sonra sıfırlanır"
+          }
+        }
+      }
+    },
+    "Browsing": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web'de gezinme"
+          }
+        }
+      }
+    },
+    "Byte speed format": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bayt hız biçimi"
+          }
+        }
+      }
+    },
+    "Bytes": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bayt"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vazgeç"
+          }
+        }
+      }
+    },
+    "Carrier NAT": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Operatör NAT"
+          }
+        }
+      }
+    },
+    "Cellular": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hücresel"
+          }
+        }
+      }
+    },
+    "Cellular Data Limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hücresel Veri Limiti"
+          }
+        }
+      }
+    },
+    "Cellular data limit used": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanılan hücresel veri limiti"
+          }
+        }
+      }
+    },
+    "Cellular this period: %@ of %@ GB": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cellular this period: %1$@ of %2$@ GB"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu dönem hücresel: %1$@ / %2$@ GB"
+          }
+        }
+      }
+    },
+    "Cellular: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hücresel: %@"
+          }
+        }
+      }
+    },
+    "Certificate Chain": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sertifika Zinciri"
+          }
+        }
+      }
+    },
+    "Certificate Details": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sertifika Ayrıntıları"
+          }
+        }
+      }
+    },
+    "Certificate validity & details": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sertifika geçerliliği ve ayrıntıları"
+          }
+        }
+      }
+    },
+    "Check": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrol Et"
+          }
+        }
+      }
+    },
+    "Check Failed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kontrol Başarısız"
+          }
+        }
+      }
+    },
+    "Check open TCP ports on a host": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir sunucudaki açık TCP portlarını kontrol edin"
+          }
+        }
+      }
+    },
+    "Choose a Plan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plan Seçin"
+          }
+        }
+      }
+    },
+    "Choose a record type and tap Lookup to query its DNS records.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir kayıt türü seçin ve DNS kayıtlarını sorgulamak için Sorgula'ya dokunun."
+          }
+        }
+      }
+    },
+    "Clear History": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçmişi Temizle"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapat"
+          }
+        }
+      }
+    },
+    "Closed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapalı"
+          }
+        }
+      }
+    },
+    "Cloudflare": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cloudflare"
+          }
+        }
+      }
+    },
+    "Collapsed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daraltıldı"
+          }
+        }
+      }
+    },
+    "Collecting data...": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri toplanıyor..."
+          }
+        }
+      }
+    },
+    "Connected": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlı"
+          }
+        }
+      }
+    },
+    "Connecting to %@…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ adresine bağlanılıyor…"
+          }
+        }
+      }
+    },
+    "Connection": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı"
+          }
+        }
+      }
+    },
+    "Connection Details": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı Ayrıntıları"
+          }
+        }
+      }
+    },
+    "Connection Lost": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı Kesildi"
+          }
+        }
+      }
+    },
+    "Connection latency is %lld ms, connection quality: %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connection latency is %1$lld ms, connection quality: %2$@."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı gecikmesi %1$lld ms, bağlantı kalitesi: %2$@."
+          }
+        }
+      }
+    },
+    "Could not connect. Please check your network connection.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlanılamadı. Lütfen ağ bağlantınızı kontrol edin."
+          }
+        }
+      }
+    },
+    "Could not determine local subnet.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel alt ağ belirlenemedi."
+          }
+        }
+      }
+    },
+    "Could not resolve %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ çözümlenemedi"
+          }
+        }
+      }
+    },
+    "Country": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ülke"
+          }
+        }
+      }
+    },
+    "Current speed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlık hız"
+          }
+        }
+      }
+    },
+    "Custom": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Özel"
+          }
+        }
+      }
+    },
+    "DL": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İND"
+          }
+        }
+      }
+    },
+    "DNS": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS"
+          }
+        }
+      }
+    },
+    "DNS Error %lld": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS Hatası %lld"
+          }
+        }
+      }
+    },
+    "DNS Lookup": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "DNS Sorgusu"
+          }
+        }
+      }
+    },
+    "Daily Average": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Günlük Ortalama"
+          }
+        }
+      }
+    },
+    "Daily Data Usage": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Günlük Veri Kullanımı"
+          }
+        }
+      }
+    },
+    "Daily average": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Günlük ortalama"
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Koyu"
+          }
+        }
+      }
+    },
+    "Data Limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri Limiti"
+          }
+        }
+      }
+    },
+    "Data Limit Threshold": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri Limiti Eşiği"
+          }
+        }
+      }
+    },
+    "Data Limit Warning": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri Limiti Uyarısı"
+          }
+        }
+      }
+    },
+    "Data Usage": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri Kullanımı"
+          }
+        }
+      }
+    },
+    "Data limit warnings": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri limiti uyarıları"
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarih"
+          }
+        }
+      }
+    },
+    "Dates": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarihler"
+          }
+        }
+      }
+    },
+    "Day": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gün"
+          }
+        }
+      }
+    },
+    "Days Tracked": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Takip Edilen Gün"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sil"
+          }
+        }
+      }
+    },
+    "Delete All": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tümünü Sil"
+          }
+        }
+      }
+    },
+    "Delete all speed test results?": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tüm hız testi sonuçları silinsin mi?"
+          }
+        }
+      }
+    },
+    "Detailed Graph": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ayrıntılı Grafik"
+          }
+        }
+      }
+    },
+    "Details": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ayrıntılar"
+          }
+        }
+      }
+    },
+    "Developer": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geliştirici"
+          }
+        }
+      }
+    },
+    "Device Info": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cihaz Bilgisi"
+          }
+        }
+      }
+    },
+    "Device Type": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cihaz Türü"
+          }
+        }
+      }
+    },
+    "Devices": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cihazlar"
+          }
+        }
+      }
+    },
+    "Diagnostics": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tanılama"
+          }
+        }
+      }
+    },
+    "Disconnect": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı Kopması"
+          }
+        }
+      }
+    },
+    "Disconnection alerts": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı kopması uyarıları"
+          }
+        }
+      }
+    },
+    "Discover devices on local network": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel ağdaki cihazları keşfedin"
+          }
+        }
+      }
+    },
+    "Dismiss": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapat"
+          }
+        }
+      }
+    },
+    "Domain & Security": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alan Adı ve Güvenlik"
+          }
+        }
+      }
+    },
+    "Domain (e.g. apple.com)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alan adı (ör. apple.com)"
+          }
+        }
+      }
+    },
+    "Domain (e.g. github.com)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alan adı (ör. github.com)"
+          }
+        }
+      }
+    },
+    "Domain Age": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alan Adı Yaşı"
+          }
+        }
+      }
+    },
+    "Domain Not Found (NXDOMAIN)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alan Adı Bulunamadı (NXDOMAIN)"
+          }
+        }
+      }
+    },
+    "Domain registration information": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alan adı kayıt bilgileri"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitti"
+          }
+        }
+      }
+    },
+    "Download": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İndirme"
+          }
+        }
+      }
+    },
+    "Download and upload speed over the last 60 seconds": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 60 saniyedeki indirme ve yükleme hızı"
+          }
+        }
+      }
+    },
+    "Download was %@ Mbps, %lld%% below your typical %@ Mbps.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download was %1$@ Mbps, %2$lld%% below your typical %3$@ Mbps."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İndirme %1$@ Mbps oldu, olağan %3$@ Mbps değerinizin %%%2$lld altında."
+          }
+        }
+      }
+    },
+    "Download, upload and ping in about 20 seconds": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yaklaşık 20 saniyede indirme, yükleme ve ping"
+          }
+        }
+      }
+    },
+    "End": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitiş"
+          }
+        }
+      }
+    },
+    "Enter a Domain": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir Alan Adı Girin"
+          }
+        }
+      }
+    },
+    "Enter a host and start a trace to see each hop along the route.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rotadaki her atlamayı görmek için bir sunucu girip izlemeyi başlatın."
+          }
+        }
+      }
+    },
+    "Enter a host, choose ports or a preset, then start the scan.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir sunucu girin, portları veya hazır ayarı seçin, ardından taramayı başlatın."
+          }
+        }
+      }
+    },
+    "Enter a target host.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir hedef sunucu girin."
+          }
+        }
+      }
+    },
+    "Enter a valid port range or select a preset.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçerli bir port aralığı girin veya bir hazır ayar seçin."
+          }
+        }
+      }
+    },
+    "Enter host": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu girin"
+          }
+        }
+      }
+    },
+    "Ephemeral session permission active.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçici oturum izni etkin."
+          }
+        }
+      }
+    },
+    "Eray": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eray"
+          }
+        }
+      }
+    },
+    "Error": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hata"
+          }
+        }
+      }
+    },
+    "Everything at a Glance": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Her Şey Bir Bakışta"
+          }
+        }
+      }
+    },
+    "Excellent": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mükemmel"
+          }
+        }
+      }
+    },
+    "Excellent connection": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mükemmel bağlantı"
+          }
+        }
+      }
+    },
+    "Expanded": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genişletildi"
+          }
+        }
+      }
+    },
+    "Expired": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Süresi Doldu"
+          }
+        }
+      }
+    },
+    "Expired %lld days ago": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Expired %lld day ago"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "Expired %lld days ago"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Süresi %lld gün önce doldu"
+          }
+        }
+      }
+    },
+    "Expires": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bitiş Tarihi"
+          }
+        }
+      }
+    },
+    "Expires today": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Süresi bugün doluyor"
+          }
+        }
+      }
+    },
+    "Expiring Soon": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Süresi Yakında Doluyor"
+          }
+        }
+      }
+    },
+    "Export as CSV": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CSV Olarak Dışa Aktar"
+          }
+        }
+      }
+    },
+    "External IP": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Harici IP"
+          }
+        }
+      }
+    },
+    "Fair": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orta"
+          }
+        }
+      }
+    },
+    "Fair connection": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orta düzey bağlantı"
+          }
+        }
+      }
+    },
+    "First Open Port": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlk Açık Port"
+          }
+        }
+      }
+    },
+    "Forever": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ömür boyu"
+          }
+        }
+      }
+    },
+    "Format": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biçim"
+          }
+        }
+      }
+    },
+    "Format Error": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biçim Hatası"
+          }
+        }
+      }
+    },
+    "Gateway": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ Geçidi"
+          }
+        }
+      }
+    },
+    "Gauge Scale": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gösterge Ölçeği"
+          }
+        }
+      }
+    },
+    "General": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genel"
+          }
+        }
+      }
+    },
+    "Generate Report": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rapor Oluştur"
+          }
+        }
+      }
+    },
+    "Generated: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oluşturulma: %@"
+          }
+        }
+      }
+    },
+    "Generating...": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oluşturuluyor..."
+          }
+        }
+      }
+    },
+    "Get Started": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başlayın"
+          }
+        }
+      }
+    },
+    "Get notified when your connection drops, a test is unusually slow or you near your data limit.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantınız koptuğunda, bir test olağandışı yavaş kaldığında veya veri limitinize yaklaştığınızda bildirim alın."
+          }
+        }
+      }
+    },
+    "Gets the current download and upload speed.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anlık indirme ve yükleme hızını getirir."
+          }
+        }
+      }
+    },
+    "Gets today's WiFi and Cellular data usage.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugünkü Wi-Fi ve hücresel veri kullanımını getirir."
+          }
+        }
+      }
+    },
+    "Good": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İyi"
+          }
+        }
+      }
+    },
+    "Good For": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Şunlar İçin Uygun"
+          }
+        }
+      }
+    },
+    "Good connection": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İyi bağlantı"
+          }
+        }
+      }
+    },
+    "Google": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Google"
+          }
+        }
+      }
+    },
+    "Grade": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not"
+          }
+        }
+      }
+    },
+    "Grade %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not %@"
+          }
+        }
+      }
+    },
+    "Graph": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grafik"
+          }
+        }
+      }
+    },
+    "HD streaming": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HD yayın"
+          }
+        }
+      }
+    },
+    "HTTP %lld — domain may not be registered or whois data unavailable.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP %lld — alan adı kayıtlı olmayabilir veya whois verisi mevcut değil."
+          }
+        }
+      }
+    },
+    "Home": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ana Sayfa"
+          }
+        }
+      }
+    },
+    "Hop-by-hop path analysis": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlama atlama rota analizi"
+          }
+        }
+      }
+    },
+    "Host": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu"
+          }
+        }
+      }
+    },
+    "Host Selector": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu Seçici"
+          }
+        }
+      }
+    },
+    "Host or IP (e.g. 192.168.1.1)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu veya IP (ör. 192.168.1.1)"
+          }
+        }
+      }
+    },
+    "Hostname": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu Adı"
+          }
+        }
+      }
+    },
+    "IP": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP"
+          }
+        }
+      }
+    },
+    "IP Address": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP Adresi"
+          }
+        }
+      }
+    },
+    "IP Scanner": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP Tarayıcı"
+          }
+        }
+      }
+    },
+    "ISP": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İnternet Sağlayıcı"
+          }
+        }
+      }
+    },
+    "Inspect the TLS certificate, issuer and expiry date of any HTTPS site.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herhangi bir HTTPS sitesinin TLS sertifikasını, yayıncısını ve bitiş tarihini inceleyin."
+          }
+        }
+      }
+    },
+    "IoT / Smart Device": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IoT / Akıllı Cihaz"
+          }
+        }
+      }
+    },
+    "Issuer": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yayıncı"
+          }
+        }
+      }
+    },
+    "Jitter": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jitter"
+          }
+        }
+      }
+    },
+    "Know how fast your connection really is and where your data goes.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantınızın gerçekte ne kadar hızlı olduğunu ve verinizin nereye gittiğini bilin."
+          }
+        }
+      }
+    },
+    "Laptop / Desktop": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dizüstü / Masaüstü"
+          }
+        }
+      }
+    },
+    "Large uploads": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Büyük dosya yükleme"
+          }
+        }
+      }
+    },
+    "Last 30 Days": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 30 Gün"
+          }
+        }
+      }
+    },
+    "Last 60 Seconds": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 60 Saniye"
+          }
+        }
+      }
+    },
+    "Last 60 sec": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 60 sn"
+          }
+        }
+      }
+    },
+    "Last 7 Days": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 7 Gün"
+          }
+        }
+      }
+    },
+    "Last result · %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son sonuç · %@"
+          }
+        }
+      }
+    },
+    "Last scan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son tarama"
+          }
+        }
+      }
+    },
+    "Latency": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gecikme"
+          }
+        }
+      }
+    },
+    "Lifetime": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ömür Boyu"
+          }
+        }
+      }
+    },
+    "Light": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Açık"
+          }
+        }
+      }
+    },
+    "Limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limit"
+          }
+        }
+      }
+    },
+    "List": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste"
+          }
+        }
+      }
+    },
+    "Live Activity": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canlı Etkinlik"
+          }
+        }
+      }
+    },
+    "Live Chart": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canlı Grafik"
+          }
+        }
+      }
+    },
+    "Live Speed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canlı Hız"
+          }
+        }
+      }
+    },
+    "Live latency & packet loss": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canlı gecikme ve paket kaybı"
+          }
+        }
+      }
+    },
+    "Local Gateway": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel Ağ Geçidi"
+          }
+        }
+      }
+    },
+    "Local Network": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel Ağ"
+          }
+        }
+      }
+    },
+    "Location Permission Required": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konum İzni Gerekli"
+          }
+        }
+      }
+    },
+    "Look up the registrar, key dates and name servers of a domain.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir alan adının kayıt kuruluşunu, önemli tarihlerini ve ad sunucularını sorgulayın."
+          }
+        }
+      }
+    },
+    "Lookup": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sorgula"
+          }
+        }
+      }
+    },
+    "Lookup failed: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sorgu başarısız: %@"
+          }
+        }
+      }
+    },
+    "Lost": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıp"
+          }
+        }
+      }
+    },
+    "Low": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Düşük"
+          }
+        }
+      }
+    },
+    "MAC Address": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "MAC Adresi"
+          }
+        }
+      }
+    },
+    "Map": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Harita"
+          }
+        }
+      }
+    },
+    "Max Download": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En Yüksek İndirme"
+          }
+        }
+      }
+    },
+    "Max Ping": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En Yüksek Ping"
+          }
+        }
+      }
+    },
+    "Max Upload": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En Yüksek Yükleme"
+          }
+        }
+      }
+    },
+    "Mbps": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mbps"
+          }
+        }
+      }
+    },
+    "Measure Ping": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping Ölç"
+          }
+        }
+      }
+    },
+    "Measure ping, download and upload speed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping, indirme ve yükleme hızını ölçün"
+          }
+        }
+      }
+    },
+    "Measures network latency (ping) and evaluates connection quality.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ gecikmesini (ping) ölçer ve bağlantı kalitesini değerlendirir."
+          }
+        }
+      }
+    },
+    "Measuring Ping…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping ölçülüyor…"
+          }
+        }
+      }
+    },
+    "Megabit speed format": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Megabit hız biçimi"
+          }
+        }
+      }
+    },
+    "Min Ping": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En Düşük Ping"
+          }
+        }
+      }
+    },
+    "Mobile data active": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mobil veri etkin"
+          }
+        }
+      }
+    },
+    "Moderate NAT": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Orta NAT"
+          }
+        }
+      }
+    },
+    "Monitor Ping": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping İzle"
+          }
+        }
+      }
+    },
+    "Monitor Your Network": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağınızı İzleyin"
+          }
+        }
+      }
+    },
+    "Monitor your network at full power": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağınızı tam güçle izleyin"
+          }
+        }
+      }
+    },
+    "Month": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ay"
+          }
+        }
+      }
+    },
+    "Monthly": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aylık"
+          }
+        }
+      }
+    },
+    "Monthly Summary": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aylık Özet"
+          }
+        }
+      }
+    },
+    "Monthly Usage Report": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aylık Kullanım Raporu"
+          }
+        }
+      }
+    },
+    "Most Popular": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En Popüler"
+          }
+        }
+      }
+    },
+    "NAT": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NAT"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ad"
+          }
+        }
+      }
+    },
+    "Name Servers": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ad Sunucuları"
+          }
+        }
+      }
+    },
+    "Network": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ"
+          }
+        }
+      }
+    },
+    "Network Map": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ Haritası"
+          }
+        }
+      }
+    },
+    "Network Quality Score": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ Kalitesi Puanı"
+          }
+        }
+      }
+    },
+    "Network Tools": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ Araçları"
+          }
+        }
+      }
+    },
+    "NetworkHistory.csv": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AgGecmisi.csv"
+          }
+        }
+      }
+    },
+    "Next": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İleri"
+          }
+        }
+      }
+    },
+    "No Connection": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı Yok"
+          }
+        }
+      }
+    },
+    "No Devices Found": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cihaz Bulunamadı"
+          }
+        }
+      }
+    },
+    "No Results": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonuç Yok"
+          }
+        }
+      }
+    },
+    "No Scan Yet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz Tarama Yok"
+          }
+        }
+      }
+    },
+    "No Trace Yet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz İzleme Yok"
+          }
+        }
+      }
+    },
+    "No additional open ports found": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başka açık port bulunamadı"
+          }
+        }
+      }
+    },
+    "No certificate information could be extracted.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sertifika bilgisi alınamadı."
+          }
+        }
+      }
+    },
+    "No history for this period yet.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu dönem için henüz geçmiş yok."
+          }
+        }
+      }
+    },
+    "No network connection detected": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ bağlantısı algılanmadı"
+          }
+        }
+      }
+    },
+    "No open ports found": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Açık port bulunamadı"
+          }
+        }
+      }
+    },
+    "No recorded speed tests yet.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz kayıtlı hız testi yok."
+          }
+        }
+      }
+    },
+    "No responsive devices were found on %@.x": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@.x ağında yanıt veren cihaz bulunamadı"
+          }
+        }
+      }
+    },
+    "No results yet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz sonuç yok"
+          }
+        }
+      }
+    },
+    "No scan performed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarama yapılmadı"
+          }
+        }
+      }
+    },
+    "No tests match these filters.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu filtrelere uyan test yok."
+          }
+        }
+      }
+    },
+    "Not Connected": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlı Değil"
+          }
+        }
+      }
+    },
+    "Not Found": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bulunamadı"
+          }
+        }
+      }
+    },
+    "Not Implemented": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desteklenmiyor"
+          }
+        }
+      }
+    },
+    "Not Now": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Şimdi Değil"
+          }
+        }
+      }
+    },
+    "Not recommended": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Önerilmez"
+          }
+        }
+      }
+    },
+    "Notification Permission": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildirim İzni"
+          }
+        }
+      }
+    },
+    "Notification permission denied.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildirim izni reddedildi."
+          }
+        }
+      }
+    },
+    "Notification status unknown.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildirim durumu bilinmiyor."
+          }
+        }
+      }
+    },
+    "Notifications": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildirimler"
+          }
+        }
+      }
+    },
+    "Notifications enabled.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bildirimler etkin."
+          }
+        }
+      }
+    },
+    "Notify on speed peak": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız zirvesinde bildir"
+          }
+        }
+      }
+    },
+    "Notify when a speed test is far below your usual result": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir hız testi olağan sonucunuzun çok altında kaldığında bildir"
+          }
+        }
+      }
+    },
+    "Notify when approaching your cellular data limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hücresel veri limitinize yaklaşırken bildir"
+          }
+        }
+      }
+    },
+    "Notify when disconnected": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bağlantı koptuğunda bildir"
+          }
+        }
+      }
+    },
+    "Now": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Şimdi"
+          }
+        }
+      }
+    },
+    "Offline": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çevrimdışı"
+          }
+        }
+      }
+    },
+    "Online gaming": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çevrimiçi oyun"
+          }
+        }
+      }
+    },
+    "Open": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Açık"
+          }
+        }
+      }
+    },
+    "Open App": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uygulamayı Aç"
+          }
+        }
+      }
+    },
+    "Open NAT": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Açık NAT"
+          }
+        }
+      }
+    },
+    "Open Ports": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Açık Portlar"
+          }
+        }
+      }
+    },
+    "Open Settings": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ayarları Aç"
+          }
+        }
+      }
+    },
+    "Open Shortcuts App": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kısayollar'ı Aç"
+          }
+        }
+      }
+    },
+    "Open only": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yalnızca açık"
+          }
+        }
+      }
+    },
+    "Organization": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kuruluş"
+          }
+        }
+      }
+    },
+    "Other": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diğer"
+          }
+        }
+      }
+    },
+    "PDF Report": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF Rapor"
+          }
+        }
+      }
+    },
+    "Packet Loss": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paket Kaybı"
+          }
+        }
+      }
+    },
+    "Page %lld of %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page %1$lld of %2$lld"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sayfa %1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "Page %lld of 4": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sayfa %lld / 4"
+          }
+        }
+      }
+    },
+    "Past Tests": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçmiş Testler"
+          }
+        }
+      }
+    },
+    "Peak %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Peak %1$@ %2$@"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zirve %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Permission not yet granted.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İzin henüz verilmedi."
+          }
+        }
+      }
+    },
+    "Ping": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping"
+          }
+        }
+      }
+    },
+    "Ping / Latency": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping / Gecikme"
+          }
+        }
+      }
+    },
+    "Ping Monitor": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping İzleyici"
+          }
+        }
+      }
+    },
+    "Pinging %@...": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ adresine ping atılıyor..."
+          }
+        }
+      }
+    },
+    "Poor": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zayıf"
+          }
+        }
+      }
+    },
+    "Poor connection": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zayıf bağlantı"
+          }
+        }
+      }
+    },
+    "Port Scanner": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Port Tarayıcı"
+          }
+        }
+      }
+    },
+    "Ports: 80,443 or 1-1024": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Portlar: 80,443 veya 1-1024"
+          }
+        }
+      }
+    },
+    "Preparing Upload…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yükleme hazırlanıyor…"
+          }
+        }
+      }
+    },
+    "Preparing...": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hazırlanıyor..."
+          }
+        }
+      }
+    },
+    "Privacy Policy": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gizlilik Politikası"
+          }
+        }
+      }
+    },
+    "Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro"
+          }
+        }
+      }
+    },
+    "Pro features": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro özellikleri"
+          }
+        }
+      }
+    },
+    "Probe each hop on the way to a host and measure its latency.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bir sunucuya giden yoldaki her atlamayı yoklayın ve gecikmesini ölçün."
+          }
+        }
+      }
+    },
+    "Probing next hop…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonraki atlama yoklanıyor…"
+          }
+        }
+      }
+    },
+    "Progress": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İlerleme"
+          }
+        }
+      }
+    },
+    "Projected monthly total": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tahmini aylık toplam"
+          }
+        }
+      }
+    },
+    "Provisional notification permission enabled.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçici bildirim izni etkin."
+          }
+        }
+      }
+    },
+    "Purchase could not be verified.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Satın alma doğrulanamadı."
+          }
+        }
+      }
+    },
+    "Query": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sorgu"
+          }
+        }
+      }
+    },
+    "Query DNS records for any domain": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Herhangi bir alan adının DNS kayıtlarını sorgulayın"
+          }
+        }
+      }
+    },
+    "Query Refused": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sorgu Reddedildi"
+          }
+        }
+      }
+    },
+    "Query time: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sorgu süresi: %@"
+          }
+        }
+      }
+    },
+    "Querying %@…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ sorgulanıyor…"
+          }
+        }
+      }
+    },
+    "Querying Whois for %@…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ için Whois sorgulanıyor…"
+          }
+        }
+      }
+    },
+    "Ready": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hazır"
+          }
+        }
+      }
+    },
+    "Real download & upload measurement": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerçek indirme ve yükleme ölçümü"
+          }
+        }
+      }
+    },
+    "Real-time speed, ping & usage monitoring": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerçek zamanlı hız, ping ve kullanım takibi"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yenile"
+          }
+        }
+      }
+    },
+    "Registered": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt Tarihi"
+          }
+        }
+      }
+    },
+    "Registrant": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt Sahibi"
+          }
+        }
+      }
+    },
+    "Registrar": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt Kuruluşu"
+          }
+        }
+      }
+    },
+    "Report Month": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rapor Ayı"
+          }
+        }
+      }
+    },
+    "Rescan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden Tara"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sıfırla"
+          }
+        }
+      }
+    },
+    "Reset Day": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sıfırlama Günü"
+          }
+        }
+      }
+    },
+    "Reset Info": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sıfırlama Bilgisi"
+          }
+        }
+      }
+    },
+    "Reset today's counter?": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugünkü sayaç sıfırlansın mı?"
+          }
+        }
+      }
+    },
+    "Resolve A, AAAA, MX, TXT, CNAME and NS records over DNS-over-HTTPS.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A, AAAA, MX, TXT, CNAME ve NS kayıtlarını DNS-over-HTTPS ile çözümleyin."
+          }
+        }
+      }
+    },
+    "Response Time": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yanıt Süresi"
+          }
+        }
+      }
+    },
+    "Restore Purchases": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Satın Alımları Geri Yükle"
+          }
+        }
+      }
+    },
+    "Results": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonuçlar"
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden Dene"
+          }
+        }
+      }
+    },
+    "Review Usage": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanımı İncele"
+          }
+        }
+      }
+    },
+    "Ri Network Speed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ri Network Speed"
+          }
+        }
+      }
+    },
+    "Route": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rota"
+          }
+        }
+      }
+    },
+    "Router / Gateway": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yönlendirici / Ağ Geçidi"
+          }
+        }
+      }
+    },
+    "Run Speed Test": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Testi Yap"
+          }
+        }
+      }
+    },
+    "Runs a real-time download / upload speed test.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gerçek zamanlı indirme / yükleme hız testi yapar."
+          }
+        }
+      }
+    },
+    "SHA-256 Fingerprint": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SHA-256 Parmak İzi"
+          }
+        }
+      }
+    },
+    "SSID": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSID"
+          }
+        }
+      }
+    },
+    "SSL Checker": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSL Denetleyici"
+          }
+        }
+      }
+    },
+    "Scan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tara"
+          }
+        }
+      }
+    },
+    "Scan Complete": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tarama Tamamlandı"
+          }
+        }
+      }
+    },
+    "Scan Ports": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Portları Tara"
+          }
+        }
+      }
+    },
+    "Scan a port range or pick a preset to find listening services.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dinleyen servisleri bulmak için bir port aralığı tarayın veya hazır ayar seçin."
+          }
+        }
+      }
+    },
+    "Scanned": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taranan"
+          }
+        }
+      }
+    },
+    "Scanning common ports…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yaygın portlar taranıyor…"
+          }
+        }
+      }
+    },
+    "Scanning…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taranıyor…"
+          }
+        }
+      }
+    },
+    "Search tools": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Araçlarda ara"
+          }
+        }
+      }
+    },
+    "Second by second, also in a Live Activity": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saniye saniye, Canlı Etkinlik'te de"
+          }
+        }
+      }
+    },
+    "Security": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güvenlik"
+          }
+        }
+      }
+    },
+    "See All Tests": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tüm Testleri Gör"
+          }
+        }
+      }
+    },
+    "Selected": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seçili"
+          }
+        }
+      }
+    },
+    "Send Feedback": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geri Bildirim Gönder"
+          }
+        }
+      }
+    },
+    "Sent": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gönderilen"
+          }
+        }
+      }
+    },
+    "Series": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seri"
+          }
+        }
+      }
+    },
+    "Server Failure": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sunucu Hatası"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ayarlar"
+          }
+        }
+      }
+    },
+    "Share": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paylaş"
+          }
+        }
+      }
+    },
+    "Show Data Usage": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri Kullanımını Göster"
+          }
+        }
+      }
+    },
+    "Show Network Speed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ağ Hızını Göster"
+          }
+        }
+      }
+    },
+    "Show Ping": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ping'i Göster"
+          }
+        }
+      }
+    },
+    "Show Speed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hızı Göster"
+          }
+        }
+      }
+    },
+    "Siri & Shortcuts": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siri ve Kısayollar"
+          }
+        }
+      }
+    },
+    "Skip": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atla"
+          }
+        }
+      }
+    },
+    "Smart TV / Media": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Akıllı TV / Medya"
+          }
+        }
+      }
+    },
+    "Smartphone": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Akıllı Telefon"
+          }
+        }
+      }
+    },
+    "Speed Drop": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Düşüşü"
+          }
+        }
+      }
+    },
+    "Speed Drop Detected": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Düşüşü Algılandı"
+          }
+        }
+      }
+    },
+    "Speed History": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Geçmişi"
+          }
+        }
+      }
+    },
+    "Speed Peak": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Zirvesi"
+          }
+        }
+      }
+    },
+    "Speed Peak Reached": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Zirvesine Ulaşıldı"
+          }
+        }
+      }
+    },
+    "Speed Peak Threshold": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Zirvesi Eşiği"
+          }
+        }
+      }
+    },
+    "Speed Share Card": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Paylaşım Kartı"
+          }
+        }
+      }
+    },
+    "Speed Test": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Testi"
+          }
+        }
+      }
+    },
+    "Speed Test History": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Testi Geçmişi"
+          }
+        }
+      }
+    },
+    "Speed Test Results": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Testi Sonuçları"
+          }
+        }
+      }
+    },
+    "Speed Unit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız Birimi"
+          }
+        }
+      }
+    },
+    "Speed drop alerts": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız düşüşü uyarıları"
+          }
+        }
+      }
+    },
+    "Speed test complete. Download: %@ Mbps, upload: %@ Mbps, latency: %lld ms.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Speed test complete. Download: %1$@ Mbps, upload: %2$@ Mbps, latency: %3$lld ms."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız testi tamamlandı. İndirme: %1$@ Mbps, yükleme: %2$@ Mbps, gecikme: %3$lld ms."
+          }
+        }
+      }
+    },
+    "Speed test failed. Please check your connection and try again.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız testi başarısız oldu. Lütfen bağlantınızı kontrol edip tekrar deneyin."
+          }
+        }
+      }
+    },
+    "Speed test was cancelled or could not complete.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız testi iptal edildi veya tamamlanamadı."
+          }
+        }
+      }
+    },
+    "Speed tests, live speed, data usage and network tools in a single app.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hız testleri, canlı hız, veri kullanımı ve ağ araçları tek bir uygulamada."
+          }
+        }
+      }
+    },
+    "Start": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başlat"
+          }
+        }
+      }
+    },
+    "Start Live Activity": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canlı Etkinliği Başlat"
+          }
+        }
+      }
+    },
+    "Start Scan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taramayı Başlat"
+          }
+        }
+      }
+    },
+    "Start Test": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testi Başlat"
+          }
+        }
+      }
+    },
+    "Start Trace": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İzlemeyi Başlat"
+          }
+        }
+      }
+    },
+    "Statistics": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstatistikler"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durum"
+          }
+        }
+      }
+    },
+    "Stay Informed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haberdar Olun"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durdur"
+          }
+        }
+      }
+    },
+    "Stop Live Activity": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Canlı Etkinliği Durdur"
+          }
+        }
+      }
+    },
+    "Stop Scan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taramayı Durdur"
+          }
+        }
+      }
+    },
+    "Stop Trace": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İzlemeyi Durdur"
+          }
+        }
+      }
+    },
+    "Subject": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Konu"
+          }
+        }
+      }
+    },
+    "Summary": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Özet"
+          }
+        }
+      }
+    },
+    "Supported": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destekleniyor"
+          }
+        }
+      }
+    },
+    "System": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sistem"
+          }
+        }
+      }
+    },
+    "TTL %llds": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TTL %lld sn"
+          }
+        }
+      }
+    },
+    "Tablet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tablet"
+          }
+        }
+      }
+    },
+    "Tap Rescan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeniden Tara'ya dokunun"
+          }
+        }
+      }
+    },
+    "Tap Scan to discover devices on your local network.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel ağınızdaki cihazları keşfetmek için Tara'ya dokunun."
+          }
+        }
+      }
+    },
+    "Target host (e.g. google.com)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hedef sunucu (ör. google.com)"
+          }
+        }
+      }
+    },
+    "Terms of Use": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanım Koşulları"
+          }
+        }
+      }
+    },
+    "Test Again": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tekrar Test Et"
+          }
+        }
+      }
+    },
+    "Test Completed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Tamamlandı"
+          }
+        }
+      }
+    },
+    "Test Failed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Başarısız"
+          }
+        }
+      }
+    },
+    "Test History": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test Geçmişi"
+          }
+        }
+      }
+    },
+    "Test in progress": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Test sürüyor"
+          }
+        }
+      }
+    },
+    "Testing Download…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İndirme test ediliyor…"
+          }
+        }
+      }
+    },
+    "Testing Upload…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yükleme test ediliyor…"
+          }
+        }
+      }
+    },
+    "Tests": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Testler"
+          }
+        }
+      }
+    },
+    "This Device": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu Cihaz"
+          }
+        }
+      }
+    },
+    "This device": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu cihaz"
+          }
+        }
+      }
+    },
+    "This month Cellular": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu ay hücresel"
+          }
+        }
+      }
+    },
+    "This month WiFi": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu ay Wi-Fi"
+          }
+        }
+      }
+    },
+    "Throughput climbed above %lld MB/s.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri hızı %lld MB/sn'nin üzerine çıktı."
+          }
+        }
+      }
+    },
+    "Time": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zaman"
+          }
+        }
+      }
+    },
+    "Time Range": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zaman Aralığı"
+          }
+        }
+      }
+    },
+    "Time Recorded": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kaydedilen Süre"
+          }
+        }
+      }
+    },
+    "Timeout": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zaman Aşımı"
+          }
+        }
+      }
+    },
+    "Today Cellular": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugün Hücresel"
+          }
+        }
+      }
+    },
+    "Today WiFi": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugün Wi-Fi"
+          }
+        }
+      }
+    },
+    "Today compared with your daily average": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Günlük ortalamanıza göre bugün"
+          }
+        }
+      }
+    },
+    "Today you used %@ on Wi-Fi and %@ on cellular. Total: %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today you used %1$@ on Wi-Fi and %2$@ on cellular. Total: %3$@."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugün Wi-Fi'de %1$@, hücresel ağda %2$@ kullandınız. Toplam: %3$@."
+          }
+        }
+      }
+    },
+    "Today's Total": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugünkü Toplam"
+          }
+        }
+      }
+    },
+    "Today's Usage": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugünkü Kullanım"
+          }
+        }
+      }
+    },
+    "Today's WiFi and Cellular counters will be reset.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugünkü Wi-Fi ve hücresel sayaçlar sıfırlanacak."
+          }
+        }
+      }
+    },
+    "Tools": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Araçlar"
+          }
+        }
+      }
+    },
+    "Total": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toplam"
+          }
+        }
+      }
+    },
+    "Total Transfer": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toplam Aktarım"
+          }
+        }
+      }
+    },
+    "Total Used": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toplam Kullanım"
+          }
+        }
+      }
+    },
+    "Total: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Toplam: %@"
+          }
+        }
+      }
+    },
+    "Trace Failed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İzleme Başarısız"
+          }
+        }
+      }
+    },
+    "Traceroute": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Traceroute"
+          }
+        }
+      }
+    },
+    "Trend": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eğilim"
+          }
+        }
+      }
+    },
+    "Trend, averages and filters": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eğilim, ortalamalar ve filtreler"
+          }
+        }
+      }
+    },
+    "Type": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tür"
+          }
+        }
+      }
+    },
+    "Type a domain name above and tap Check to inspect its SSL certificate.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SSL sertifikasını incelemek için yukarıya bir alan adı yazıp Kontrol Et'e dokunun."
+          }
+        }
+      }
+    },
+    "Type a domain name above to look up registration details.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kayıt bilgilerini sorgulamak için yukarıya bir alan adı yazın."
+          }
+        }
+      }
+    },
+    "UL": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "YÜK"
+          }
+        }
+      }
+    },
+    "Unavailable": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanılamıyor"
+          }
+        }
+      }
+    },
+    "Unknown": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilinmiyor"
+          }
+        }
+      }
+    },
+    "Unknown Device": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bilinmeyen Cihaz"
+          }
+        }
+      }
+    },
+    "Unlock all features": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tüm özelliklerin kilidini açın"
+          }
+        }
+      }
+    },
+    "Update Interval": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güncelleme Aralığı"
+          }
+        }
+      }
+    },
+    "Updated": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güncelleme"
+          }
+        }
+      }
+    },
+    "Upgrade": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yükselt"
+          }
+        }
+      }
+    },
+    "Upload": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yükleme"
+          }
+        }
+      }
+    },
+    "Usage": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanım"
+          }
+        }
+      }
+    },
+    "Usage Chart": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanım Grafiği"
+          }
+        }
+      }
+    },
+    "Valid": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçerli"
+          }
+        }
+      }
+    },
+    "Valid From": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçerlilik Başlangıcı"
+          }
+        }
+      }
+    },
+    "Very good connection": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çok iyi bağlantı"
+          }
+        }
+      }
+    },
+    "Video calls": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Görüntülü görüşme"
+          }
+        }
+      }
+    },
+    "Visually discover devices on the local network": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yerel ağdaki cihazları görsel olarak keşfedin"
+          }
+        }
+      }
+    },
+    "WPA/WPA2/WPA3 Enterprise": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WPA/WPA2/WPA3 Kurumsal"
+          }
+        }
+      }
+    },
+    "WPA/WPA2/WPA3 Personal": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WPA/WPA2/WPA3 Kişisel"
+          }
+        }
+      }
+    },
+    "Weekly Chart": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haftalık Grafik"
+          }
+        }
+      }
+    },
+    "Whois": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Whois"
+          }
+        }
+      }
+    },
+    "Wi-Fi": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi"
+          }
+        }
+      }
+    },
+    "Wi-Fi Network Details": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi Ağ Ayrıntıları"
+          }
+        }
+      }
+    },
+    "Wi-Fi and cellular, with a monthly limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi ve hücresel, aylık limitle"
+          }
+        }
+      }
+    },
+    "Wi-Fi: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi: %@"
+          }
+        }
+      }
+    },
+    "WiFi": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wi-Fi"
+          }
+        }
+      }
+    },
+    "Widgets": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget'lar"
+          }
+        }
+      }
+    },
+    "Wired": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kablolu"
+          }
+        }
+      }
+    },
+    "Wireless connection active": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kablosuz bağlantı etkin"
+          }
+        }
+      }
+    },
+    "You can say commands like \"Show my speed with RiNetwork\" to Siri. Automations can be created in the Shortcuts app.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Siri'ye \"RiNetwork ile hızımı göster\" gibi komutlar verebilirsiniz. Otomasyonları Kısayollar uygulamasında oluşturabilirsiniz."
+          }
+        }
+      }
+    },
+    "You have used %lld%% of your %@ GB cellular limit for this billing period.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You have used %1$lld%% of your %2$@ GB cellular limit for this billing period."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu fatura döneminde %2$@ GB hücresel limitinizin %%%1$lld kadarını kullandınız."
+          }
+        }
+      }
+    },
+    "Your IP: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP adresiniz: %@"
+          }
+        }
+      }
+    },
+    "Your device is no longer connected to a network.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cihazınız artık bir ağa bağlı değil."
+          }
+        }
+      }
+    },
+    "Your download speed is %@ and upload speed is %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your download speed is %1$@ and upload speed is %2$@."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İndirme hızınız %1$@, yükleme hızınız %2$@."
+          }
+        }
+      }
+    },
+    "Your last test on the Home Screen": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son testiniz Ana Ekran'da"
+          }
+        }
+      }
+    },
+    "Zero": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sıfır"
+          }
+        }
+      }
+    },
+    "iOS only shares the Wi-Fi network name and details with apps that have location access. Your location is not stored or sent anywhere.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS, Wi-Fi ağ adını ve ayrıntılarını yalnızca konum erişimi olan uygulamalarla paylaşır. Konumunuz saklanmaz ve hiçbir yere gönderilmez."
+          }
+        }
+      }
+    },
+    "ms": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ms"
+          }
+        }
+      }
+    },
+    "now": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "şimdi"
+          }
+        }
+      }
+    },
+    "of daily avg": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "günlük ort."
+          }
+        }
+      }
+    },
+    "of limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "limitin"
+          }
+        }
+      }
+    },
+    "ri Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ri Pro"
+          }
+        }
+      }
+    },
+    "•": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "•"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

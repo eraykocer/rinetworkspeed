@@ -25,8 +25,7 @@ struct NetworkMapView: View {
     // Canvas size (captured from GeometryReader)
     @State private var canvasSize: CGSize   = .zero
 
-    private let heroColors = [Color(red: 0.20, green: 0.80, blue: 0.65),
-                              Color(red: 0.08, green: 0.45, blue: 0.52)]
+    private let heroTint = Color(red: 0.08, green: 0.45, blue: 0.52)
 
     var body: some View {
         NavigationStack {
@@ -89,14 +88,14 @@ struct NetworkMapView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 14) {
                 Image(systemName: "circle.hexagongrid.fill")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .appFont(size: 24, weight: .semibold)
+                    .foregroundStyle(AppTheme.ink)
                     .frame(width: 50, height: 50)
-                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
                 Text("Visually discover devices on the local network")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.8))
+                    .appFont(size: 14, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.8))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -113,7 +112,7 @@ struct NetworkMapView: View {
                     HStack(spacing: 8) {
                         if manager.isScanning {
                             ProgressView()
-                                .tint(heroColors[1])
+                                .tint(heroTint)
                                 .scaleEffect(0.85)
                             Text("Scanning…")
                         } else {
@@ -122,7 +121,7 @@ struct NetworkMapView: View {
                         }
                     }
                 }
-                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: heroColors))
+                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: heroTint))
                 .disabled(manager.isScanning)
 
                 // List / Map toggle
@@ -130,16 +129,16 @@ struct NetworkMapView: View {
                     withAnimation(.spring(response: 0.32)) { showList.toggle() }
                 } label: {
                     Image(systemName: showList ? "circle.hexagongrid.fill" : "list.bullet")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .appFont(size: 17, weight: .semibold)
+                        .foregroundStyle(AppTheme.ink)
                         .frame(width: 50, height: 50)
-                        .background(Circle().fill(.white.opacity(0.18)))
+                        .background(Circle().fill(AppTheme.ink.opacity(0.18)))
                 }
                 .buttonStyle(AppPressableButtonStyle())
                 .accessibilityLabel(showList ? Text("Map") : Text("List"))
             }
         }
-        .appHeroCard(colors: heroColors)
+        .appHeroCard(tint: heroTint)
     }
 
     private var summaryStrip: some View {
@@ -161,9 +160,9 @@ struct NetworkMapView: View {
                 GeometryReader { g in
                     ZStack(alignment: .leading) {
                         Capsule()
-                            .fill(.white.opacity(0.18))
+                            .fill(AppTheme.ink.opacity(0.18))
                         Capsule()
-                            .fill(.white)
+                            .fill(AppTheme.ink)
                             .frame(width: g.size.width * manager.progress)
                             .animation(.linear(duration: 0.2), value: manager.progress)
                     }
@@ -336,7 +335,7 @@ struct NetworkMapView: View {
                                            width: dotR * 2, height: dotR * 2))
             }
         }
-        ctx.fill(path, with: .color(Color.white.opacity(0.055)))
+        ctx.fill(path, with: .color(AppTheme.ink.opacity(0.055)))
     }
 
     private func drawConnections(ctx: GraphicsContext, size: CGSize,
@@ -443,7 +442,7 @@ private struct MapNodeView: View {
                 // Selection ring
                 if isSelected {
                     Circle()
-                        .stroke(.white, lineWidth: 2.5)
+                        .stroke(AppTheme.ink, lineWidth: 2.5)
                         .frame(width: nodeSize + 8, height: nodeSize + 8)
                 }
             }
@@ -451,11 +450,11 @@ private struct MapNodeView: View {
             // Last IP octet label
             let lastOctet = device.ip.split(separator: ".").last.map(String.init) ?? device.ip
             Text(lastOctet)
-                .font(.system(size: 9.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.65))
+                .appFont(size: 9.5, weight: .medium, design: .monospaced)
+                .foregroundStyle(AppTheme.ink.opacity(0.65))
                 .padding(.horizontal, 5)
                 .padding(.vertical, 2)
-                .background(Capsule().fill(Color.black.opacity(0.65)))
+                .background(Capsule().fill(AppTheme.background.opacity(0.85)))
         }
     }
 }
@@ -470,13 +469,13 @@ private struct MapHeroStat: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .appFont(size: 17, weight: .bold, design: .rounded)
                 .monospacedDigit()
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.ink)
                 .contentTransition(.numericText())
             Text(label)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.6))
+                .appFont(size: 11, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
     }
@@ -519,7 +518,7 @@ private struct MapListRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(device.hostname ?? device.ip)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .appFont(size: 16, weight: .semibold, design: .rounded)
                         .monospacedDigit()
                         .foregroundStyle(AppTheme.primaryText)
                         .lineLimit(1)
@@ -529,7 +528,7 @@ private struct MapListRow: View {
                 }
                 if device.hostname != nil {
                     Text(device.ip)
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .appFont(size: 12, weight: .regular, design: .rounded)
                         .monospacedDigit()
                         .foregroundStyle(AppTheme.secondaryText)
                 }
@@ -543,7 +542,7 @@ private struct MapListRow: View {
                         .monospacedDigit()
                 }
                 Text(device.deviceType.displayName)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .appFont(size: 11, weight: .medium, design: .rounded)
                     .foregroundStyle(AppTheme.tertiaryText)
                     .lineLimit(1)
             }
@@ -590,11 +589,11 @@ private struct MapDeviceDetailSheet: View {
                         infoRow("Device Type", value: device.deviceType.displayName)
                         if device.responseTime > 0 {
                             AppRowDivider(leadingInset: 16)
-                            infoRow("Response Time", value: String(format: "%.1f ms", device.responseTime))
+                            infoRow("Response Time", value: device.responseTime.fixed(1) + " ms")
                         }
                         if device.isCurrentDevice {
                             AppRowDivider(leadingInset: 16)
-                            infoRow("Durum", value: String(localized: "This Device"))
+                            infoRow("Status", value: String(localized: "This Device"))
                         }
                     }
 
@@ -636,7 +635,7 @@ private struct MapDeviceDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Kapat") { dismiss() }
+                    Button("Close") { dismiss() }
                 }
             }
         }
@@ -649,12 +648,12 @@ private struct MapDeviceDetailSheet: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(device.hostname ?? device.ip)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .appFont(size: 18, weight: .bold, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
                 Text(device.deviceType.displayName)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
             }
 
@@ -670,11 +669,11 @@ private struct MapDeviceDetailSheet: View {
     private func infoRow(_ label: LocalizedStringKey, value: String) -> some View {
         HStack(spacing: 12) {
             Text(label)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .appFont(size: 15, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
             Spacer(minLength: 8)
             Text(value)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .appFont(size: 15, weight: .semibold, design: .rounded)
                 .monospacedDigit()
                 .foregroundStyle(AppTheme.primaryText)
                 .multilineTextAlignment(.trailing)

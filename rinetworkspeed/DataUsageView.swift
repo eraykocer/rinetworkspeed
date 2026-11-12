@@ -90,17 +90,17 @@ struct DataUsageView: View {
         VStack(spacing: 6) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .bold))
+                    .appFont(size: 11, weight: .bold)
                     .foregroundStyle(color)
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .appFont(size: 11, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textCase(.uppercase)
             }
             Text(value)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .appFont(size: 18, weight: .bold, design: .rounded)
                 .monospacedDigit()
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .contentTransition(.numericText())
@@ -112,10 +112,10 @@ struct DataUsageView: View {
     private func axisLabel(for bytes: UInt64) -> String {
         let gb = Double(bytes) / (1024 * 1024 * 1024)
         if gb >= 1 {
-            return String(format: "%.1f GB", gb)
+            return gb.fixed(1) + " GB"
         }
         let mb = Double(bytes) / (1024 * 1024)
-        return String(format: "%.0f MB", mb)
+        return mb.fixed(0) + " MB"
     }
 }
 

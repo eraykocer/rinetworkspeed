@@ -24,13 +24,13 @@ enum MapDeviceType: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .router:  return "Router / Gateway"
-        case .phone:   return "Smartphone"
-        case .laptop:  return "Laptop / Desktop"
-        case .tablet:  return "Tablet"
-        case .tv:      return "Smart TV / Media"
-        case .iot:     return "IoT / Smart Device"
-        case .unknown: return "Unknown Device"
+        case .router:  return String(localized: "Router / Gateway")
+        case .phone:   return String(localized: "Smartphone")
+        case .laptop:  return String(localized: "Laptop / Desktop")
+        case .tablet:  return String(localized: "Tablet")
+        case .tv:      return String(localized: "Smart TV / Media")
+        case .iot:     return String(localized: "IoT / Smart Device")
+        case .unknown: return String(localized: "Unknown Device")
         }
     }
 
@@ -42,7 +42,7 @@ enum MapDeviceType: String, CaseIterable {
         case .tablet:  return Color(red: 234/255, green: 179/255, blue: 8/255)
         case .tv:      return Color(red: 249/255, green: 115/255, blue: 22/255)
         case .iot:     return Color(red: 239/255, green: 68/255,  blue: 68/255)
-        case .unknown: return Color.white.opacity(0.50)
+        case .unknown: return AppTheme.ink.opacity(0.50)
         }
     }
 }

@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import os
 
 enum SpeedTestState {
     case idle
@@ -21,16 +22,37 @@ enum SpeedTestState {
 struct SpeedTestResult: Codable, Identifiable {
     let id: UUID
     let date: Date
+    /// Bytes per second.
     let downloadSpeed: Double
     let uploadSpeed: Double
+    /// Milliseconds.
     let ping: Double
+    // Optional so results saved by earlier versions still decode.
+    var jitter: Double?
+    var connection: ConnectionKind?
+    var ssid: String?
+    var isp: String?
 
-    init(id: UUID = UUID(), date: Date, downloadSpeed: Double, uploadSpeed: Double, ping: Double) {
+    init(
+        id: UUID = UUID(),
+        date: Date,
+        downloadSpeed: Double,
+        uploadSpeed: Double,
+        ping: Double,
+        jitter: Double? = nil,
+        connection: ConnectionKind? = nil,
+        ssid: String? = nil,
+        isp: String? = nil
+    ) {
         self.id = id
         self.date = date
         self.downloadSpeed = downloadSpeed
         self.uploadSpeed = uploadSpeed
         self.ping = ping
+        self.jitter = jitter
+        self.connection = connection
+        self.ssid = ssid
+        self.isp = isp
     }
 }
 
@@ -213,7 +235,9 @@ final class SpeedTestManager: ObservableObject {
     @Published var finalDownload: Double = 0
     @Published var finalUpload: Double = 0
     @Published var ping: Double = 0
-    @Published var history: [SpeedTestResult] = []
+    @Published var jitter: Double = 0
+    /// Mirrors `SpeedTestHistoryStore`, newest first.
+    @Published private(set) var history: [SpeedTestResult] = []
 
     // MARK: Test configuration
 
@@ -233,7 +257,10 @@ final class SpeedTestManager: ObservableObject {
 
     // MARK: Private properties
 
-    private let historyKey = "speedTestHistory"
+    private let historyStore = SpeedTestHistoryStore.shared
+    private static let logger = Logger(subsystem: "com.rinetworkspeed.app", category: "SpeedTest")
+    /// Connection details captured while the test runs.
+    private var connectionContext: ConnectionContext?
     private var testTask: Task<Void, Never>?
     /// Monotonically increasing counter; stale catch‐blocks check this to avoid
     /// corrupting a newer test run.
@@ -250,7 +277,7 @@ final class SpeedTestManager: ObservableObject {
     // MARK: Init
 
     init() {
-        loadHistory()
+        historyStore.$results.assign(to: &$history)
     }
 
     // MARK: - Public API
@@ -266,10 +293,15 @@ final class SpeedTestManager: ObservableObject {
         testTask = Task { [weak self] in
             guard let self else { return }
 
+            // Runs alongside the test so it adds no time.
+            async let context = ConnectionContext.capture()
+
             do {
                 // ── Phase 1: Ping ──────────────────────────────────────
                 self.state = .pingTesting
-                self.ping = try await self.measurePing()
+                let latency = try await self.measurePing()
+                self.ping = latency.median
+                self.jitter = latency.jitter
                 try Task.checkCancellation()
 
                 // Brief pause so the user can read the ping result.
@@ -301,6 +333,7 @@ final class SpeedTestManager: ObservableObject {
                 try Task.checkCancellation()
 
                 // ── Done ───────────────────────────────────────────────
+                self.connectionContext = await context
                 self.stopDisplayTimer()
                 self.state = .finished
                 self.appendHistory()
@@ -315,6 +348,7 @@ final class SpeedTestManager: ObservableObject {
                     self.state = .idle
                 }
             } catch {
+                Self.logger.error("Speed test failed: \(error.localizedDescription, privacy: .public)")
                 if generation == self.testGeneration {
                     self.stopActiveStreams()
                     self.stopDisplayTimer()
@@ -338,16 +372,12 @@ final class SpeedTestManager: ObservableObject {
         }
     }
 
-    func deleteHistory(at offsets: IndexSet) {
-        for index in offsets.sorted(by: >) {
-            history.remove(at: index)
-        }
-        saveHistory()
+    func deleteHistory(ids: Set<UUID>) {
+        historyStore.delete(ids: ids)
     }
 
     func clearHistory() {
-        history.removeAll()
-        saveHistory()
+        historyStore.clear()
     }
 
     // MARK: - Private: Reset / Cleanup
@@ -363,6 +393,8 @@ final class SpeedTestManager: ObservableObject {
         finalDownload = 0
         finalUpload = 0
         ping = 0
+        jitter = 0
+        connectionContext = nil
 
         startDisplayTimer()
     }
@@ -377,7 +409,8 @@ final class SpeedTestManager: ObservableObject {
     /// Measures round-trip latency to the same server used for the transfer
     /// phases. The first request is discarded because it includes DNS, TCP
     /// and TLS setup; the median of the remaining samples is reported.
-    private func measurePing() async throws -> Double {
+    /// Median round trip and jitter (mean difference between consecutive samples), in ms.
+    private func measurePing() async throws -> (median: Double, jitter: Double) {
         let config = URLSessionConfiguration.ephemeral
         config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         config.urlCache = nil
@@ -405,8 +438,11 @@ final class SpeedTestManager: ObservableObject {
         }
 
         let sorted = results.sorted()
-        guard !sorted.isEmpty else { return 0 }
-        return sorted[sorted.count / 2]
+        guard !sorted.isEmpty else { return (0, 0) }
+
+        let deltas = zip(results.dropFirst(), results).map { abs($0 - $1) }
+        let jitter = deltas.isEmpty ? 0 : deltas.reduce(0, +) / Double(deltas.count)
+        return (sorted[sorted.count / 2], jitter)
     }
 
     // MARK: - Private: Transfer Phase
@@ -546,27 +582,25 @@ final class SpeedTestManager: ObservableObject {
             date: Date(),
             downloadSpeed: finalDownload,
             uploadSpeed: finalUpload,
-            ping: ping
+            ping: ping,
+            jitter: jitter,
+            connection: connectionContext?.kind,
+            ssid: connectionContext?.ssid,
+            isp: connectionContext?.isp
         )
 
-        history.insert(result, at: 0)
-        if history.count > 10 {
-            history = Array(history.prefix(10))
+        // Compare Wi-Fi with Wi-Fi and cellular with cellular; a cellular test
+        // is not a "drop" just because home Wi-Fi is faster.
+        let comparable = history.filter { earlier in
+            guard let kind = result.connection, let earlierKind = earlier.connection else { return true }
+            return kind == earlierKind
         }
-        saveHistory()
-    }
+        NotificationManager.shared.checkSpeedDrop(
+            latestDownload: result.downloadSpeed,
+            previousDownloads: comparable.map(\.downloadSpeed)
+        )
 
-    private func saveHistory() {
-        guard let data = try? JSONEncoder().encode(history) else { return }
-        UserDefaults.standard.set(data, forKey: historyKey)
-    }
-
-    private func loadHistory() {
-        guard let data = UserDefaults.standard.data(forKey: historyKey),
-              let stored = try? JSONDecoder().decode([SpeedTestResult].self, from: data) else {
-            history = []
-            return
-        }
-        history = stored
+        historyStore.add(result)
+        WidgetSharedStore.saveLastSpeedTest(result)
     }
 }

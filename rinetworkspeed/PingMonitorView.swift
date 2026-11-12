@@ -71,17 +71,17 @@ private extension ConnectionStatus {
         }
     }
 
-    /// Hero card gradient; shifts from green to red as latency degrades.
-    var heroGradient: [Color] {
+    /// Hero card color; shifts from green to red as latency degrades.
+    var heroTint: Color {
         switch self {
         case .excellent, .good:
-            return [AppTheme.ping, Color(red: 0.05, green: 0.52, blue: 0.62)]
+            return Color(red: 0.05, green: 0.52, blue: 0.62)
         case .fair:
-            return [Color(red: 0.85, green: 0.62, blue: 0.10), AppTheme.upload]
+            return Color(red: 0.80, green: 0.45, blue: 0.08)
         case .poor:
-            return [AppTheme.upload, Color(red: 0.86, green: 0.27, blue: 0.20)]
+            return Color(red: 0.86, green: 0.27, blue: 0.20)
         case .timeout:
-            return [AppTheme.danger, Color(red: 0.62, green: 0.12, blue: 0.22)]
+            return Color(red: 0.62, green: 0.12, blue: 0.22)
         }
     }
 }
@@ -213,7 +213,7 @@ private struct PingHeroCard: View {
     let onToggle: () -> Void
 
     var body: some View {
-        let gradient = monitor.status.heroGradient
+        let heroTint = monitor.status.heroTint
 
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .top) {
@@ -221,30 +221,30 @@ private struct PingHeroCard: View {
                     HStack(spacing: 8) {
                         PulseDot(isActive: monitor.isRunning)
                         Text(monitor.status.label)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.85))
+                            .appFont(size: 13, weight: .semibold, design: .rounded)
+                            .foregroundStyle(AppTheme.ink.opacity(0.85))
                             .textCase(.uppercase)
                     }
 
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(monitor.currentPing < 0 ? "--" : String(format: "%.0f", monitor.currentPing))
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
+                        Text(monitor.currentPing < 0 ? "--" : monitor.currentPing.fixed(0))
+                            .appFont(size: 56, weight: .bold, design: .rounded)
                             .monospacedDigit()
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.ink)
                             .contentTransition(.numericText())
                         Text("ms")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .appFont(size: 18, weight: .semibold, design: .rounded)
+                            .foregroundStyle(AppTheme.ink.opacity(0.7))
                     }
                 }
 
                 Spacer(minLength: 12)
 
                 Image(systemName: "waveform.path.ecg")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .appFont(size: 28, weight: .semibold)
+                    .foregroundStyle(AppTheme.ink)
                     .frame(width: 58, height: 58)
-                    .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
 
             HStack(spacing: 0) {
@@ -264,22 +264,22 @@ private struct PingHeroCard: View {
                         Text(monitor.isRunning ? "Stop" : "Start")
                     }
                 }
-                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: gradient))
+                .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: heroTint))
 
                 Text("Pinging \(hostText)...")
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.75))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .frame(maxWidth: .infinity)
             }
         }
-        .appHeroCard(colors: gradient)
+        .appHeroCard(tint: heroTint)
         .animation(.easeInOut(duration: 0.4), value: monitor.status)
     }
 
     private func pingValue(_ value: Double) -> String {
-        value <= 0 ? "--" : String(format: "%.0f", value)
+        value <= 0 ? "--" : value.fixed(0)
     }
 }
 
@@ -293,13 +293,13 @@ private struct PulseDot: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(.white, lineWidth: 2)
+                .stroke(AppTheme.ink, lineWidth: 2)
                 .frame(width: 10, height: 10)
                 .scaleEffect(pulseScale)
                 .opacity(isActive ? pulseOpacity : 0)
 
             Circle()
-                .fill(.white.opacity(isActive ? 1 : 0.45))
+                .fill(AppTheme.ink.opacity(isActive ? 1 : 0.45))
                 .frame(width: 8, height: 8)
         }
         .frame(width: 18, height: 18)
@@ -390,24 +390,28 @@ private struct PingStatsRows: View {
 
     var body: some View {
         AppRow(icon: "paperplane.fill", tint: AppTheme.download, title: "Sent") {
-            value("\(monitor.packetsSent)", color: .white)
+            value("\(monitor.packetsSent)", color: AppTheme.ink)
         }
         AppRowDivider()
         AppRow(icon: "xmark.octagon.fill", tint: AppTheme.danger, title: "Lost") {
-            value("\(monitor.packetsLost)", color: monitor.packetsLost > 0 ? AppTheme.danger : .white)
+            value("\(monitor.packetsLost)", color: monitor.packetsLost > 0 ? AppTheme.danger : AppTheme.ink)
         }
         AppRowDivider()
         AppRow(icon: "percent", tint: Color(red: 0.93, green: 0.30, blue: 0.60), title: "Packet Loss") {
             value(
-                String(format: "%.0f%%", monitor.packetLossPercent),
-                color: monitor.packetLossPercent > 0 ? AppTheme.danger : .white
+                (monitor.packetLossPercent / 100).formatted(.percent.precision(.fractionLength(0))),
+                color: monitor.packetLossPercent > 0 ? AppTheme.danger : AppTheme.ink
             )
+        }
+        AppRowDivider()
+        AppRow(icon: "waveform.path", tint: AppTheme.warning, title: "Jitter") {
+            value(monitor.jitter.fixed(1) + " ms", color: monitor.jitter > 30 ? AppTheme.warning : AppTheme.ink)
         }
     }
 
     private func value(_ text: String, color: Color) -> some View {
         Text(text)
-            .font(.system(size: 17, weight: .bold, design: .rounded))
+            .appFont(size: 17, weight: .bold, design: .rounded)
             .monospacedDigit()
             .foregroundStyle(color)
             .contentTransition(.numericText())

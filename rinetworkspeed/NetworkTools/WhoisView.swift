@@ -104,7 +104,7 @@ final class WhoisViewModel: ObservableObject {
             do {
                 data = try await fetchWhois(for: input)
             } catch {
-                errorMessage = "Lookup failed: \(error.localizedDescription)"
+                errorMessage = String(localized: "Lookup failed: \(error.localizedDescription)")
             }
             isLoading = false
         }
@@ -122,7 +122,7 @@ final class WhoisViewModel: ObservableObject {
 
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
             throw NSError(domain: "Whois", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode) — domain may not be registered or whois data unavailable."])
+                          userInfo: [NSLocalizedDescriptionKey: String(localized: "HTTP \(http.statusCode) — domain may not be registered or whois data unavailable.")])
         }
 
         let decoded = try JSONDecoder().decode(WhoisAPIResponse.self, from: data)
@@ -130,7 +130,7 @@ final class WhoisViewModel: ObservableObject {
 
         let ageString: String?
         if let age = dom?.estimated_domain_age {
-            ageString = "\(age) days (~\(age / 365) years)"
+            ageString = String(localized: "\(age) days (~\(age / 365) years)")
         } else {
             ageString = nil
         }
@@ -218,9 +218,9 @@ struct WhoisView: View {
                     Text("Query")
                 }
             }
-            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: accentDeep))
         }
-        .appHeroCard(colors: [accent, accentDeep])
+        .appHeroCard(tint: accentDeep)
     }
 
     // MARK: - Results
@@ -268,12 +268,12 @@ struct WhoisView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(data.domainName.uppercased())
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .appFont(size: 18, weight: .bold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                     .textSelection(.enabled)
                 if let reg = data.registrar {
                     Text(reg)
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .appFont(size: 13, weight: .medium, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                         .lineLimit(1)
                 }
@@ -300,7 +300,7 @@ struct WhoisView: View {
             FlowLayout(spacing: 6) {
                 ForEach(Array(statuses.enumerated()), id: \.offset) { _, status in
                     AppPill(text: "\(status.components(separatedBy: " ").first ?? status)",
-                            tint: .white.opacity(0.75))
+                            tint: AppTheme.ink.opacity(0.75))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -314,7 +314,7 @@ struct WhoisView: View {
                 HStack(spacing: 14) {
                     AppIconTile(systemName: "server.rack", tint: accent, size: 32)
                     Text(server.lowercased())
-                        .font(.system(size: 14, weight: .medium, design: .monospaced))
+                        .appFont(size: 14, weight: .medium, design: .monospaced)
                         .foregroundStyle(AppTheme.primaryText)
                         .textSelection(.enabled)
                         .lineLimit(1)
@@ -388,18 +388,18 @@ private struct ToolHeroHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
+                .appFont(size: 24, weight: .semibold)
+                .foregroundStyle(AppTheme.ink)
                 .frame(width: 52, height: 52)
-                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .appFont(size: 19, weight: .bold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -427,10 +427,10 @@ private struct ToolErrorCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                 Text(verbatim: message)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .appFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -457,7 +457,7 @@ private struct ToolLoadingCard: View {
                 .tint(tint)
                 .frame(width: 40, height: 40)
             Text(message)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
+                .appFont(size: 14, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
                 .lineLimit(2)
             Spacer(minLength: 0)
@@ -476,11 +476,11 @@ private struct KeyValueRow: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(label)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .appFont(size: 13, weight: .medium, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
                 .frame(width: 96, alignment: .leading)
             Text(verbatim: value)
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .appFont(size: 13, weight: .medium, design: .monospaced)
                 .foregroundStyle(AppTheme.primaryText)
                 .textSelection(.enabled)
                 .multilineTextAlignment(.leading)

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct MainTabView: View {
     // Held with @State (not @StateObject) so the root view does NOT subscribe to
@@ -17,10 +18,14 @@ struct MainTabView: View {
     @State private var speedTestManager = SpeedTestManager()
     @State private var pingMonitor = PingMonitor()
     private let notificationManager = NotificationManager.shared
+    private let router = AppRouter.shared
     @State private var selectedTab: Int = 0
+    /// Set when a widget, control, deep link or notification asks to run a speed test.
+    @State private var speedTestRequested = false
     @State private var isShowingSplash = true
     @State private var didStartSplashSequence = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
+    @AppStorage("appearance") private var appearance: AppAppearance = .system
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -35,7 +40,8 @@ struct MainTabView: View {
                         dataUsage: dataUsageMonitor,
                         speedTestManager: speedTestManager,
                         pingMonitor: pingMonitor,
-                        selectedTab: $selectedTab
+                        selectedTab: $selectedTab,
+                        speedTestRequested: $speedTestRequested
                     )
                 }
 
@@ -56,7 +62,6 @@ struct MainTabView: View {
                 }
             }
             .tabViewStyle(.sidebarAdaptable)
-            .tabBarMinimizeBehavior(.onScrollDown)
             .toolbarBackground(.visible, for: .tabBar)
             .modifier(TabBarMaterialModifier())
             // Lighter violet than AppTheme.accent so the selected tab stays readable on the dark bar.
@@ -68,8 +73,7 @@ struct MainTabView: View {
                     .zIndex(1)
             }
         }
-        // The whole UI is designed for a dark appearance only.
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(appearance.colorScheme)
         .fullScreenCover(
             isPresented: Binding(
                 get: { !hasCompletedOnboarding },
@@ -77,6 +81,16 @@ struct MainTabView: View {
             )
         ) {
             OnboardingView()
+        }
+        .onOpenURL { url in
+            router.handle(url: url)
+        }
+        .onReceive(router.$pendingDestination.compactMap { $0 }) { destination in
+            router.pendingDestination = nil
+            selectedTab = destination.tab
+            if destination == .speedTest {
+                speedTestRequested = true
+            }
         }
         .onAppear {
             monitor.start()
@@ -110,6 +124,8 @@ struct MainTabView: View {
             } else if newPhase == .background {
                 monitor.prepareForBackground()
                 dataUsageMonitor.stop()
+                // Let widgets pick up the latest usage counters.
+                WidgetSharedStore.reloadWidgets()
             }
         }
     }
@@ -128,6 +144,7 @@ private struct TabBarMaterialModifier: ViewModifier {
     func body(content: Content) -> some View {
         if #available(iOS 26.0, *) {
             content
+                .tabBarMinimizeBehavior(.onScrollDown)
                 .toolbarBackground(.clear, for: .tabBar)
         } else {
             content

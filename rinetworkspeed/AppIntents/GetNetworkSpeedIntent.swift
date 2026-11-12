@@ -24,9 +24,7 @@ struct GetNetworkSpeedIntent: AppIntent {
 
         let downStr = formatIntentSpeed(download)
         let upStr   = formatIntentSpeed(upload)
-        let dialog  = "Your download speed is \(downStr) and upload speed is \(upStr)."
-
-        return .result(dialog: IntentDialog(stringLiteral: dialog))
+        return .result(dialog: "Your download speed is \(downStr) and upload speed is \(upStr).")
     }
 
     // MARK: - Private

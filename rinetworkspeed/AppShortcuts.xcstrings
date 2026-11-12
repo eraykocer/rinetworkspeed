@@ -1,0 +1,106 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "How much data did I use today with ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "How much data did I use today with ${applicationName}",
+              "${applicationName} data usage",
+              "Show my data usage ${applicationName}"
+            ]
+          }
+        },
+        "tr" : {
+          "stringSet" : {
+            "state" : "needs_review",
+            "values" : [
+              "${applicationName} ile bugün ne kadar veri kullandım",
+              "${applicationName} veri kullanımı",
+              "${applicationName} veri kullanımımı göster"
+            ]
+          }
+        }
+      }
+    },
+    "Run a speed test with ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Run a speed test with ${applicationName}",
+              "${applicationName} speed test",
+              "Test my internet speed ${applicationName}"
+            ]
+          }
+        },
+        "tr" : {
+          "stringSet" : {
+            "state" : "needs_review",
+            "values" : [
+              "${applicationName} ile hız testi yap",
+              "${applicationName} hız testi",
+              "${applicationName} ile internet hızımı test et"
+            ]
+          }
+        }
+      }
+    },
+    "Show my speed with ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "Show my speed with ${applicationName}",
+              "What is my internet speed ${applicationName}",
+              "${applicationName} speed"
+            ]
+          }
+        },
+        "tr" : {
+          "stringSet" : {
+            "state" : "needs_review",
+            "values" : [
+              "${applicationName} ile hızımı göster",
+              "${applicationName} internet hızım ne",
+              "${applicationName} hız"
+            ]
+          }
+        }
+      }
+    },
+    "What is my ping with ${applicationName}" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "new",
+            "values" : [
+              "What is my ping with ${applicationName}",
+              "${applicationName} measure ping",
+              "My connection latency ${applicationName}"
+            ]
+          }
+        },
+        "tr" : {
+          "stringSet" : {
+            "state" : "needs_review",
+            "values" : [
+              "${applicationName} ile ping'im ne",
+              "${applicationName} ping ölç",
+              "${applicationName} bağlantı gecikmem"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -99,10 +99,10 @@ final class PortScannerViewModel: ObservableObject {
 
     func startScan() {
         let host = targetHost.trimmingCharacters(in: .whitespaces)
-        guard !host.isEmpty else { errorMessage = "Enter a target host."; return }
+        guard !host.isEmpty else { errorMessage = String(localized: "Enter a target host."); return }
 
         let ports = parsePorts()
-        guard !ports.isEmpty else { errorMessage = "Enter a valid port range or select a preset."; return }
+        guard !ports.isEmpty else { errorMessage = String(localized: "Enter a valid port range or select a preset."); return }
 
         isScanning = true
         results = []
@@ -326,9 +326,9 @@ struct PortScannerView: View {
                     Text(vm.isScanning ? "Stop Scan" : "Start Scan")
                 }
             }
-            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, colors: [accent, accentDeep]))
+            .buttonStyle(AppPrimaryButtonStyle(variant: .inverted, tint: accentDeep))
         }
-        .appHeroCard(colors: [accent, accentDeep])
+        .appHeroCard(tint: accentDeep)
     }
 
     // MARK: - Summary Section
@@ -357,12 +357,12 @@ struct PortScannerView: View {
     private func statCell(value: Int, label: LocalizedStringKey, color: Color) -> some View {
         VStack(spacing: 4) {
             Text(verbatim: "\(value)")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .appFont(size: 22, weight: .bold, design: .rounded)
                 .monospacedDigit()
                 .foregroundStyle(color)
                 .contentTransition(.numericText())
             Text(label)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .appFont(size: 11, weight: .semibold, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
                 .textCase(.uppercase)
         }
@@ -400,13 +400,13 @@ private struct PortRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(verbatim: String(result.port))
-                .font(.system(size: 15, weight: .bold, design: .monospaced))
+                .appFont(size: 15, weight: .bold, design: .monospaced)
                 .foregroundStyle(result.isOpen ? AppTheme.primaryText : AppTheme.tertiaryText)
                 .frame(width: 56, alignment: .leading)
 
             if !result.serviceName.isEmpty {
                 Text(verbatim: result.serviceName)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .appFont(size: 13, weight: .semibold, design: .rounded)
                     .foregroundStyle(result.isOpen ? accent : AppTheme.tertiaryText)
                     .lineLimit(1)
             }
@@ -414,13 +414,13 @@ private struct PortRow: View {
             Spacer(minLength: 8)
 
             if result.isOpen {
-                Text(verbatim: String(format: "%.0f ms", result.responseTime))
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                Text(verbatim: result.responseTime.fixed(0) + " ms")
+                    .appFont(size: 12, weight: .medium, design: .monospaced)
                     .foregroundStyle(AppTheme.secondaryText)
             }
 
             AppPill(text: result.isOpen ? "Open" : "Closed",
-                    tint: result.isOpen ? AppTheme.ping : .white.opacity(0.45))
+                    tint: result.isOpen ? AppTheme.ping : AppTheme.ink.opacity(0.45))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -438,18 +438,18 @@ private struct ToolHeroHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: icon)
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.white)
+                .appFont(size: 24, weight: .semibold)
+                .foregroundStyle(AppTheme.ink)
                 .frame(width: 52, height: 52)
-                .background(.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                .background(AppTheme.ink.opacity(0.16), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .appFont(size: 19, weight: .bold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink)
                 Text(subtitle)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.75))
+                    .appFont(size: 13, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -477,10 +477,10 @@ private struct ToolErrorCard: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.primaryText)
                 Text(verbatim: message)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .appFont(size: 13, weight: .regular, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
@@ -508,15 +508,15 @@ private struct HeroChip: View {
         HStack(spacing: 5) {
             if let icon {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .appFont(size: 11, weight: .semibold)
             }
             Text(verbatim: title)
-                .font(.system(size: 13, weight: .semibold, design: monospaced ? .monospaced : .rounded))
+                .appFont(size: 13, weight: .semibold, design: monospaced ? .monospaced : .rounded)
         }
-        .foregroundStyle(isSelected ? selectedTint : .white.opacity(0.85))
+        .foregroundStyle(isSelected ? selectedTint : AppTheme.ink.opacity(0.85))
         .padding(.horizontal, 13)
         .padding(.vertical, 8)
-        .background(Capsule().fill(isSelected ? Color.white : Color.black.opacity(0.22)))
+        .background(Capsule().fill(isSelected ? AppTheme.ink : Color.black.opacity(0.22)))
         .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 }

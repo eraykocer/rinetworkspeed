@@ -9,42 +9,9 @@ import SwiftUI
 import Combine
 import CoreLocation
 import Foundation
-import SystemConfiguration.CaptiveNetwork
+import NetworkExtension
 import Darwin
 import UIKit
-
-enum SignalStrength {
-    case excellent
-    case good
-    case fair
-    case poor
-
-    var title: String {
-        switch self {
-        case .excellent:
-            return "Mukemmel"
-        case .good:
-            return "Good"
-        case .fair:
-            return "Fair"
-        case .poor:
-            return "Zayif"
-        }
-    }
-
-    var color: Color {
-        switch self {
-        case .excellent:
-            return .green
-        case .good:
-            return .yellow
-        case .fair:
-            return .orange
-        case .poor:
-            return .red
-        }
-    }
-}
 
 private struct IPifyResponse: Decodable {
     let ip: String
@@ -60,9 +27,10 @@ private struct IPApiResponse: Decodable {
 final class WiFiInfoManager: NSObject, ObservableObject {
     @Published var ssid: String?
     @Published var bssid: String?
-    @Published var rssi: Int = -80
-    @Published var signalStrength: SignalStrength = .poor
-    @Published var frequencyBand: String = "5 GHz"
+    /// Security of the joined network (for example "WPA2 Personal").
+    /// iOS does not expose RSSI or the frequency band to regular apps, so
+    /// those values are intentionally not shown rather than guessed.
+    @Published var securityType: String?
     @Published var ipAddress: String?
     @Published var subnetMask: String?
     @Published var routerIP: String?
@@ -74,7 +42,6 @@ final class WiFiInfoManager: NSObject, ObservableObject {
     @Published var isRefreshing: Bool = false
 
     private let locationManager = CLLocationManager()
-    private let sharedDefaults = UserDefaults(suiteName: "group.rinetworkspeedapp")
 
     override init() {
         authorizationStatus = locationManager.authorizationStatus
@@ -86,21 +53,23 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
+        // Permission is requested only when the user opens the Wi-Fi details
+        // (see `requestLocationIfNeeded()`), never as a side effect of a refresh.
         authorizationStatus = locationManager.authorizationStatus
-        requestLocationIfNeeded()
 
         updateLocalNetworkDetails()
 
         guard hasLocationPermission else {
             ssid = nil
             bssid = nil
+            securityType = nil
             externalIP = nil
             ispName = nil
             natType = inferNATType(localIP: ipAddress, externalIP: nil)
             return
         }
 
-        updateCurrentWiFiNetwork()
+        await updateCurrentWiFiNetwork()
 
         async let externalIPRequest = fetchExternalIP()
         async let ispRequest = fetchISPInfo()
@@ -132,6 +101,10 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         UIApplication.shared.open(url)
     }
 
+    var canRequestLocation: Bool {
+        authorizationStatus == .notDetermined
+    }
+
     var hasLocationPermission: Bool {
         switch authorizationStatus {
         case .authorizedAlways, .authorizedWhenInUse:
@@ -141,21 +114,28 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         }
     }
 
-    private func updateCurrentWiFiNetwork() {
-        guard let interfaces = CNCopySupportedInterfaces() as? [String] else {
+    private func updateCurrentWiFiNetwork() async {
+        // Requires the "Access WiFi Information" entitlement and location permission.
+        guard let network = await NEHotspotNetwork.fetchCurrent() else {
             ssid = nil
             bssid = nil
+            securityType = nil
             return
         }
 
-        for interface in interfaces {
-            guard let info = CNCopyCurrentNetworkInfo(interface as CFString) as? [String: Any] else {
-                continue
-            }
+        ssid = network.ssid
+        bssid = network.bssid
+        securityType = Self.describe(network.securityType)
+    }
 
-            ssid = info[kCNNetworkInfoKeySSID as String] as? String
-            bssid = info[kCNNetworkInfoKeyBSSID as String] as? String
-            break
+    private static func describe(_ type: NEHotspotNetworkSecurityType) -> String? {
+        switch type {
+        case .open: return String(localized: "Open")
+        case .WEP: return "WEP"
+        case .personal: return String(localized: "WPA/WPA2/WPA3 Personal")
+        case .enterprise: return String(localized: "WPA/WPA2/WPA3 Enterprise")
+        case .unknown: return nil
+        @unknown default: return nil
         }
     }
 
@@ -165,15 +145,6 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         subnetMask = details.subnetMask
         routerIP = details.routerIP
         dnsServers = currentDNSServers()
-
-        let estimatedThroughput = max(
-            sharedDefaults?.double(forKey: "downloadSpeed") ?? 0,
-            sharedDefaults?.double(forKey: "uploadSpeed") ?? 0
-        ) / 1_048_576
-
-        rssi = estimatedRSSI(ipAddress: details.ipAddress, bandwidthMBps: estimatedThroughput)
-        signalStrength = signalStrength(for: rssi)
-        frequencyBand = estimatedFrequencyBand(rssi: rssi, bandwidthMBps: estimatedThroughput)
     }
 
     private func localInterfaceDetails() -> (ipAddress: String?, subnetMask: String?, routerIP: String?) {
@@ -262,41 +233,6 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         ].joined(separator: ".")
     }
 
-    private func estimatedRSSI(ipAddress: String?, bandwidthMBps: Double) -> Int {
-        if bandwidthMBps >= 120 {
-            return -45
-        } else if bandwidthMBps >= 70 {
-            return -56
-        } else if bandwidthMBps >= 30 {
-            return -67
-        } else if ipAddress != nil {
-            return -76
-        }
-        return -82
-    }
-
-    private func signalStrength(for rssi: Int) -> SignalStrength {
-        switch rssi {
-        case -55...0:
-            return .excellent
-        case -67 ... -56:
-            return .good
-        case -75 ... -68:
-            return .fair
-        default:
-            return .poor
-        }
-    }
-
-    private func estimatedFrequencyBand(rssi: Int, bandwidthMBps: Double) -> String {
-        if bandwidthMBps >= 120 || rssi >= -58 {
-            return "6 GHz"
-        } else if bandwidthMBps >= 45 || rssi >= -70 {
-            return "5 GHz"
-        }
-        return "2.4 GHz"
-    }
-
     private func currentDNSServers() -> [String] {
         guard let contents = try? String(contentsOfFile: "/etc/resolv.conf", encoding: .utf8) else {
             return []
@@ -311,6 +247,9 @@ final class WiFiInfoManager: NSObject, ObservableObject {
             }
     }
 
+    // The two lookups below are the only requests that send data to third
+    // parties (ipify.org and ipapi.co). They reveal the public IP address and
+    // are disclosed in the README and PrivacyInfo.xcprivacy.
     private func fetchExternalIP() async -> String? {
         guard let url = URL(string: "https://api.ipify.org?format=json") else { return nil }
 
@@ -337,18 +276,18 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         guard let localIP else { return nil }
 
         if isCarrierGradeNAT(localIP) {
-            return "Carrier NAT"
+            return String(localized: "Carrier NAT")
         }
 
         if let externalIP, externalIP == localIP {
-            return "Open NAT"
+            return String(localized: "Open NAT")
         }
 
         if isPrivateIPv4(localIP) {
-            return "Moderate NAT"
+            return String(localized: "Moderate NAT")
         }
 
-        return "Unknown"
+        return String(localized: "Unknown")
     }
 
     private func isPrivateIPv4(_ address: String) -> Bool {

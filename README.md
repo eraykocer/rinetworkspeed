@@ -1,31 +1,43 @@
 # RI Network Speed
 
-**A real-time network speed monitor for iPhone and Apple Watch, built entirely with SwiftUI.**
+**A real-time network speed monitor for iPhone, built entirely with SwiftUI.**
 
-RI Network Speed reads live byte counters directly from the system's network interfaces and turns them into a clean, always-up-to-date dashboard — no third-party SDKs, no background servers.
+RI Network Speed reads live byte counters directly from the system's network interfaces and turns them into a clean, always-up-to-date dashboard — no third-party SDKs, no backend of its own.
 
 ---
 
 ## Features
 
 ### Live Speed Dashboard
-- Real-time download and upload speeds, updated every 0.5 s (configurable)
+- Real-time download and upload speeds, updated every second (0.5 s, 1 s or 2 s in Settings)
 - Separate readouts for Wi-Fi (`en0`) and Cellular (`pdp_ip0`)
-- Smooth Catmull-Rom spline chart rendered entirely on the GPU via SwiftUI `Canvas` + `drawingGroup()` — no scroll jank
-- Connection details: IP address, Wi-Fi RSSI, and live latency
+- Smooth chart rendered entirely on the GPU via SwiftUI `Canvas` + `drawingGroup()` — no scroll jank
+- Graph tab covers 60 s to 30 min from memory, and 24 h / 7 days from per-minute summaries saved on disk (only the time the app was open, since iOS does not allow background measurement)
+- Connection details: IP address, gateway, DNS, Wi-Fi name and security type
+- iOS does not give apps the Wi-Fi signal strength (RSSI) or frequency band, so the app does not show them
 
 ### Speed Test
-- Full download → upload pipeline powered by Cloudflare's public speed endpoints
-- Adaptive file size: a 1 MB probe measures your line speed first, then selects a download target (10 MB – 200 MB) and upload target (5 MB – 100 MB) for an accurate ~10 s test
-- Rolling 2-second average window for smooth, jitter-free speed readings
-- Persistent history (last 10 results) stored in `UserDefaults`
+- Full ping → download → upload pipeline powered by Cloudflare's public speed endpoints
+- Time-boxed phases (10 s download, 8 s upload) with parallel streams; the first 2 s are excluded so TCP slow start does not drag the result down
+- Every result is kept (no cap) in a JSON file, with connection type, Wi-Fi name, provider and jitter
+- History screen with a trend chart, averages and filters by connection type and time range
+- A 0–100 score, a letter grade and a plain summary of what the connection handles (4K streaming, video calls, gaming…); the share card and PDF use the same grading
+- The provider name comes from `speed.cloudflare.com/meta`, the same service the test uses
 
 ### Ping Monitor
-- Continuous latency and packet-loss tracking with a live graph
+- Continuous latency, jitter and packet-loss tracking with a live graph
+- Latency is the TCP handshake time to port 443 of the chosen host (one network round trip, no TLS or server time)
 
 ### Data Usage
-- Per-session and today's cumulative usage for Wi-Fi and Cellular
+- Today's, weekly and monthly usage for Wi-Fi and Cellular
+- Cellular data limit tied to a monthly billing period with a configurable reset day
 - Exportable PDF reports
+
+### Accessibility, Languages and Appearance
+- Every text scales with Dynamic Type; side-by-side cards stack at accessibility sizes
+- VoiceOver labels for the speed cards, gauge, charts and results
+- English and Turkish via String Catalogs (`Localizable`, `InfoPlist`, `AppShortcuts` and the widget's catalog), including Siri phrases
+- System, light or dark appearance (Settings → General); flat colors only, no gradients
 
 ### Live Activity & Dynamic Island
 - Real-time download/upload speeds shown in the Dynamic Island and Lock Screen
@@ -33,20 +45,19 @@ RI Network Speed reads live byte counters directly from the system's network int
 - Push-token support for server-side updates; falls back to local-only if unavailable
 - Graceful background handling: the app requests a background task on suspension and tears down cleanly after a 25 s grace period
 
-### Home Screen Widgets
-- Small and medium WidgetKit widgets reading speeds from a shared `UserDefaults` App Group
-- Auto-refreshes every 15 minutes; the main app triggers an early reload whenever speeds change
+### Home Screen Widget and Control
+- Small and medium widget showing the last speed test and today's usage, read from a shared `UserDefaults` App Group
+- Widgets cannot measure live; the app reloads them after every speed test and when it goes to the background
+- A "Start Speed Test" control for Control Center, the Lock Screen and the Action button
+- Tapping the widget or the control opens the app and starts a test (`rinetworkspeed://speedtest`)
 
-### Apple Watch Companion
-- Glanceable speed readout on the watch face
-- Digital Crown switches between Download and Upload views with haptic feedback
-- Shows today's Wi-Fi and Cellular data usage
-- Tap to bring the iPhone app to the foreground via WatchConnectivity
-
-### Smart Notifications
-- Alerts for speed drops below a configurable threshold
-- Alerts for speed peaks above a configurable threshold
-- Disconnect / reconnect notifications
+### Notifications
+- Disconnect alerts
+- Speed drop alerts when a speed test is less than half of your recent typical result
+- Speed peak alerts above a configurable threshold
+- Cellular data limit warnings, once per billing period
+- Notification actions open the relevant screen (Usage, Graph or a new speed test)
+- iOS does not let the app run continuously in the background, so live alerts fire only while the app is open or shortly after it is backgrounded
 
 ---
 
@@ -58,24 +69,29 @@ rinetworkspeed/          ← iOS app target
 ├── SpeedTestManager.swift   Adaptive speed test pipeline (ping → download → upload)
 ├── PingMonitor.swift        Continuous latency tracking
 ├── DataUsageMonitor.swift   Cumulative byte counters per interface
-├── WiFiInfoManager.swift    SSID, RSSI, IP helpers
-├── NotificationManager.swift Speed-drop / peak / disconnect alerts
-├── WatchConnectivityManager.swift  Pushes live speeds to the watch
+├── WiFiInfoManager.swift    SSID, security type, IP helpers
+├── NotificationManager.swift Disconnect / speed / data limit alerts and action routing
+├── AppRouter.swift          Deep links, widget and notification navigation
+├── WidgetSharedStore.swift  Values shared with the widget extension
+├── SpeedTestHistoryStore.swift  Unlimited speed test history (JSON file)
+├── SpeedTestScoring.swift   Score, grade and use-case summary
+├── SpeedHistoryArchive.swift  Per-minute live speed summaries for 24 h / 7 days
+├── ConnectionContext.swift  Connection type, Wi-Fi name and provider for a test
 ├── PurchaseManager.swift    StoreKit subscription management
-└── Views/                   SwiftUI screens
+└── *View.swift              SwiftUI screens
 
-NetworkWidget/           ← WidgetKit extension
-NetworkSpeedWatch/       ← watchOS companion app
+NetworkWidget/           ← WidgetKit extension (status widget, control, Live Activity)
+NetworkSpeedWatch/       ← planned watchOS app, not part of the build (see its README)
 ```
 
 **Data flow**
 
 ```
-getifaddrs(3) → NetworkStatsMonitor (0.5 Hz)
+getifaddrs(3) → NetworkStatsMonitor (1 Hz by default)
     ├─► SwiftUI views (Combine / @Published)
-    ├─► UserDefaults App Group → WidgetKit extension
-    ├─► ActivityKit (1 Hz dedicated timer)
-    └─► WatchConnectivity → watchOS app
+    └─► ActivityKit (1 Hz dedicated timer)
+
+SpeedTestManager / DataUsageMonitor → UserDefaults App Group → WidgetKit extension
 ```
 
 ---
@@ -84,12 +100,11 @@ getifaddrs(3) → NetworkStatsMonitor (0.5 Hz)
 
 | Component | Minimum |
 |-----------|---------|
-| iOS       | 16.1    |
-| watchOS   | 9.0     |
-| Xcode     | 15.0    |
-| Swift     | 5.9     |
+| iOS       | 18.0    |
+| Xcode     | 26.0    |
+| Swift     | 5 language mode |
 
-Live Activities and Dynamic Island require a device running **iOS 16.2+**.
+The Liquid Glass tab bar behaviour is used on iOS 26 and later; earlier versions fall back to a material tab bar.
 
 ---
 
@@ -101,8 +116,8 @@ cd rinetworkspeed
 open rinetworkspeed.xcodeproj
 ```
 
-1. Select your development team in **Signing & Capabilities** for all three targets (`rinetworkspeed`, `NetworkWidget`, `NetworkSpeedWatch`).
-2. Update the App Group identifier (`group.com.rinetworkspeed`) in the entitlements files if you use a different bundle-ID prefix.
+1. Select your development team in **Signing & Capabilities** for both targets (`rinetworkspeed`, `NetworkWidgetExtension`).
+2. Update the App Group identifier (`group.rinetworkspeedapp`) in both entitlements files and in `WidgetSharedStore.swift` / `NetworkStatusWidget.swift` if you use a different bundle-ID prefix.
 3. Build and run on a real device — the simulator does not expose live network interface counters.
 
 > **Note:** The speed test uses Cloudflare's public endpoints (`speed.cloudflare.com`). No API key is required.
@@ -111,19 +126,24 @@ open rinetworkspeed.xcodeproj
 
 ## Privacy
 
-RI Network Speed reads **only local system counters** (`getifaddrs`) and makes outbound connections solely for:
-- Latency measurement (TCP connect to `8.8.8.8:53`)
-- Speed tests initiated explicitly by the user (`speed.cloudflare.com`)
+RI Network Speed has no analytics, no tracking and no backend of its own. Usage counters and test history stay on the device. It does make these network requests:
 
-No analytics, no tracking, no data leaves the device without user action.
+- **Speed tests** to `speed.cloudflare.com`, when you start a test.
+- **Ping** TCP connections to the host you choose in the Ping Monitor (default `1.1.1.1`).
+- **Provider name** from `speed.cloudflare.com/meta` during a speed test, to label the result in history.
+- **Public IP and ISP lookup** to `api.ipify.org` and `ipapi.co` when the Speed Test screen opens and location permission is granted (for the Wi-Fi details section). These services receive your public IP address, as every web request does, and return your public IP and provider name.
+
+Network tools (port scanner, traceroute, DNS lookup, SSL checker) contact the hosts you enter; WHOIS lookups go through `who-dat.as93.net`; the IP scanner and network map only probe your local network.
+
+The app and the widget extension each ship a `PrivacyInfo.xcprivacy` manifest declaring the required-reason APIs they use (UserDefaults, system boot time).
 
 ---
 
 ## Pro Features & Paywall
 
-The freemium layer is implemented with a `ProGateModifier` view modifier and a `PurchaseManager` (StoreKit). Gated features include: Speed Test, Ping Monitor, Widgets & Live Activity, Apple Watch, Smart Notifications, History Reports, and Data Limit alerts.
+The freemium layer is implemented with a `ProGateModifier` view modifier and a `PurchaseManager` (StoreKit 2). Gated features include: Speed Test, Ping Monitor, Widgets & Live Activity, Smart Notifications, History Reports, and Data Limit alerts.
 
-To build and test without a paid subscription, set `PurchaseManager.shared.isPro = true` in `rinetworkspeedApp.swift` during development.
+To work on gated screens without a purchase in a Debug build, add `-forceProAccess YES` to the scheme's launch arguments. Release builds always use the real StoreKit entitlements. To test purchases, use a StoreKit configuration file with the product IDs from `PurchaseManager.swift`.
 
 ---
 

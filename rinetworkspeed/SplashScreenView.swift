@@ -18,15 +18,9 @@ struct SplashScreenView: View {
             AppTheme.background
                 .ignoresSafeArea()
 
-            // Soft hero-gradient glow behind the icon.
+            // Soft accent glow behind the icon.
             Circle()
-                .fill(
-                    LinearGradient(
-                        colors: AppTheme.heroGradient,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(AppTheme.accent)
                 .frame(width: 280, height: 280)
                 .blur(radius: 90)
                 .opacity(isGlowing ? 0.45 : 0.28)
@@ -46,11 +40,12 @@ struct SplashScreenView: View {
 
                 VStack(spacing: 8) {
                     Text("Ri Network Speed")
-                        .font(.system(size: 30, weight: .bold, design: .rounded))
+                        .appFont(size: 30, weight: .bold, design: .rounded)
                         .foregroundStyle(AppTheme.primaryText)
+                        .multilineTextAlignment(.center)
 
                     Text("Real-time speed, ping & usage monitoring")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .appFont(size: 15, weight: .medium, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                         .multilineTextAlignment(.center)
                 }
@@ -88,14 +83,10 @@ private struct AppIconArtwork: View {
                     .scaledToFill()
             } else {
                 ZStack {
-                    LinearGradient(
-                        colors: AppTheme.heroGradient,
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    AppTheme.accent
 
                     Image(systemName: "speedometer")
-                        .font(.system(size: 50, weight: .bold))
+                        .appFont(size: 50, weight: .bold)
                         .foregroundStyle(.white)
                 }
             }

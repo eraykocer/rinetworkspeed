@@ -32,6 +32,10 @@ struct UsageView: View {
     @State private var selectedReportMonth: Date = Date()
     @State private var isGeneratingPDF = false
 
+    // Swift Charts shows series values verbatim in the legend, so they are localized here.
+    private static let wifiSeries = String(localized: "Wi-Fi")
+    private static let cellularSeries = String(localized: "Cellular")
+
     private let wifiColor = AppTheme.download
     private let cellularColor = AppTheme.upload
 
@@ -47,9 +51,16 @@ struct UsageView: View {
         dataUsage.monthlySummary()
     }
 
+    private var limitBytes: Double {
+        dataLimitGB * 1024 * 1024 * 1024
+    }
+
+    /// With a data limit the ring shows cellular usage in the current billing
+    /// period against the limit (a carrier plan is monthly and cellular-only);
+    /// without one it compares today against the 7-day daily average.
     private var progressTarget: Double {
         if dataLimitEnabled {
-            return dataLimitGB * 1024 * 1024 * 1024
+            return max(limitBytes, 1)
         }
 
         let weeklyTotal = Double(dataUsage.weeklyWifiBytes + dataUsage.weeklyCellularBytes)
@@ -57,16 +68,20 @@ struct UsageView: View {
         return max(average, 1)
     }
 
+    private var progressValue: Double {
+        dataLimitEnabled ? Double(dataUsage.periodCellularBytes) : Double(todayTotal)
+    }
+
     private var ringProgress: Double {
-        min(1, Double(todayTotal) / progressTarget)
+        min(1, progressValue / progressTarget)
     }
 
     private var chartBars: [UsageChartBar] {
         weeklySamples.flatMap { sample in
             let isToday = Calendar.current.isDateInToday(sample.date)
             return [
-                UsageChartBar(date: sample.date, label: weekdayLabel(for: sample.date), type: "WiFi", bytes: sample.wifiBytes, isToday: isToday),
-                UsageChartBar(date: sample.date, label: weekdayLabel(for: sample.date), type: "Cellular", bytes: sample.cellularBytes, isToday: isToday)
+                UsageChartBar(date: sample.date, label: weekdayLabel(for: sample.date), type: Self.wifiSeries, bytes: sample.wifiBytes, isToday: isToday),
+                UsageChartBar(date: sample.date, label: weekdayLabel(for: sample.date), type: Self.cellularSeries, bytes: sample.cellularBytes, isToday: isToday)
             ]
         }
     }
@@ -91,6 +106,9 @@ struct UsageView: View {
             }
             .appPageBackground()
             .navigationTitle("Data Usage")
+            .onChange(of: dataLimitResetDay) { _, _ in
+                dataUsage.recalculatePeriodTotals()
+            }
             .alert("Reset today's counter?", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset", role: .destructive) {
@@ -113,12 +131,12 @@ struct UsageView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Today's Total")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .appFont(size: 13, weight: .semibold, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                         .textCase(.uppercase)
 
                     Text(dataUsage.formatBytes(todayTotal))
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .appFont(size: 40, weight: .bold, design: .rounded)
                         .monospacedDigit()
                         .foregroundStyle(AppTheme.primaryText)
                         .lineLimit(1)
@@ -127,7 +145,7 @@ struct UsageView: View {
 
                     if dataLimitEnabled {
                         Text(limitMessage)
-                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .appFont(size: 13, weight: .medium, design: .rounded)
                             .foregroundStyle(isOverLimit ? AppTheme.danger : AppTheme.secondaryText)
                             .multilineTextAlignment(.leading)
                     }
@@ -138,7 +156,7 @@ struct UsageView: View {
                 VStack(spacing: 6) {
                     ZStack {
                         Circle()
-                            .stroke(.white.opacity(0.08), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                            .stroke(AppTheme.ink.opacity(0.08), style: StrokeStyle(lineWidth: 8, lineCap: .round))
 
                         Circle()
                             .trim(from: 0, to: ringProgress)
@@ -148,21 +166,23 @@ struct UsageView: View {
 
                         if isOverLimit {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 20, weight: .bold))
+                                .appFont(size: 20, weight: .bold)
                                 .foregroundStyle(AppTheme.danger)
                         } else {
                             Text(ringProgress, format: .percent.precision(.fractionLength(0)))
-                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .appFont(size: 15, weight: .bold, design: .rounded)
                                 .monospacedDigit()
                                 .foregroundStyle(AppTheme.primaryText)
                                 .contentTransition(.numericText())
                         }
                     }
                     .frame(width: 72, height: 72)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(dataLimitEnabled ? Text("Cellular data limit used") : Text("Today compared with your daily average"))
+                    .accessibilityValue(Text(ringProgress, format: .percent.precision(.fractionLength(0))))
 
-                    // Ring compares today against the data limit, or the 7-day average when no limit is set.
                     Text(dataLimitEnabled ? "of limit" : "of daily avg")
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .appFont(size: 11, weight: .medium, design: .rounded)
                         .foregroundStyle(AppTheme.tertiaryText)
                 }
             }
@@ -174,7 +194,7 @@ struct UsageView: View {
                 cellularColor: cellularColor
             )
 
-            HStack(spacing: 12) {
+            AppAdaptiveStack(spacing: 12) {
                 UsageHeroMetric(
                     icon: "wifi",
                     caption: "WiFi",
@@ -220,14 +240,14 @@ struct UsageView: View {
                     .annotation(position: .top, spacing: 4) {
                         if bar.isToday && selectedDay == nil {
                             Capsule()
-                                .fill(Color.white.opacity(0.18))
+                                .fill(AppTheme.ink.opacity(0.18))
                                 .frame(width: 24, height: 3)
                         }
                     }
                 }
                 .chartForegroundStyleScale([
-                    "WiFi": wifiColor,
-                    "Cellular": cellularColor
+                    Self.wifiSeries: wifiColor,
+                    Self.cellularSeries: cellularColor
                 ])
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .day)) { value in
@@ -287,11 +307,11 @@ struct UsageView: View {
                         Label(dataUsage.formatBytes(selectedDay.cellularBytes), systemImage: "antenna.radiowaves.left.and.right")
                             .foregroundStyle(cellularColor)
                     }
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .appFont(size: 13, weight: .semibold, design: .rounded)
                     .monospacedDigit()
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(AppTheme.ink.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
             }
             .padding(16)
@@ -329,7 +349,7 @@ struct UsageView: View {
             AppRow(
                 icon: "calendar.badge.clock",
                 tint: AppTheme.warning,
-                title: "Counter resets in \(dataUsage.daysUntilReset(resetDay: dataLimitResetDay)) days"
+                title: "Billing period resets in \(dataUsage.daysUntilReset(resetDay: dataLimitResetDay)) days"
             )
 
             AppRowDivider(leadingInset: 0)
@@ -341,7 +361,7 @@ struct UsageView: View {
                     Image(systemName: "arrow.counterclockwise")
                     Text("Reset")
                 }
-                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .appFont(size: 16, weight: .semibold, design: .rounded)
                 .foregroundStyle(AppTheme.danger)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
@@ -361,7 +381,7 @@ struct UsageView: View {
     private var pdfReportCard: some View {
         AppSection("PDF Report") {
             AppRow(icon: "doc.richtext.fill", tint: wifiColor, title: "Report Month") {
-                Picker("Ay", selection: $selectedReportMonth) {
+                Picker("Month", selection: $selectedReportMonth) {
                     ForEach(last6Months, id: \.self) { date in
                         Text(date.formatted(.dateTime.month(.wide).year()))
                             .tag(date)
@@ -379,7 +399,7 @@ struct UsageView: View {
             } label: {
                 HStack(spacing: 10) {
                     if isGeneratingPDF {
-                        ProgressView().tint(.white).scaleEffect(0.9)
+                        ProgressView().tint(AppTheme.ink).scaleEffect(0.9)
                     } else {
                         Image(systemName: "arrow.down.doc.fill")
                     }
@@ -428,11 +448,11 @@ struct UsageView: View {
     private var placeholderCard: some View {
         VStack(spacing: 14) {
             ProgressView()
-                .tint(.white.opacity(0.7))
+                .tint(AppTheme.ink.opacity(0.7))
                 .scaleEffect(1.2)
             Text("Collecting data...")
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.8))
+                .appFont(size: 17, weight: .semibold, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.8))
         }
         .frame(maxWidth: .infinity)
         .frame(height: 220)
@@ -440,12 +460,14 @@ struct UsageView: View {
     }
 
     private var isOverLimit: Bool {
-        dataLimitEnabled && Double(todayTotal) > progressTarget
+        dataLimitEnabled && Double(dataUsage.periodCellularBytes) > limitBytes
     }
 
     private var limitMessage: String {
-        let usedGB = Double(todayTotal) / (1024 * 1024 * 1024)
-        return String(format: "Used %.1f GB of your %.1f GB limit", usedGB, dataLimitGB)
+        let usedGB = Double(dataUsage.periodCellularBytes) / (1024 * 1024 * 1024)
+        let used = usedGB.formatted(.number.precision(.fractionLength(1)))
+        let limit = dataLimitGB.formatted(.number.precision(.fractionLength(1)))
+        return String(localized: "Cellular this period: \(used) of \(limit) GB")
     }
 
     private func legendItem(title: LocalizedStringKey, color: Color) -> some View {
@@ -454,14 +476,14 @@ struct UsageView: View {
                 .fill(color)
                 .frame(width: 8, height: 8)
             Text(title)
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .appFont(size: 12, weight: .semibold, design: .rounded)
                 .foregroundStyle(AppTheme.secondaryText)
         }
     }
 
     private func valueText(_ value: String) -> some View {
         Text(value)
-            .font(.system(size: 15, weight: .semibold, design: .rounded))
+            .appFont(size: 15, weight: .semibold, design: .rounded)
             .monospacedDigit()
             .foregroundStyle(AppTheme.primaryText)
             .contentTransition(.numericText())
@@ -469,8 +491,8 @@ struct UsageView: View {
 
     private static let weekdayFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE"
+        formatter.locale = .current
+        formatter.setLocalizedDateFormatFromTemplate("EEE")
         return formatter
     }()
 
@@ -481,9 +503,9 @@ struct UsageView: View {
     private func axisLabel(_ bytes: Double) -> String {
         let gb = bytes / (1024 * 1024 * 1024)
         if gb >= 1 {
-            return String(format: "%.1f GB", gb)
+            return gb.fixed(1) + " GB"
         }
-        return String(format: "%.0f MB", bytes / (1024 * 1024))
+        return (bytes / (1024 * 1024)).fixed(0) + " MB"
     }
 
     private func nearestDay(to date: Date) -> DailyUsageSample? {
@@ -505,19 +527,19 @@ private struct UsageHeroMetric: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 14, weight: .semibold))
+                .appFont(size: 14, weight: .semibold)
                 .foregroundStyle(tint)
                 .frame(width: 32, height: 32)
                 .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(caption)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .appFont(size: 11, weight: .semibold, design: .rounded)
                     .foregroundStyle(AppTheme.secondaryText)
                     .textCase(.uppercase)
 
                 Text(value)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .appFont(size: 16, weight: .bold, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
@@ -528,7 +550,7 @@ private struct UsageHeroMetric: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(AppTheme.ink.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 
@@ -551,7 +573,7 @@ private struct UsageSplitBar: View {
             let total = wifiBytes + cellularBytes
             HStack(spacing: total > 0 && wifiShare > 0 && wifiShare < 1 ? 3 : 0) {
                 if total == 0 {
-                    Capsule().fill(.white.opacity(0.08))
+                    Capsule().fill(AppTheme.ink.opacity(0.08))
                 } else {
                     if wifiBytes > 0 {
                         Capsule().fill(wifiColor)

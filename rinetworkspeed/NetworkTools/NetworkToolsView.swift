@@ -20,7 +20,7 @@ private enum NetworkTool: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
-    var name: LocalizedStringKey {
+    var name: LocalizedStringResource {
         switch self {
         case .ipScanner: "IP Scanner"
         case .networkMap: "Network Map"
@@ -32,7 +32,7 @@ private enum NetworkTool: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
-    var description: LocalizedStringKey {
+    var description: LocalizedStringResource {
         switch self {
         case .ipScanner: "Discover devices on local network"
         case .networkMap: "Visually discover devices on the local network"
@@ -44,8 +44,14 @@ private enum NetworkTool: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// English keywords plus the tool's name and description in the
+    /// current language, so search works in any localization.
+    var searchText: String {
+        "\(keywords) \(String(localized: name)) \(String(localized: description))".lowercased()
+    }
+
     /// Plain-text keywords used for search filtering.
-    var searchTerms: String {
+    private var keywords: String {
         switch self {
         case .ipScanner: "ip scanner devices lan local network"
         case .networkMap: "network map devices topology local"
@@ -115,7 +121,7 @@ struct NetworkToolsView: View {
 
     @State private var searchText = ""
 
-    private let backgroundColor = Color(red: 10 / 255, green: 10 / 255, blue: 10 / 255)
+    private let backgroundColor = AppTheme.background
 
     private var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
@@ -124,14 +130,14 @@ struct NetworkToolsView: View {
     private func filteredTools(in section: NetworkToolSection) -> [NetworkTool] {
         guard isSearching else { return section.tools }
         let query = searchText.lowercased()
-        return section.tools.filter { $0.searchTerms.contains(query) }
+        return section.tools.filter { $0.searchText.contains(query) }
     }
 
     var body: some View {
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 28) {
-                    if !isSearching || "speed test download upload ping".contains(searchText.lowercased()) {
+                    if !isSearching || "speed test download upload ping \(String(localized: "Speed Test"))".lowercased().contains(searchText.lowercased()) {
                         NavigationLink {
                             SpeedTestView(manager: speedTestManager)
                         } label: {
@@ -194,10 +200,10 @@ private struct SpeedTestHeroCard: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Speed Test")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .appFont(size: 24, weight: .bold, design: .rounded)
+                        .foregroundStyle(AppTheme.ink)
                     Text("Measure ping, download and upload speed")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .appFont(size: 13, weight: .medium, design: .rounded)
                         .foregroundStyle(AppTheme.secondaryText)
                         .multilineTextAlignment(.leading)
                 }
@@ -205,7 +211,7 @@ private struct SpeedTestHeroCard: View {
                 Spacer(minLength: 12)
 
                 Image(systemName: "gauge.with.dots.needle.67percent")
-                    .font(.system(size: 28, weight: .semibold))
+                    .appFont(size: 28, weight: .semibold)
                     .foregroundStyle(tint)
                     .frame(width: 56, height: 56)
                     .background(tint.opacity(0.15), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -214,7 +220,7 @@ private struct SpeedTestHeroCard: View {
             if let last = manager.history.first {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Last result · \(last.date, format: .relative(presentation: .named))")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .appFont(size: 11, weight: .semibold, design: .rounded)
                         .foregroundStyle(AppTheme.tertiaryText)
                         .textCase(.uppercase)
 
@@ -223,10 +229,10 @@ private struct SpeedTestHeroCard: View {
                         divider
                         metric(icon: "arrow.up", tint: AppTheme.upload, value: mbps(last.uploadSpeed), unit: "Mbps")
                         divider
-                        metric(icon: "timer", tint: AppTheme.ping, value: String(format: "%.0f", last.ping), unit: "ms")
+                        metric(icon: "timer", tint: AppTheme.ping, value: last.ping.fixed(0), unit: "ms")
                     }
                     .padding(.vertical, 12)
-                    .background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(AppTheme.ink.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
 
@@ -235,7 +241,7 @@ private struct SpeedTestHeroCard: View {
                     .symbolEffect(.variableColor.iterative, isActive: isRunning)
                 Text(isRunning ? "Test in progress" : (manager.history.isEmpty ? "Start Test" : "Test Again"))
             }
-            .font(.system(size: 16, weight: .semibold, design: .rounded))
+            .appFont(size: 16, weight: .semibold, design: .rounded)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
@@ -254,22 +260,22 @@ private struct SpeedTestHeroCard: View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .bold))
+                    .appFont(size: 11, weight: .bold)
                     .foregroundStyle(tint)
                 Text(value)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .appFont(size: 17, weight: .bold, design: .rounded)
                     .monospacedDigit()
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(AppTheme.ink)
             Text(unit)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .foregroundStyle(.white.opacity(0.6))
+                .appFont(size: 11, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.6))
         }
         .frame(maxWidth: .infinity)
     }
 
     private func mbps(_ bytesPerSecond: Double) -> String {
-        String(format: "%.1f", bytesPerSecond * 8 / 1_000_000)
+        (bytesPerSecond * 8 / 1_000_000).fixed(1)
     }
 }
 
@@ -282,8 +288,8 @@ private struct ToolSectionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.5))
+                .appFont(size: 13, weight: .semibold, design: .rounded)
+                .foregroundStyle(AppTheme.ink.opacity(0.5))
                 .textCase(.uppercase)
                 .padding(.leading, 4)
 
@@ -296,15 +302,15 @@ private struct ToolSectionView: View {
 
                     if tool != tools.last {
                         Divider()
-                            .overlay(.white.opacity(0.08))
+                            .overlay(AppTheme.ink.opacity(0.08))
                             .padding(.leading, 70)
                     }
                 }
             }
-            .background(Color.white.opacity(0.05))
+            .background(AppTheme.cardFill)
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(.white.opacity(0.08), lineWidth: 1)
+                    .stroke(AppTheme.ink.opacity(0.08), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
@@ -319,25 +325,18 @@ private struct ToolRow: View {
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: tool.icon)
-                .font(.system(size: 18, weight: .semibold))
+                .appFont(size: 18, weight: .semibold)
                 .foregroundStyle(.white)
                 .frame(width: 40, height: 40)
-                .background(
-                    LinearGradient(
-                        colors: [tool.tint, tool.tint.opacity(0.6)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 11, style: .continuous)
-                )
+                .background(tool.tint, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(tool.name)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
+                    .foregroundStyle(AppTheme.ink)
                 Text(tool.description)
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.55))
+                    .appFont(size: 12, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.ink.opacity(0.55))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
             }
@@ -345,8 +344,8 @@ private struct ToolRow: View {
             Spacer(minLength: 8)
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.3))
+                .appFont(size: 13, weight: .semibold)
+                .foregroundStyle(AppTheme.ink.opacity(0.3))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -367,7 +366,7 @@ private struct PressableButtonStyle: ButtonStyle {
 private struct RowButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .background(configuration.isPressed ? Color.white.opacity(0.08) : Color.clear)
+            .background(configuration.isPressed ? AppTheme.ink.opacity(0.08) : Color.clear)
     }
 }
 
