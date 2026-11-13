@@ -28,37 +28,37 @@ struct NetworkMapView: View {
     private let heroTint = Color(red: 0.08, green: 0.45, blue: 0.52)
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if showList {
-                    ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
-                            heroCard
-                            NetworkMapListView(manager: manager, selectedDevice: $selectedDevice)
-                        }
-                        .padding(.horizontal, AppTheme.pagePadding)
-                        .padding(.top, 8)
-                        .padding(.bottom, 32)
-                    }
-                } else {
-                    // Map mode stays non-scrolling so pan/zoom gestures own the canvas.
-                    VStack(spacing: 16) {
+        // Pushed inside the Tools tab NavigationStack; a nested stack here
+        // broke navigation (the screen failed to open or crashed on device).
+        Group {
+            if showList {
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
                         heroCard
-                        mapCard
+                        NetworkMapListView(manager: manager, selectedDevice: $selectedDevice)
                     }
                     .padding(.horizontal, AppTheme.pagePadding)
                     .padding(.top, 8)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 32)
                 }
+            } else {
+                // Map mode stays non-scrolling so pan/zoom gestures own the canvas.
+                VStack(spacing: 16) {
+                    heroCard
+                    mapCard
+                }
+                .padding(.horizontal, AppTheme.pagePadding)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .appPageBackground()
-            .navigationTitle("Network Map")
-            .navigationBarTitleDisplayMode(.large)
-            .toolReport(manager) { $0.reportText }
-            .sheet(item: $selectedDevice) { device in
-                MapDeviceDetailSheet(device: device, manager: manager)
-            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .appPageBackground()
+        .navigationTitle("Network Map")
+        .navigationBarTitleDisplayMode(.large)
+        .toolReport(manager) { $0.reportText }
+        .sheet(item: $selectedDevice) { device in
+            MapDeviceDetailSheet(device: device, manager: manager)
         }
         .appPageBackground()
         .task {

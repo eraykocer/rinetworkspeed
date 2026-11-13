@@ -50,12 +50,14 @@ struct WidgetSnapshot {
     let todayUsage: Usage?
     /// Nil when the stored billing period has already ended.
     let period: Period?
+    /// Widgets are a Pro feature; free users see an upgrade message.
+    var isPro = true
 
     static let suiteName = "group.rinetworkspeedapp"
 
     static func load(now: Date = Date()) -> WidgetSnapshot {
         guard let defaults = UserDefaults(suiteName: suiteName) else {
-            return WidgetSnapshot(lastTest: nil, todayUsage: nil, period: nil)
+            return WidgetSnapshot(lastTest: nil, todayUsage: nil, period: nil, isPro: false)
         }
 
         var lastTest: SpeedTest?
@@ -89,7 +91,12 @@ struct WidgetSnapshot {
             )
         }
 
-        return WidgetSnapshot(lastTest: lastTest, todayUsage: todayUsage, period: period)
+        return WidgetSnapshot(
+            lastTest: lastTest,
+            todayUsage: todayUsage,
+            period: period,
+            isPro: defaults.bool(forKey: "widgetIsPro")
+        )
     }
 
     static let preview = WidgetSnapshot(
@@ -163,6 +170,8 @@ enum WidgetFormat {
 
     static let speedTestURL = URL(string: "rinetworkspeed://speedtest")
     static let usageURL = URL(string: "rinetworkspeed://usage")
+    /// Settings holds the upgrade card for free users.
+    static let settingsURL = URL(string: "rinetworkspeed://settings")
 }
 
 // MARK: - Speed Widget
@@ -172,9 +181,15 @@ struct NetworkStatusWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: NetworkStatusProvider()) { entry in
-            SpeedWidgetView(entry: entry)
+            Group {
+                if entry.snapshot.isPro {
+                    SpeedWidgetView(entry: entry)
+                } else {
+                    ProUpsellWidgetView()
+                }
+            }
                 .containerBackground(for: .widget) { WidgetPalette.background }
-                .widgetURL(WidgetFormat.speedTestURL)
+                .widgetURL(entry.snapshot.isPro ? WidgetFormat.speedTestURL : WidgetFormat.settingsURL)
         }
         .configurationDisplayName("Speed Test")
         .description("Your last speed test. Tap to run a new test.")
@@ -324,9 +339,15 @@ struct DataUsageWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: NetworkStatusProvider()) { entry in
-            DataUsageWidgetView(entry: entry)
+            Group {
+                if entry.snapshot.isPro {
+                    DataUsageWidgetView(entry: entry)
+                } else {
+                    ProUpsellWidgetView()
+                }
+            }
                 .containerBackground(for: .widget) { WidgetPalette.background }
-                .widgetURL(WidgetFormat.usageURL)
+                .widgetURL(entry.snapshot.isPro ? WidgetFormat.usageURL : WidgetFormat.settingsURL)
         }
         .configurationDisplayName("Data Usage")
         .description("Cellular usage against your monthly limit, or today's usage.")
@@ -436,6 +457,49 @@ private struct UsageSummary: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Upsell
+
+/// Shown by every widget size to users without Pro. Tapping opens Settings,
+/// where the upgrade card is.
+struct ProUpsellWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+
+    var body: some View {
+        switch family {
+        case .accessoryInline:
+            Label("ri Pro", systemImage: "lock.fill")
+        case .accessoryCircular:
+            ZStack {
+                AccessoryWidgetBackground()
+                Image(systemName: "lock.fill")
+            }
+            .accessibilityLabel(Text("Requires ri Pro"))
+        case .accessoryRectangular:
+            VStack(alignment: .leading, spacing: 2) {
+                Label("ri Pro", systemImage: "lock.fill")
+                    .font(.headline)
+                    .widgetAccentable()
+                Text("Open the app to upgrade.")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        default:
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: "lock.fill")
+                    .font(.system(.title3, weight: .semibold))
+                    .foregroundStyle(WidgetPalette.accent)
+                Spacer(minLength: 0)
+                Text("Widgets are part of Pro")
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+                Text("Open the app to upgrade.")
+                    .font(.system(.caption, design: .rounded, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 

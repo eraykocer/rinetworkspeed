@@ -198,7 +198,7 @@ struct SettingsView: View {
                     .labelsHidden()
                     .tint(AppTheme.ping)
             }
-            .proGated(feature: .widget)
+            .proGated(feature: .widgets)
         }
     }
 
@@ -287,11 +287,7 @@ struct SettingsView: View {
 
     private var notificationsSection: some View {
         AppSection("Notifications") {
-            if purchaseManager.isPro {
-                NotificationsSettingsView()
-            } else {
-                proLockedRow(feature: .notifications)
-            }
+            NotificationsSettingsView()
         }
     }
 
@@ -379,25 +375,6 @@ struct SettingsView: View {
         Image(systemName: "arrow.up.right")
             .appFont(size: 13, weight: .semibold)
             .foregroundStyle(AppTheme.ink.opacity(0.3))
-    }
-
-    private func proLockedRow(feature: ProFeature) -> some View {
-        Button { showingPaywall = true } label: {
-            AppRow(
-                icon: feature.systemImage,
-                tint: AppTheme.accent,
-                title: LocalizedStringKey(feature.rawValue),
-                subtitle: "Unlock all features"
-            ) {
-                HStack(spacing: 8) {
-                    AppPill(text: "Pro")
-                    Image(systemName: "lock.fill")
-                        .appFont(size: 13, weight: .semibold)
-                        .foregroundStyle(AppTheme.ink.opacity(0.3))
-                }
-            }
-        }
-        .buttonStyle(AppRowButtonStyle())
     }
 
     private var speedUnitBinding: Binding<Bool> {

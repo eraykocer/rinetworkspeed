@@ -34,7 +34,12 @@ final class PurchaseManager: ObservableObject {
     static let shared = PurchaseManager()
 
     // MARK: - Published State
-    @Published var isPro: Bool = false
+    @Published var isPro: Bool = false {
+        // Widgets show an upgrade message for free users.
+        didSet { if isPro != oldValue { WidgetSharedStore.saveProStatus(isPro) } }
+    }
+    /// Length of the annual plan's free trial, when the user is eligible for it.
+    @Published private(set) var annualTrialPeriod: Product.SubscriptionPeriod?
     @Published var offerings: AppOfferings?
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -55,6 +60,7 @@ final class PurchaseManager: ObservableObject {
 
         guard !proAccessForced else {
             isPro = true
+            WidgetSharedStore.saveProStatus(true)
             return
         }
 
@@ -95,6 +101,14 @@ final class PurchaseManager: ObservableObject {
                 lifetime: products.first(where: { $0.id == "rinetworkspeed.pro.lifetime" })
             )
             offerings = AppOfferings(current: offering)
+
+            annualTrialPeriod = nil
+            if let subscription = offering.annual?.subscription,
+               let offer = subscription.introductoryOffer,
+               offer.paymentMode == .freeTrial,
+               await subscription.isEligibleForIntroOffer {
+                annualTrialPeriod = offer.period
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -173,6 +187,16 @@ final class PurchaseManager: ObservableObject {
         }
 
         isPro = hasActivePro
+    }
+
+    /// How much cheaper the annual plan is than twelve monthly payments (0.33 = 33 %).
+    var annualSavings: Double? {
+        guard let monthly = offerings?.current?.monthly?.price,
+              let annual = offerings?.current?.annual?.price,
+              monthly > 0 else { return nil }
+        let yearOfMonthly = NSDecimalNumber(decimal: monthly * 12).doubleValue
+        let savings = 1 - NSDecimalNumber(decimal: annual).doubleValue / yearOfMonthly
+        return savings > 0.05 ? savings : nil
     }
 
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {

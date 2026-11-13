@@ -100,6 +100,9 @@ struct PricingCard: View {
 // MARK: - Paywall View
 
 struct PaywallView: View {
+    /// The locked feature the user tapped, shown first and highlighted.
+    var highlightedFeature: ProFeature?
+
     @ObservedObject private var purchaseManager = PurchaseManager.shared
     @Environment(\.dismiss) private var dismiss
 
@@ -155,7 +158,13 @@ struct PaywallView: View {
                     Text("ri Pro")
                         .appFont(size: 34, weight: .heavy, design: .rounded)
                         .foregroundStyle(AppTheme.ink)
-                    Text("Monitor your network at full power")
+                    Group {
+                        if let highlightedFeature {
+                            Text("Unlock \(Text(highlightedFeature.title)) and everything else in Pro")
+                        } else {
+                            Text("Monitor your network at full power")
+                        }
+                    }
                         .appFont(size: 15, weight: .medium, design: .rounded)
                         .foregroundStyle(AppTheme.ink.opacity(0.8))
                         .multilineTextAlignment(.leading)
@@ -197,21 +206,52 @@ struct PaywallView: View {
 
     // MARK: - Features
 
+    /// The tapped feature comes first so the user sees what they came for.
+    private var orderedFeatures: [ProFeature] {
+        guard let highlightedFeature else { return ProFeature.allCases }
+        return [highlightedFeature] + ProFeature.allCases.filter { $0 != highlightedFeature }
+    }
+
     private var featuresSection: some View {
         AppSection("Pro features") {
-            let features = ProFeature.allCases
-            ForEach(features, id: \.rawValue) { feature in
-                AppRow(icon: feature.systemImage, tint: feature.paywallTint, title: LocalizedStringKey(feature.rawValue)) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .appFont(size: 18, weight: .semibold)
-                        .foregroundStyle(AppTheme.ping)
-                }
+            let features = orderedFeatures
+            ForEach(features) { feature in
+                featureRow(feature, isHighlighted: feature == highlightedFeature)
 
                 if feature != features.last {
                     AppRowDivider()
                 }
             }
         }
+    }
+
+    private func featureRow(_ feature: ProFeature, isHighlighted: Bool) -> some View {
+        HStack(spacing: 14) {
+            AppIconTile(systemName: feature.systemImage, tint: feature.paywallTint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(feature.title)
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(feature.subtitle)
+                    .appFont(size: 12, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "checkmark.circle.fill")
+                .appFont(size: 18, weight: .semibold)
+                .foregroundStyle(AppTheme.ping)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(isHighlighted ? AppTheme.accent.opacity(0.12) : Color.clear)
+        .overlay(alignment: .leading) {
+            if isHighlighted {
+                Rectangle().fill(AppTheme.accent).frame(width: 3)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Pricing
@@ -239,31 +279,59 @@ struct PaywallView: View {
         }
     }
 
+    private static let annualIndex = 1
+
     private func buildPlans() -> [PricingPlan] {
         let offering = purchaseManager.offerings?.current
+        // The annual plan is the one to choose: show the saving and the trial on it.
+        var annualBadge = String(localized: "Best Value")
+        if let savings = purchaseManager.annualSavings {
+            annualBadge = String(localized: "Save \(savings.formatted(.percent.precision(.fractionLength(0))))")
+        }
+        var annualPeriod = String(localized: "/ year")
+        if let trial = purchaseManager.annualTrialPeriod {
+            annualPeriod = Self.trialText(trial) + " · " + annualPeriod
+        }
+
         return [
             PricingPlan(
                 title:   String(localized: "Monthly"),
                 badge:   nil,
-                price:   offering?.monthly?.displayPrice ?? "₺49,99",
+                // No made-up price when the App Store products could not be loaded.
+                price:   offering?.monthly?.displayPrice ?? "—",
                 period:  String(localized: "/ month"),
                 product: offering?.monthly
             ),
             PricingPlan(
                 title:   String(localized: "Annual"),
-                badge:   String(localized: "Most Popular"),
-                price:   offering?.annual?.displayPrice ?? "₺299,99",
-                period:  String(localized: "/ year"),
+                badge:   annualBadge,
+                price:   offering?.annual?.displayPrice ?? "—",
+                period:  annualPeriod,
                 product: offering?.annual
             ),
             PricingPlan(
                 title:   String(localized: "Lifetime"),
                 badge:   nil,
-                price:   offering?.lifetime?.displayPrice ?? "₺599,99",
-                period:  String(localized: "Forever"),
+                price:   offering?.lifetime?.displayPrice ?? "—",
+                period:  String(localized: "One-time purchase"),
                 product: offering?.lifetime
             )
         ]
+    }
+
+    /// "7-day free trial", "1-month free trial", ...
+    static func trialText(_ period: Product.SubscriptionPeriod) -> String {
+        switch period.unit {
+        case .day: return String(localized: "\(period.value)-day free trial")
+        case .week: return String(localized: "\(period.value * 7)-day free trial")
+        case .month: return String(localized: "\(period.value)-month free trial")
+        case .year: return String(localized: "\(period.value)-year free trial")
+        @unknown default: return String(localized: "Free trial")
+        }
+    }
+
+    private var selectedPlanHasTrial: Bool {
+        selectedIndex == Self.annualIndex && purchaseManager.annualTrialPeriod != nil
     }
 
     // MARK: - CTA
@@ -280,8 +348,14 @@ struct PaywallView: View {
             } label: {
                 ZStack {
                     // Keeps the button height stable while loading
-                    Text("Get Started")
-                        .opacity(purchaseManager.isLoading ? 0 : 1)
+                    Group {
+                        if selectedPlanHasTrial {
+                            Text("Start Free Trial")
+                        } else {
+                            Text("Continue")
+                        }
+                    }
+                    .opacity(purchaseManager.isLoading ? 0 : 1)
                     if purchaseManager.isLoading {
                         ProgressView().tint(AppTheme.ink)
                     }
@@ -290,8 +364,21 @@ struct PaywallView: View {
                 .padding(.vertical, 2)
             }
             .buttonStyle(AppPrimaryButtonStyle())
-            .disabled(purchaseManager.isLoading)
+            .disabled(purchaseManager.isLoading || buildPlans()[selectedIndex].product == nil)
             .shadow(color: AppTheme.accent.opacity(0.35), radius: 12, x: 0, y: 6)
+
+            if selectedPlanHasTrial, let trial = purchaseManager.annualTrialPeriod,
+               let price = purchaseManager.offerings?.current?.annual?.displayPrice {
+                Text("\(Self.trialText(trial)), then \(price) per year. Cancel anytime in Settings at least a day before it ends.")
+                    .appFont(size: 12, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .multilineTextAlignment(.center)
+            } else if buildPlans().allSatisfy({ $0.product == nil }) && !purchaseManager.isLoading {
+                Text("Plans could not be loaded. Check your connection and try again.")
+                    .appFont(size: 12, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .multilineTextAlignment(.center)
+            }
 
             if let message = purchaseManager.errorMessage {
                 Label {
@@ -355,12 +442,12 @@ struct PaywallView: View {
 private extension ProFeature {
     var paywallTint: Color {
         switch self {
-        case .widget:        return AppTheme.accent
-        case .speedTest:     return AppTheme.download
-        case .pingMonitor:   return AppTheme.ping
-        case .notifications: return AppTheme.danger
-        case .history:       return Color(red: 0.20, green: 0.75, blue: 0.99)
-        case .dataLimit:     return AppTheme.upload
+        case .widgets:          return AppTheme.accent
+        case .unlimitedHistory: return Color(red: 0.20, green: 0.75, blue: 0.99)
+        case .reports:          return AppTheme.danger
+        case .extendedGraph:    return AppTheme.download
+        case .networkTools:     return AppTheme.ping
+        case .dataLimit:        return AppTheme.upload
         }
     }
 }

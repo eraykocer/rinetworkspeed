@@ -25,6 +25,9 @@ private enum NetworkTool: String, CaseIterable, Identifiable, Hashable {
 
     var id: String { rawValue }
 
+    /// The troubleshooter stays free; the other tools are part of Pro.
+    var isFree: Bool { self == .troubleshooter }
+
     var name: LocalizedStringResource {
         switch self {
         case .troubleshooter: "Troubleshooter"
@@ -169,7 +172,7 @@ struct NetworkToolsView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     if !isSearching || "speed test download upload ping \(String(localized: "Speed Test"))".lowercased().contains(searchText.lowercased()) {
                         NavigationLink {
-                            SpeedTestView(manager: speedTestManager)
+                            SpeedTestView(manager: speedTestManager, embedsInNavigationStack: false)
                         } label: {
                             SpeedTestHeroCard(manager: speedTestManager)
                         }
@@ -196,7 +199,8 @@ struct NetworkToolsView: View {
         }
         .onReceive(AppRouter.shared.$requestedTool.compactMap { $0 }) { raw in
             AppRouter.shared.requestedTool = nil
-            if let tool = NetworkTool(rawValue: raw) {
+            // Deep links and notifications must not open a locked tool.
+            if let tool = NetworkTool(rawValue: raw), tool.isFree || PurchaseManager.shared.isPro {
                 path = [tool]
             }
         }
@@ -324,6 +328,7 @@ private struct SpeedTestHeroCard: View {
 private struct ToolSectionView: View {
     let title: LocalizedStringKey
     let tools: [NetworkTool]
+    @ObservedObject private var purchaseManager = PurchaseManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -335,10 +340,19 @@ private struct ToolSectionView: View {
 
             VStack(spacing: 0) {
                 ForEach(tools) { tool in
-                    NavigationLink(value: tool) {
-                        ToolRow(tool: tool)
+                    let isLocked = !tool.isFree && !purchaseManager.isPro
+                    if isLocked {
+                        NavigationLink(value: tool) {
+                            ToolRow(tool: tool, isLocked: true)
+                        }
+                        .buttonStyle(RowButtonStyle())
+                        .proGated(feature: .networkTools)
+                    } else {
+                        NavigationLink(value: tool) {
+                            ToolRow(tool: tool, isLocked: false)
+                        }
+                        .buttonStyle(RowButtonStyle())
                     }
-                    .buttonStyle(RowButtonStyle())
 
                     if tool != tools.last {
                         Divider()
@@ -361,6 +375,7 @@ private struct ToolSectionView: View {
 
 private struct ToolRow: View {
     let tool: NetworkTool
+    var isLocked = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -382,6 +397,10 @@ private struct ToolRow: View {
             }
 
             Spacer(minLength: 8)
+
+            if isLocked {
+                ProBadge()
+            }
 
             Image(systemName: "chevron.right")
                 .appFont(size: 13, weight: .semibold)

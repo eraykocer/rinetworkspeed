@@ -22,7 +22,6 @@ struct ContentView: View {
     @AppStorage("liveActivityEnabled") private var liveActivityEnabled: Bool = true
     @State private var showingSpeedTest = false
     @State private var showingPingMonitor = false
-    @State private var showingPaywall = false
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -58,9 +57,6 @@ struct ContentView: View {
         .onChange(of: speedTestRequested) { _, isRequested in
             if isRequested { startRequestedSpeedTest() }
         }
-        .fullScreenCover(isPresented: $showingPaywall) {
-            PaywallView()
-        }
         .onChange(of: liveActivityEnabled) { _, isEnabled in
             withAnimation(.easeInOut(duration: 0.3)) {
                 if isEnabled {
@@ -77,11 +73,6 @@ struct ContentView: View {
     private func startRequestedSpeedTest() {
         guard speedTestRequested else { return }
         speedTestRequested = false
-
-        guard PurchaseManager.shared.isPro else {
-            showingPaywall = true
-            return
-        }
 
         showingPingMonitor = false
         showingSpeedTest = true
@@ -184,7 +175,6 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(AppRowButtonStyle())
-            .proGated(feature: .speedTest)
 
             AppRowDivider()
 
@@ -201,7 +191,6 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(AppRowButtonStyle())
-            .proGated(feature: .pingMonitor)
         }
     }
 
@@ -262,7 +251,7 @@ private struct HomeLiveSpeedSection: View {
                     .accessibilityLabel(liveActivityEnabled ? Text("Stop Live Activity") : Text("Start Live Activity"))
             }
             .buttonStyle(.plain)
-            .proGated(feature: .widget)
+            .proGated(feature: .widgets)
         }
         .padding(18)
         .premiumCardStyle()

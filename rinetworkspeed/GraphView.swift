@@ -72,6 +72,7 @@ struct GraphView: View {
     // monitor themselves, so per-tick history updates only re-render them.
     let monitor: NetworkStatsMonitor
     @AppStorage("graphRange") private var selectedRange: GraphRange = .lastMinute
+    @ObservedObject private var purchaseManager = PurchaseManager.shared
 
     var body: some View {
         NavigationStack {
@@ -95,19 +96,23 @@ struct GraphView: View {
                             .padding(.trailing, 4)
                         }
 
-                        if selectedRange.isArchived {
+                        if selectedRange.isArchived && !purchaseManager.isPro {
+                            ProLockedCard(feature: .extendedGraph)
+                        } else if selectedRange.isArchived {
                             ArchiveChartCard(monitor: monitor, range: selectedRange)
                         } else {
                             GraphChartCard(monitor: monitor, range: selectedRange)
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        AppSectionHeader("Statistics")
-                        if selectedRange.isArchived {
-                            ArchiveStatsGrid(monitor: monitor, range: selectedRange)
-                        } else {
-                            GraphStatsGrid(monitor: monitor, range: selectedRange)
+                    if !(selectedRange.isArchived && !purchaseManager.isPro) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            AppSectionHeader("Statistics")
+                            if selectedRange.isArchived {
+                                ArchiveStatsGrid(monitor: monitor, range: selectedRange)
+                            } else {
+                                GraphStatsGrid(monitor: monitor, range: selectedRange)
+                            }
                         }
                     }
 

@@ -1,5 +1,7 @@
 # RI Network Speed — Improvement Roadmap
 
+**Status: complete (2026-11-13).** All four phases are implemented. Scheduled speed tests were dropped by decision, and Wake-on-LAN still needs Apple's multicast networking entitlement before it can send packets on a device.
+
 Based on a full review of the codebase on 2026-11-12 (about 12k lines of Swift).
 
 The foundation is solid: the speed test engine, the design system and the network tool set are in good shape. The main problem to solve before adding features is that the app promises several things it does not actually do. The plan is therefore split into four phases, and Phase 0 comes first.
@@ -46,6 +48,8 @@ Status: implemented on 2026-11-12, except scheduled speed tests, which were drop
 7. **Small tools.** Wake-on-LAN, subnet calculator, favorite hosts list, share and copy for tool output.
 
 ## Phase 3 — Growth and revenue
+
+Status: implemented on 2026-11-13. Free: speed test, live speed, data usage, latest tests, Ping Monitor, troubleshooter and notifications. Pro: widgets and Live Activity, unlimited history, reports, 24-hour and 7-day graphs, advanced network tools and data limit alerts. 38 unit tests cover usage deltas, billing periods, scoring, plan comparison, the review prompt policy, subnet math and Wake-on-LAN packets.
 
 - **Free and Pro split.** Even the speed test is Pro today. Make the speed test and live speed free. Move widgets, scheduled tests, unlimited history, PDF and advanced tools to Pro.
 - **Paywall.** Add a free trial and emphasize the annual plan. When the user taps a locked feature, highlight that feature.

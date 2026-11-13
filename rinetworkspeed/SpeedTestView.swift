@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import StoreKit
 
 // MARK: - SpeedometerView
 
@@ -323,6 +324,8 @@ private struct PhaseStepperView: View {
 
 struct SpeedTestView: View {
     @ObservedObject var manager: SpeedTestManager
+    @ObservedObject private var purchaseManager = PurchaseManager.shared
+    @Environment(\.requestReview) private var requestReview
     @StateObject private var wifiInfoManager = WiFiInfoManager()
     @State private var animatePulse = false
     @State private var isNetworkDetailsExpanded = false
@@ -344,51 +347,16 @@ struct SpeedTestView: View {
     @AppStorage("gaugeMaxSpeed") private var gaugeMaxSpeed: Double = 1_000
     private let gaugeScaleOptions: [Double] = [250, 500, 1_000]
 
+    /// False when pushed onto an existing NavigationStack (Tools tab);
+    /// nesting a second stack there breaks navigation.
+    var embedsInNavigationStack = true
+
     var body: some View {
-        NavigationStack {
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
-                    VStack(spacing: 14) {
-                        // ── Hero gauge (with phase stepper while testing) ──
-                        speedometerSection
-
-                        // ── Live metrics row ─────────────────────────────
-                        if isTesting || manager.state == .finished {
-                            liveMetricsRow
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
-
-                        // ── Control button ───────────────────────────────
-                        controlButton
-                    }
-
-                    // ── Result cards (after test) ────────────────────────
-                    if manager.state == .finished {
-                        VStack(spacing: 14) {
-                            resultCards
-                            shareCardButton
-                        }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-
-                    // ── History ──────────────────────────────────────────
-                    historySection
-
-                    // ── WiFi Details ─────────────────────────────────────
-                    if manager.state == .finished {
-                        networkDetailsSection
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
-                .padding(.horizontal, AppTheme.pagePadding)
-                .padding(.top, 8)
-                .padding(.bottom, 32)
-                .animation(.spring(response: 0.45, dampingFraction: 0.85), value: manager.state)
-            }
-            .appPageBackground()
-            .navigationTitle("Speed Test")
-            .navigationDestination(isPresented: $showingHistory) {
-                SpeedTestHistoryView(manager: manager)
+        Group {
+            if embedsInNavigationStack {
+                NavigationStack { page }
+            } else {
+                page
             }
         }
         .appPageBackground()
@@ -423,6 +391,7 @@ struct SpeedTestView: View {
         .onChange(of: manager.displayUploadSpeed)   { _, _ in updateNeedle() }
         .onChange(of: manager.state) { _, newState in
             if newState == .finished {
+                askForReviewIfAppropriate()
                 // Return needle to 0 smoothly
                 withAnimation(.interpolatingSpring(stiffness: 20, damping: 8)) {
                     needleProgress = 0
@@ -433,6 +402,53 @@ struct SpeedTestView: View {
                     needleProgress = 0
                 }
             }
+        }
+    }
+
+    private var page: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
+                VStack(spacing: 14) {
+                    // ── Hero gauge (with phase stepper while testing) ──
+                    speedometerSection
+
+                    // ── Live metrics row ─────────────────────────────
+                    if isTesting || manager.state == .finished {
+                        liveMetricsRow
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    // ── Control button ───────────────────────────────
+                    controlButton
+                }
+
+                // ── Result cards (after test) ────────────────────────
+                if manager.state == .finished {
+                    VStack(spacing: 14) {
+                        resultCards
+                        shareCardButton
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                // ── History ──────────────────────────────────────────
+                historySection
+
+                // ── WiFi Details ─────────────────────────────────────
+                if manager.state == .finished {
+                    networkDetailsSection
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .padding(.horizontal, AppTheme.pagePadding)
+            .padding(.top, 8)
+            .padding(.bottom, 32)
+            .animation(.spring(response: 0.45, dampingFraction: 0.85), value: manager.state)
+        }
+        .appPageBackground()
+        .navigationTitle("Speed Test")
+        .navigationDestination(isPresented: $showingHistory) {
+            SpeedTestHistoryView(manager: manager)
         }
     }
 
@@ -767,15 +783,21 @@ struct SpeedTestView: View {
                                 subtitle: "Trend, averages and filters"
                             ) {
                                 HStack(spacing: 8) {
-                                    Text(verbatim: "\(manager.history.count)")
-                                        .appFont(size: 15, weight: .semibold, design: .rounded)
-                                        .monospacedDigit()
-                                        .foregroundStyle(AppTheme.secondaryText)
+                                    if purchaseManager.isPro {
+                                        Text(verbatim: "\(manager.history.count)")
+                                            .appFont(size: 15, weight: .semibold, design: .rounded)
+                                            .monospacedDigit()
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                    } else {
+                                        ProBadge()
+                                    }
                                     AppChevron()
                                 }
                             }
                         }
                         .buttonStyle(AppRowButtonStyle())
+                        // Free users see their latest tests here; the full history is Pro.
+                        .proGated(feature: .unlimitedHistory)
                     }
                 }
                 .appCard(padding: nil)
@@ -890,6 +912,18 @@ struct SpeedTestView: View {
         case .uploadTesting:      return .upload
         case .finished:           return nil
         case .failed:             return nil
+        }
+    }
+
+    /// After a good result, occasionally ask for an App Store rating (see `ReviewPromptPolicy`).
+    private func askForReviewIfAppropriate() {
+        let policy = ReviewPromptStore.policy()
+        guard policy.shouldPrompt(afterScore: currentScore.value, currentVersion: ReviewPromptStore.currentVersion) else { return }
+        ReviewPromptStore.recordPrompt()
+        Task {
+            // Let the result cards appear first.
+            try? await Task.sleep(for: .seconds(2))
+            requestReview()
         }
     }
 

@@ -20,6 +20,7 @@ private struct UsageChartBar: Identifiable {
 
 struct UsageView: View {
     @ObservedObject var dataUsage: DataUsageMonitor
+    @ObservedObject private var purchaseManager = PurchaseManager.shared
     /// Only read when generating the PDF report; not observed to avoid re-rendering during speed tests.
     let speedTestManager: SpeedTestManager
     @AppStorage("dataLimitEnabled") private var dataLimitEnabled: Bool = false
@@ -404,10 +405,14 @@ struct UsageView: View {
                         Image(systemName: "arrow.down.doc.fill")
                     }
                     Text(isGeneratingPDF ? "Generating..." : "Generate Report")
+                    if !purchaseManager.isPro {
+                        ProBadge()
+                    }
                 }
             }
             .buttonStyle(AppPrimaryButtonStyle())
             .disabled(isGeneratingPDF)
+            .proGated(feature: .reports)
             .padding(16)
         }
     }

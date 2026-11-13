@@ -92,12 +92,32 @@
         }
       }
     },
+    "Open the app to upgrade.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yükseltmek için uygulamayı açın."
+          }
+        }
+      }
+    },
     "Opens RiNetwork and starts a speed test.": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
             "value": "RiNetwork'ü açar ve bir hız testi başlatır."
+          }
+        }
+      }
+    },
+    "Requires ri Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ri Pro gerektirir"
           }
         }
       }
@@ -142,6 +162,16 @@
         }
       }
     },
+    "Widgets are part of Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget'lar Pro'nun parçasıdır"
+          }
+        }
+      }
+    },
     "Your last speed test and today's data usage. Tap to run a new test.": {
       "extractionState": "stale",
       "localizations": {
@@ -169,6 +199,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "ms"
+          }
+        }
+      }
+    },
+    "ri Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ri Pro"
           }
         }
       }

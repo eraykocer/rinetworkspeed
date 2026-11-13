@@ -602,5 +602,6 @@ final class SpeedTestManager: ObservableObject {
 
         historyStore.add(result)
         WidgetSharedStore.saveLastSpeedTest(result)
+        ReviewPromptStore.recordSuccessfulTest()
     }
 }

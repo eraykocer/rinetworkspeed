@@ -22,6 +22,9 @@ struct MainTabView: View {
     @State private var selectedTab: Int = 0
     /// Set when a widget, control, deep link or notification asks to run a speed test.
     @State private var speedTestRequested = false
+    #if DEBUG
+    @State private var debugPaywallFeature = UserDefaults.standard.string(forKey: "debugPaywall").flatMap(ProFeature.init(rawValue:))
+    #endif
     @State private var isShowingSplash = true
     @State private var didStartSplashSequence = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding: Bool = false
@@ -82,6 +85,12 @@ struct MainTabView: View {
         ) {
             OnboardingView()
         }
+        #if DEBUG
+        // UI review helper: launch with `-debugPaywall widgets` (any ProFeature raw value).
+        .fullScreenCover(item: $debugPaywallFeature) { feature in
+            PaywallView(highlightedFeature: feature)
+        }
+        #endif
         .onOpenURL { url in
             router.handle(url: url)
         }

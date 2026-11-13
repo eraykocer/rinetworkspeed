@@ -165,7 +165,20 @@ The app and the widget extension each ship a `PrivacyInfo.xcprivacy` manifest de
 
 ## Pro Features & Paywall
 
-The freemium layer is implemented with a `ProGateModifier` view modifier and a `PurchaseManager` (StoreKit 2). Gated features include: Speed Test, Ping Monitor, Widgets & Live Activity, Smart Notifications, History Reports, and Data Limit alerts.
+The freemium layer is implemented with `ProFeature`, a `proGated(feature:)` view modifier, `ProLockedCard` and a `PurchaseManager` (StoreKit 2).
+
+| Free | Pro |
+|------|-----|
+| Speed test and live speed | Widgets and Live Activity |
+| Data usage (today, week, month) | Unlimited test history with trends, filters and per-network averages |
+| The latest tests on the speed test screen | PDF usage report and ISP report |
+| Ping Monitor | 24-hour and 7-day graphs |
+| Connection troubleshooter | Advanced network tools (IP scanner, network map, Wi-Fi survey, traceroute, port scanner, DNS, SSL, Whois, subnet calculator, Wake-on-LAN) |
+| Notifications | Data limit alerts |
+
+Tapping a locked feature opens the paywall with that feature listed first. The annual plan shows its saving against twelve monthly payments, and its free trial when the product has an introductory offer the user is eligible for (configured in App Store Connect). Widgets show an upgrade message to free users.
+
+After a successful, good speed test (grade C or better) the app may ask for an App Store rating: only after three successful tests, at most once per app version and at least 120 days apart (`ReviewPromptPolicy`).
 
 To work on gated screens without a purchase in a Debug build, add `-forceProAccess YES` to the scheme's launch arguments. Release builds always use the real StoreKit entitlements. To test purchases, use a StoreKit configuration file with the product IDs from `PurchaseManager.swift`.
 

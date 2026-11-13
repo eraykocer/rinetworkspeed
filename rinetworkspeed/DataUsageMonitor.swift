@@ -35,7 +35,7 @@ final class DataUsageMonitor: ObservableObject {
     /// on reboot, so usage is accumulated from deltas between samples rather
     /// than by subtracting a fixed daily baseline (which got stuck at 0 after
     /// a wrap or reboot because the current value dropped below the baseline).
-    private struct RawCounters: Codable {
+    struct RawCounters: Codable, Equatable {
         let bootTime: TimeInterval
         let wifiIn: UInt32
         let wifiOut: UInt32
@@ -200,7 +200,7 @@ final class DataUsageMonitor: ObservableObject {
 
     private func refreshUsage() {
         let current = currentRawCounters()
-        let delta = usageDelta(from: loadLastRawCounters(), to: current)
+        let delta = Self.usageDelta(from: loadLastRawCounters(), to: current)
         saveLastRawCounters(current)
 
         let todayKey = dateKey(for: Date())
@@ -233,7 +233,8 @@ final class DataUsageMonitor: ObservableObject {
             limitEnabled: defaults.bool(forKey: "dataLimitEnabled")
         )
 
-        if defaults.bool(forKey: "dataLimitEnabled") {
+        // Data limit alerts are a Pro feature.
+        if defaults.bool(forKey: "dataLimitEnabled") && PurchaseManager.shared.isPro {
             let usedGB = Double(periodCellularBytes) / 1_073_741_824
             let limitGB = max(defaults.double(forKey: "dataLimitGB"), 0)
             notificationManager.checkDataLimit(
@@ -262,7 +263,7 @@ final class DataUsageMonitor: ObservableObject {
     /// Bytes transferred between two samples. Within the same boot session a
     /// wrapping 32-bit subtraction handles counter overflow; after a reboot the
     /// counters restarted from zero, so the current value is the delta.
-    private func usageDelta(from last: RawCounters?, to current: RawCounters) -> (wifi: UInt64, cellular: UInt64) {
+    nonisolated static func usageDelta(from last: RawCounters?, to current: RawCounters) -> (wifi: UInt64, cellular: UInt64) {
         guard let last else { return (0, 0) }
 
         guard abs(last.bootTime - current.bootTime) < 1 else {

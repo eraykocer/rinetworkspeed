@@ -31,6 +31,7 @@ enum WidgetSharedStore {
         static let periodEnd = "widgetPeriodEnd"
         static let limitGB = "widgetLimitGB"
         static let limitEnabled = "widgetLimitEnabled"
+        static let isPro = "widgetIsPro"
     }
 
     private static var defaults: UserDefaults? {
@@ -60,6 +61,11 @@ enum WidgetSharedStore {
         defaults.set(periodEnd.timeIntervalSince1970, forKey: Key.periodEnd)
         defaults.set(limitGB, forKey: Key.limitGB)
         defaults.set(limitEnabled, forKey: Key.limitEnabled)
+    }
+
+    static func saveProStatus(_ isPro: Bool) {
+        defaults?.set(isPro, forKey: Key.isPro)
+        reloadWidgets()
     }
 
     /// Usage is written every few seconds, so widgets are reloaded only when

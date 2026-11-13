@@ -67,6 +67,22 @@
         }
       }
     },
+    "%@, then %@ per year. Cancel anytime in Settings at least a day before it ends.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, then %2$@ per year. Cancel anytime in Settings at least a day before it ends."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, ardından yıllık %2$@. Bitiminden en az bir gün önce Ayarlar'dan istediğiniz zaman iptal edebilirsiniz."
+          }
+        }
+      }
+    },
     "%@.1–254": {
       "localizations": {
         "tr": {
@@ -307,6 +323,36 @@
         }
       }
     },
+    "%lld-day free trial": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld günlük ücretsiz deneme"
+          }
+        }
+      }
+    },
+    "%lld-month free trial": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld aylık ücretsiz deneme"
+          }
+        }
+      }
+    },
+    "%lld-year free trial": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld yıllık ücretsiz deneme"
+          }
+        }
+      }
+    },
     "-%llds": {
       "localizations": {
         "tr": {
@@ -383,6 +429,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 sn"
+          }
+        }
+      }
+    },
+    "24-Hour & 7-Day Graphs": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "24 Saatlik ve 7 Günlük Grafikler"
           }
         }
       }
@@ -583,6 +639,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Adres Türü"
+          }
+        }
+      }
+    },
+    "Advanced Network Tools": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelişmiş Ağ Araçları"
           }
         }
       }
@@ -849,6 +915,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "En İyi Nokta"
+          }
+        }
+      }
+    },
+    "Best Value": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En Avantajlı"
           }
         }
       }
@@ -1323,6 +1399,16 @@
         }
       }
     },
+    "Continue": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devam Et"
+          }
+        }
+      }
+    },
     "Could not connect. Please check your network connection.": {
       "localizations": {
         "tr": {
@@ -1529,6 +1615,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Veri Limiti"
+          }
+        }
+      }
+    },
+    "Data Limit Alerts": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Veri Limiti Uyarıları"
           }
         }
       }
@@ -1999,6 +2095,16 @@
         }
       }
     },
+    "Every test with trends, filters and per-network averages": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eğilimler, filtreler ve ağ bazlı ortalamalarla tüm testler"
+          }
+        }
+      }
+    },
     "Everything at a Glance": {
       "localizations": {
         "tr": {
@@ -2254,6 +2360,7 @@
       }
     },
     "Forever": {
+      "extractionState": "stale",
       "localizations": {
         "tr": {
           "stringUnit": {
@@ -2279,6 +2386,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Biçim Hatası"
+          }
+        }
+      }
+    },
+    "Free trial": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ücretsiz deneme"
           }
         }
       }
@@ -2344,6 +2461,7 @@
       }
     },
     "Get Started": {
+      "extractionState": "stale",
       "localizations": {
         "tr": {
           "stringUnit": {
@@ -2603,6 +2721,16 @@
         }
       }
     },
+    "IP scanner, network map, Wi-Fi survey, port scanner and more": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "IP tarayıcı, ağ haritası, Wi-Fi taraması, port tarayıcı ve daha fazlası"
+          }
+        }
+      }
+    },
     "IP/prefix, e.g. 192.168.1.10/24": {
       "localizations": {
         "tr": {
@@ -2833,6 +2961,16 @@
         }
       }
     },
+    "Last test and data usage on the Home Screen, Lock Screen and Dynamic Island": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son test ve veri kullanımı Ana Ekran'da, Kilitli Ekran'da ve Dynamic Island'da"
+          }
+        }
+      }
+    },
     "Latency": {
       "localizations": {
         "tr": {
@@ -2939,6 +3077,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Canlı gecikme ve paket kaybı"
+          }
+        }
+      }
+    },
+    "Live speed history beyond the last 30 minutes": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 30 dakikanın ötesinde canlı hız geçmişi"
           }
         }
       }
@@ -3309,7 +3457,18 @@
         }
       }
     },
+    "Monthly usage report and a speed report for your provider": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aylık kullanım raporu ve sağlayıcınız için hız raporu"
+          }
+        }
+      }
+    },
     "Most Popular": {
+      "extractionState": "stale",
       "localizations": {
         "tr": {
           "stringUnit": {
@@ -3949,6 +4108,16 @@
         }
       }
     },
+    "One-time purchase": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tek seferlik satın alma"
+          }
+        }
+      }
+    },
     "Online gaming": {
       "localizations": {
         "tr": {
@@ -4081,6 +4250,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diğer"
+          }
+        }
+      }
+    },
+    "PDF & ISP Reports": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF ve İSS Raporları"
           }
         }
       }
@@ -4247,6 +4426,16 @@
         }
       }
     },
+    "Plans could not be loaded. Check your connection and try again.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planlar yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin."
+          }
+        }
+      }
+    },
     "Poor": {
       "localizations": {
         "tr": {
@@ -4328,6 +4517,7 @@
       }
     },
     "Pro": {
+      "extractionState": "stale",
       "localizations": {
         "tr": {
           "stringUnit": {
@@ -4593,6 +4783,26 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rapor Ayı"
+          }
+        }
+      }
+    },
+    "Requires Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro gerektirir"
+          }
+        }
+      }
+    },
+    "Requires Pro. Opens the upgrade screen.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro gerektirir. Yükseltme ekranını açar."
           }
         }
       }
@@ -4893,6 +5103,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Kaydet"
+          }
+        }
+      }
+    },
+    "Save %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ tasarruf"
           }
         }
       }
@@ -5375,6 +5595,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Başlat"
+          }
+        }
+      }
+    },
+    "Start Free Trial": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ücretsiz Denemeyi Başlat"
           }
         }
       }
@@ -6235,12 +6465,42 @@
         }
       }
     },
+    "Unlimited Test History": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sınırsız Test Geçmişi"
+          }
+        }
+      }
+    },
+    "Unlock %@ and everything else in Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ ve Pro'daki diğer her şeyin kilidini açın"
+          }
+        }
+      }
+    },
     "Unlock all features": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
             "value": "Tüm özelliklerin kilidini açın"
+          }
+        }
+      }
+    },
+    "Unlock with Pro": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pro ile Kilidi Aç"
           }
         }
       }
@@ -6465,6 +6725,16 @@
         }
       }
     },
+    "Warnings before you reach your cellular limit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hücresel limitinize ulaşmadan önce uyarılar"
+          }
+        }
+      }
+    },
     "Weakest Spot": {
       "localizations": {
         "tr": {
@@ -6591,6 +6861,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Widget'lar"
+          }
+        }
+      }
+    },
+    "Widgets & Live Activity": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget'lar ve Canlı Etkinlik"
           }
         }
       }
