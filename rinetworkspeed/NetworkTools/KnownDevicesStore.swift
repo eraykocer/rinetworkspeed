@@ -5,9 +5,10 @@
 //  Remembers which devices the IP scanner has seen on each network, so a
 //  scan can point out devices that were not there before.
 //
-//  iOS does not expose MAC addresses, so a device is identified by its
-//  hostname when it has one, otherwise by its IP address. A device without a
-//  hostname that gets a new IP from the router can therefore show up as new.
+//  iOS does not expose MAC addresses. A device is identified by the MAC
+//  address it announces itself (AirPlay, NetBIOS) when there is one, then by
+//  its name, otherwise by its IP address. A device without either that gets
+//  a new IP from the router can therefore show up as new.
 //
 
 import Foundation
@@ -52,6 +53,10 @@ final class KnownDevicesStore {
     }
 
     static func identifier(for device: NetworkDevice) -> String {
+        // A MAC address from NetBIOS or Bonjour is the most stable identifier.
+        if let mac = device.identity?.mac {
+            return "mac:\(mac.lowercased())"
+        }
         if let hostname = device.hostname, !hostname.isEmpty, hostname != device.ip {
             return "host:\(hostname.lowercased())"
         }
@@ -78,7 +83,7 @@ final class KnownDevicesStore {
             if let previousID, var existing = known.devices.removeValue(forKey: previousID) {
                 existing.identifier = id
                 existing.lastIP = device.ip
-                existing.hostname = device.hostname ?? existing.hostname
+                existing.hostname = device.displayName ?? existing.hostname
                 existing.lastSeen = date
                 known.devices[id] = existing
             } else {
@@ -86,7 +91,7 @@ final class KnownDevicesStore {
                 known.devices[id] = KnownDevice(
                     identifier: id,
                     lastIP: device.ip,
-                    hostname: device.hostname,
+                    hostname: device.displayName,
                     firstSeen: date,
                     lastSeen: date
                 )

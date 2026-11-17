@@ -88,6 +88,25 @@ struct ISPReportGenerator {
         if let upload = c.averageUploadRatio {
             rows.insert((String(localized: "Average upload"), String(localized: "\(percent(upload)) of advertised")), at: 2)
         }
+        if let modem = ModemReadingStore.recentLineReading(), let line = modem.downstreamMbps {
+            let up = modem.upstreamMbps.map { $0.fixed(1) } ?? "–"
+            rows.append((
+                String(localized: "Modem line rate (DSL sync)"),
+                String(localized: "\(line.fixed(1)) / \(up) Mbps, \(percent(line / c.plan.downloadMbps)) of advertised")
+            ))
+        }
+        if let finding = c.peakHours.finding {
+            rows.append((
+                String(localized: "Slowest time of day"),
+                String(localized: "\(finding.slowest.name): \(percent(finding.drop)) below \(finding.fastest.name) (\(finding.slowestCount) / \(finding.fastestCount) tests)")
+            ))
+        }
+        if let increase = c.averageLatencyIncrease {
+            rows.append((
+                String(localized: "Latency added under load"),
+                String(localized: "\(increase.fixed(0)) ms average (\(c.latencyUnderLoadTestCount) tests)")
+            ))
+        }
 
         for (label, value) in rows {
             let rowTop = y + 4

@@ -43,6 +43,10 @@ struct ConnectionContext: Sendable {
     let ssid: String?
     /// Internet provider as reported by Cloudflare, the same service the test uses.
     let isp: String?
+    /// Cellular only: "5G", "4G"…
+    var radioTechnology: String?
+    /// Cellular only, rounded to about 100 m, when location access was granted.
+    var location: (latitude: Double, longitude: Double)?
 
     nonisolated static func capture() async -> ConnectionContext {
         async let kind = currentKind()
@@ -50,7 +54,12 @@ struct ConnectionContext: Sendable {
 
         let resolvedKind = await kind
         let ssid = resolvedKind == .wifi ? await NEHotspotNetwork.fetchCurrent()?.ssid : nil
-        return ConnectionContext(kind: resolvedKind, ssid: ssid, isp: await isp)
+        var context = ConnectionContext(kind: resolvedKind, ssid: ssid, isp: await isp)
+        if resolvedKind == .cellular {
+            context.radioTechnology = RadioTechnology.current()
+            context.location = await ApproximateLocation.current()
+        }
+        return context
     }
 
     nonisolated private static func currentKind() async -> ConnectionKind {

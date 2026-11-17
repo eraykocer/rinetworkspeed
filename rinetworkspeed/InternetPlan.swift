@@ -48,6 +48,12 @@ struct PlanComparison {
     let medianDownloadMbps: Double
     let minimumDownloadMbps: Double
     let averagePing: Double
+    /// Average latency added under load, over the tests that measured it.
+    let averageLatencyIncrease: Double?
+    /// Number of tests that measured latency under load.
+    let latencyUnderLoadTestCount: Int
+    /// Download by time of day.
+    let peakHours: PeakHourAnalysis
     /// Fraction of tests whose download reached `meetsThreshold` of the plan.
     let meetsPlanShare: Double
     /// Fraction of tests whose download was under `farBelowThreshold` of the plan.
@@ -67,6 +73,10 @@ struct PlanComparison {
         medianDownloadMbps = downloads.sorted()[downloads.count / 2]
         minimumDownloadMbps = downloads.min() ?? 0
         averagePing = results.reduce(0) { $0 + $1.ping } / count
+        let increases = results.compactMap { $0.score.latencyIncrease }
+        latencyUnderLoadTestCount = increases.count
+        peakHours = PeakHourAnalysis(samples: results.map { (date: $0.date, downloadMbps: $0.score.downloadMbps) })
+        averageLatencyIncrease = increases.isEmpty ? nil : increases.reduce(0, +) / Double(increases.count)
         meetsPlanShare = Double(downloads.filter { $0 >= plan.downloadMbps * Self.meetsThreshold }.count) / count
         farBelowShare = Double(downloads.filter { $0 < plan.downloadMbps * Self.farBelowThreshold }.count) / count
     }

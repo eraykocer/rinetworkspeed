@@ -147,8 +147,9 @@ final class WiFiInfoManager: NSObject, ObservableObject {
         dnsServers = currentDNSServers()
     }
 
-    /// Wi-Fi (en0) IPv4 address, subnet mask and the router address inferred
-    /// from them (first host of the subnet). Also used by the troubleshooter.
+    /// Wi-Fi (en0) IPv4 address, subnet mask and router address. The router
+    /// comes from the routing table; when that cannot be read it falls back to
+    /// the first host of the subnet. Also used by the troubleshooter.
     nonisolated static func localInterfaceDetails() -> (ipAddress: String?, subnetMask: String?, routerIP: String?) {
         var address: String?
         var mask: String?
@@ -183,7 +184,9 @@ final class WiFiInfoManager: NSObject, ObservableObject {
             pointer = next
         }
 
-        let router = inferredRouterIP(ipAddress: address, subnetMask: mask)
+        guard address != nil else { return (nil, mask, nil) }
+        let router = GatewayResolver.defaultGateway(interface: "en0")
+            ?? inferredRouterIP(ipAddress: address, subnetMask: mask)
         return (address, mask, router)
     }
 

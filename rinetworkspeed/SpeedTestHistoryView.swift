@@ -64,6 +64,9 @@ struct SpeedTestHistoryRow: View {
         } else if let kind = result.connection {
             parts.append(String(localized: kind.title))
         }
+        if let radio = result.radioTechnology {
+            parts.append(radio)
+        }
         if let isp = result.isp {
             parts.append(isp)
         }
@@ -169,6 +172,8 @@ struct SpeedTestHistoryView: View {
                 } else {
                     trendSection
                     averagesSection
+                    timeOfDaySection
+                    coverageSection
                     planSection
                     listSection
                 }
@@ -321,6 +326,75 @@ struct SpeedTestHistoryView: View {
     }
 
     // MARK: Averages
+
+    // MARK: Time of day
+
+    private var peakHours: PeakHourAnalysis {
+        PeakHourAnalysis(samples: filtered.map { (date: $0.date, downloadMbps: $0.downloadSpeed * 8 / 1_000_000) })
+    }
+
+    @ViewBuilder
+    private var timeOfDaySection: some View {
+        let analysis = peakHours
+        if analysis.parts.count >= 2 {
+            let best = analysis.parts.map(\.medianMbps).max() ?? 1
+            AppSection("Time of Day", footer: "Median download per time of day. To fill this in, a Shortcuts automation can run “Run Speed Test” at different hours.") {
+                ForEach(analysis.parts, id: \.part) { part in
+                    HStack(spacing: 12) {
+                        Text(part.part.title)
+                            .frame(width: 96, alignment: .leading)
+                        GeometryReader { proxy in
+                            Capsule()
+                                .fill(AppTheme.download)
+                                .frame(width: max(4, proxy.size.width * part.medianMbps / max(best, 0.001)))
+                        }
+                        .frame(height: 8)
+                        Text(verbatim: "\(part.medianMbps.fixed(0)) Mbps")
+                            .monospacedDigit()
+                            .frame(width: 80, alignment: .trailing)
+                        Text(verbatim: "n=\(part.count)")
+                            .foregroundStyle(AppTheme.tertiaryText)
+                            .monospacedDigit()
+                            .frame(width: 44, alignment: .trailing)
+                    }
+                    .appFont(size: 13, weight: .medium, design: .rounded)
+                    .foregroundStyle(AppTheme.primaryText)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                }
+                if let finding = analysis.finding {
+                    AppRowDivider(leadingInset: 16)
+                    CheckRow(
+                        status: .warning,
+                        title: Text("\(Text(finding.slowest.title)) is \(finding.drop.formatted(.percent.precision(.fractionLength(0)))) slower than \(Text(finding.fastest.title))"),
+                        detail: finding.slowest == .evening
+                            ? Text("Evenings are when most people are online. A drop this large usually means your provider's network is congested.")
+                            : Text("Compare with the plan below, and check whether other devices were busy at these times.")
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: Coverage
+
+    @ViewBuilder
+    private var coverageSection: some View {
+        let located = filtered.filter { $0.latitude != nil }
+        if !located.isEmpty {
+            AppSection {
+                NavigationLink {
+                    CoverageMapView(results: located)
+                } label: {
+                    AppRow(icon: "map.fill", tint: AppTheme.upload, title: "Coverage Map",
+                           subtitle: "\(located.count) cellular tests with a place") {
+                        AppChevron()
+                    }
+                }
+                .buttonStyle(AppRowButtonStyle())
+            }
+        }
+    }
 
     private var averagesSection: some View {
         let count = Double(filtered.count)

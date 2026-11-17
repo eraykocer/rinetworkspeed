@@ -51,7 +51,9 @@ extension IPScannerViewModel {
     var reportText: String? {
         guard !isScanning, !discoveredDevices.isEmpty else { return nil }
         let lines = discoveredDevices.map { device in
-            [device.ip, device.hostname, ToolReportFormat.ms(device.responseTime), isNew(device) ? String(localized: "New") : nil]
+            [device.ip, device.displayName, device.identity?.detail, device.identity?.mac,
+             device.responseTime > 0 ? ToolReportFormat.ms(device.responseTime) : nil,
+             isNew(device) ? String(localized: "New") : nil]
                 .compactMap { $0 }
                 .joined(separator: "  ")
         }
@@ -74,12 +76,78 @@ extension NetworkMapManager {
 extension TracerouteViewModel {
     var reportText: String? {
         guard !isRunning, !hops.isEmpty else { return nil }
-        let lines = hops.map { hop in
-            let latency = hop.latency.map(ToolReportFormat.ms) ?? "* * *"
-            return ["\(hop.hopNumber)", hop.ip, hop.hostname, latency].compactMap { $0 }.joined(separator: "  ")
+        var lines = hops.map { hop in
+            let latency = hop.average.map { avg in
+                "\(avg.fixed(1)) ms (\((hop.best ?? avg).fixed(1))–\((hop.worst ?? avg).fixed(1)))"
+            } ?? "* * *"
+            let loss = String(localized: "loss \(hop.lossShare.formatted(.percent.precision(.fractionLength(0))))")
+            return ["\(hop.ttl)", hop.address, hop.hostname, hop.asn?.label, latency, loss]
+                .compactMap { $0 }
+                .joined(separator: "  ")
         }
-        return ToolReportFormat.make(title: String(localized: "Traceroute to \(targetHost)"), lines: lines)
+        lines.insert(String(localized: "\(rounds) rounds, one probe per hop each round"), at: 0)
+        if let summary = finding.reportSummary {
+            lines.insert(summary, at: 0)
+        }
+        let target = targetAddress.map { "\(targetHost) (\($0))" } ?? targetHost
+        return ToolReportFormat.make(title: String(localized: "Traceroute to \(target)"), lines: lines)
     }
+}
+
+extension RouteFinding {
+    /// One line for the shared report.
+    var reportSummary: String? {
+        switch self {
+        case .collecting:
+            return nil
+        case .clean:
+            return String(localized: "No lasting packet loss.")
+        case .lossStarts(let hop, let segment):
+            switch segment {
+            case .homeNetwork:
+                return String(localized: "Packet loss starts at hop \(hop): the home router or Wi-Fi.")
+            case .accessNetwork:
+                return String(localized: "Packet loss starts at hop \(hop): a private address after the router.")
+            case .provider(let network):
+                let name = network?.label ?? String(localized: "the provider")
+                return String(localized: "Packet loss starts at hop \(hop), inside \(name).")
+            case .beyondProvider(let network):
+                return String(localized: "Packet loss starts at hop \(hop), outside the provider, in \(network.label).")
+            }
+        case .destinationSilent:
+            return String(localized: "The destination does not answer these probes.")
+        }
+    }
+}
+
+extension ModemViewModel {
+    var reportText: String? {
+        guard !isReading, let reading else { return nil }
+        let mbps: (Double?) -> String? = { $0.map { "\($0.fixed(1)) Mbps" } }
+        let fields: [(String, String?)] = [
+            (String(localized: "Router"), [reading.manufacturer, reading.modelName].compactMap { $0 }.joined(separator: " ").nilIfEmpty),
+            (String(localized: "Connection type"), reading.accessType),
+            (String(localized: "Link"), reading.linkStatus),
+            (reading.isLineRate ? String(localized: "Line rate down") : String(localized: "WAN port down"), mbps(reading.downstreamMbps)),
+            (reading.isLineRate ? String(localized: "Line rate up") : String(localized: "WAN port up"), mbps(reading.upstreamMbps)),
+            (String(localized: "Router's internet address"), reading.externalIP),
+            (String(localized: "Status"), reading.connectionStatus),
+            (String(localized: "Connected for"), reading.uptimeSeconds.map(ModemView.duration))
+        ]
+        var lines = fields.compactMap { label, value in value.map { "\(label): \($0)" } }
+        if let comparison, let plan = comparison.planMbps {
+            lines.append(String(localized: "Plan \(plan.fixed(0)) Mbps, line \(comparison.lineMbps.fixed(0)) Mbps"))
+        }
+        for mapping in reading.portMappings {
+            lines.append("\(mapping.transport) \(mapping.externalPort) → \(mapping.internalClient):\(mapping.internalPort)"
+                         + (mapping.description.map { " (\($0))" } ?? ""))
+        }
+        return ToolReportFormat.make(title: String(localized: "Modem & Line"), lines: lines)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
 
 extension PortScannerViewModel {
@@ -149,11 +217,14 @@ extension WhoisViewModel {
 extension PingMonitor {
     var reportText: String? {
         guard packetsSent > 0 else { return nil }
-        let lines = [
+        var lines = [
             String(localized: "Sent: \(packetsSent), lost: \(packetsLost) (\(packetLossPercent.fixed(0))%)"),
             String(localized: "Min / avg / max: \(minPing.fixed(0)) / \(avgPing.fixed(0)) / \(maxPing.fixed(0)) ms"),
             String(localized: "Jitter: \(jitter.fixed(1)) ms")
         ]
+        if let routerIP, let routerStats {
+            lines.append(String(localized: "Router \(routerIP): avg \(routerStats.average.fixed(0)) ms, jitter \(routerStats.jitter.fixed(1)) ms, \(routerStats.lost) of \(routerStats.sent) lost"))
+        }
         return ToolReportFormat.make(title: String(localized: "Ping to \(activeHost())"), lines: lines)
     }
 }

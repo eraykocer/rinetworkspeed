@@ -110,9 +110,11 @@ struct PingMonitorView: View {
                     PingHeroCard(monitor: monitor, hostText: activeHostText, onToggle: toggleRunning)
 
                     AppSection("Live Chart") {
-                        PingLiveChart(monitor: monitor)
+                        PingLiveChart(monitor: monitor, hostText: activeHostText)
                             .padding(16)
                     }
+
+                    PingSplitSection(monitor: monitor, hostText: activeHostText)
 
                     AppSection("Statistics") {
                         PingStatsRows(monitor: monitor)
@@ -318,25 +320,69 @@ private struct PulseDot: View {
 
 private struct PingLiveChart: View {
     @ObservedObject var monitor: PingMonitor
+    let hostText: String
+
+    private static let routerColor = AppTheme.download
 
     private var maxChartValue: Double {
-        let values = monitor.pingHistory.map { $0.latency < 0 ? 0 : $0.latency }
+        let values = (monitor.pingHistory + monitor.routerHistory).map { $0.latency < 0 ? 0 : $0.latency }
         return max(20, (values.max() ?? 0) * 1.2)
     }
 
     var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            chart
+            if !monitor.routerHistory.isEmpty {
+                legend
+            }
+        }
+    }
+
+    private var legend: some View {
+        HStack(spacing: 14) {
+            legendItem(color: monitor.status.color, text: Text(verbatim: hostText))
+            legendItem(color: Self.routerColor, text: Text("Router"))
+        }
+        .appFont(size: 12, weight: .medium, design: .rounded)
+        .foregroundStyle(AppTheme.secondaryText)
+        .accessibilityHidden(true)
+    }
+
+    private func legendItem(color: Color, text: Text) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            text.lineLimit(1)
+        }
+    }
+
+    private var chart: some View {
         let lineColor = monitor.status.color
         let maxChartValue = self.maxChartValue
 
-        Chart {
+        // Each line needs its own series, otherwise Charts joins the points
+        // of both targets into one line.
+        return Chart {
             ForEach(monitor.pingHistory) { sample in
                 if sample.latency >= 0 {
                     LineMark(
                         x: .value("Time", sample.timestamp),
-                        y: .value("Latency", sample.latency)
+                        y: .value("Latency", sample.latency),
+                        series: .value("Target", "internet")
                     )
                     .interpolationMethod(.catmullRom)
                     .foregroundStyle(lineColor)
+                }
+            }
+
+            ForEach(monitor.routerHistory) { sample in
+                if sample.latency >= 0 {
+                    LineMark(
+                        x: .value("Time", sample.timestamp),
+                        y: .value("Latency", sample.latency),
+                        series: .value("Target", "router")
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(Self.routerColor)
                 }
             }
 
@@ -382,6 +428,119 @@ private struct PingLiveChart: View {
             }
         }
         .frame(height: 170)
+    }
+}
+
+// MARK: - Wi-Fi or Provider
+
+/// Router and internet host side by side, with the conclusion. Shown on Wi-Fi only.
+private struct PingSplitSection: View {
+    @ObservedObject var monitor: PingMonitor
+    let hostText: String
+
+    var body: some View {
+        if let routerIP = monitor.routerIP, let diagnosis = monitor.diagnosis {
+            AppSection("Wi-Fi or Provider?") {
+                AppRow(icon: "wifi.router", tint: AppTheme.download, verbatimTitle: routerIP, subtitle: "Router") {
+                    statsText(monitor.routerStats)
+                }
+                AppRowDivider()
+                AppRow(icon: "globe", tint: monitor.status.color, verbatimTitle: hostText, subtitle: "Internet") {
+                    statsText(monitor.pingHistory.isEmpty ? nil : LatencyStats(samples: monitor.pingHistory.map(\.latency)))
+                }
+                AppRowDivider()
+                conclusion(diagnosis)
+            }
+        }
+    }
+
+    /// "4 ms · ±1 · 0%": average, jitter and loss.
+    private func statsText(_ stats: LatencyStats?) -> some View {
+        let text: String
+        if let stats, stats.sent > stats.lost {
+            let loss = stats.lossShare.formatted(.percent.precision(.fractionLength(0)))
+            text = "\(stats.average.fixed(0)) ms · ±\(stats.jitter.fixed(0)) · \(loss)"
+        } else if let stats, stats.sent > 0 {
+            text = "100%"
+        } else {
+            text = "--"
+        }
+        return Text(verbatim: text)
+            .appFont(size: 14, weight: .bold, design: .rounded)
+            .monospacedDigit()
+            .foregroundStyle(AppTheme.ink)
+            .contentTransition(.numericText())
+            .accessibilityLabel(stats.map { accessibilityText($0) } ?? Text("No data"))
+    }
+
+    private func accessibilityText(_ stats: LatencyStats) -> Text {
+        Text("Average \(stats.average.fixed(0)) ms, jitter \(stats.jitter.fixed(0)) ms, \(stats.lost) of \(stats.sent) lost.")
+    }
+
+    private func conclusion(_ diagnosis: LatencyDiagnosis) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon(for: diagnosis))
+                .appFont(size: 18, weight: .semibold)
+                .foregroundStyle(color(for: diagnosis))
+                .frame(width: 24)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title(for: diagnosis))
+                    .appFont(size: 15, weight: .semibold, design: .rounded)
+                    .foregroundStyle(AppTheme.primaryText)
+                Text(message(for: diagnosis))
+                    .appFont(size: 13, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func icon(for diagnosis: LatencyDiagnosis) -> String {
+        switch diagnosis {
+        case .collecting: return "hourglass"
+        case .healthy: return "checkmark.circle.fill"
+        case .wifi: return "wifi.exclamationmark"
+        case .beyondRouter: return "exclamationmark.triangle.fill"
+        case .routerSilent: return "questionmark.circle.fill"
+        }
+    }
+
+    private func color(for diagnosis: LatencyDiagnosis) -> Color {
+        switch diagnosis {
+        case .collecting, .routerSilent: return AppTheme.secondaryText
+        case .healthy: return AppTheme.ping
+        case .wifi, .beyondRouter: return AppTheme.warning
+        }
+    }
+
+    private func title(for diagnosis: LatencyDiagnosis) -> LocalizedStringKey {
+        switch diagnosis {
+        case .collecting: return "Measuring…"
+        case .healthy: return "Wi-Fi and provider look fine"
+        case .wifi: return "The problem is your Wi-Fi"
+        case .beyondRouter: return "The problem is beyond your router"
+        case .routerSilent: return "Router doesn't answer"
+        }
+    }
+
+    private func message(for diagnosis: LatencyDiagnosis) -> LocalizedStringKey {
+        switch diagnosis {
+        case .collecting:
+            return "Keep this screen open for about 10 seconds."
+        case .healthy:
+            return "The router and the internet host both answer steadily."
+        case .wifi:
+            return "The router itself answers late, unevenly or not at all, so the problem is between this iPhone and the router. Move closer to the router or use 5 GHz Wi-Fi. The internet path can't be judged until Wi-Fi is stable."
+        case .beyondRouter:
+            return "The router answers quickly and steadily, so your Wi-Fi is fine. The delay or loss starts after the router: at your provider or on the way to the host you chose."
+        case .routerSilent:
+            return "Your router doesn't answer test connections, so Wi-Fi and the provider can't be told apart."
+        }
     }
 }
 

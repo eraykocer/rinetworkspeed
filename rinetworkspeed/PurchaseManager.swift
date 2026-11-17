@@ -22,19 +22,24 @@ struct AppOffering {
 @MainActor
 final class PurchaseManager: ObservableObject {
 
+    /// Opens every Pro feature to everyone, in Debug and Release builds, while
+    /// the app is being developed and tested. Set to `false` before the App
+    /// Store release to turn the paywall back on (see ROADMAP, "Before release").
+    static let unlocksProForEveryone = true
+
     #if DEBUG
     /// Debug-only escape hatch for working on gated screens without StoreKit:
     /// add `-forceProAccess YES` to the scheme's launch arguments.
-    private let proAccessForced = UserDefaults.standard.bool(forKey: "forceProAccess")
+    private let proAccessForced = unlocksProForEveryone || UserDefaults.standard.bool(forKey: "forceProAccess")
     #else
-    private let proAccessForced = false
+    private let proAccessForced = unlocksProForEveryone
     #endif
 
     // MARK: - Singleton
     static let shared = PurchaseManager()
 
     // MARK: - Published State
-    @Published var isPro: Bool = false {
+    @Published var isPro: Bool = PurchaseManager.unlocksProForEveryone {
         // Widgets show an upgrade message for free users.
         didSet { if isPro != oldValue { WidgetSharedStore.saveProStatus(isPro) } }
     }

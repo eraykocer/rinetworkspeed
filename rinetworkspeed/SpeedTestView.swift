@@ -619,8 +619,67 @@ struct SpeedTestView: View {
                 resultCard(title: "Upload",   value: formatMbps(manager.finalUpload),       unit: "Mbps", icon: "arrow.up",   color: uploadColor)
             }
 
+            latencyUnderLoadSection
+
             useCaseSection
         }
+    }
+
+    /// Idle latency against latency while downloading and uploading, with the
+    /// bufferbloat grade. Hidden when latency under load was not measured.
+    @ViewBuilder
+    private var latencyUnderLoadSection: some View {
+        let score = currentScore
+        if let grade = score.bufferbloatGrade {
+            VStack(alignment: .leading, spacing: 10) {
+                AppSectionHeader("Latency Under Load")
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center, spacing: 14) {
+                        Text(grade)
+                            .appFont(size: 24, weight: .black, design: .rounded)
+                            .foregroundStyle(SpeedTestScore.color(forGrade: grade))
+                            .frame(width: 48, height: 48)
+                            .background(SpeedTestScore.color(forGrade: grade).opacity(0.16),
+                                        in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+                            .accessibilityLabel(Text("Grade \(grade)"))
+
+                        if let summary = score.bufferbloatSummary {
+                            Text(summary)
+                                .appFont(size: 14, weight: .medium, design: .rounded)
+                                .foregroundStyle(AppTheme.primaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    AppAdaptiveStack(spacing: 12) {
+                        latencyValue(title: "Idle", milliseconds: score.ping)
+                        latencyValue(title: "Downloading", milliseconds: score.loadedLatencyDownload)
+                        latencyValue(title: "Uploading", milliseconds: score.loadedLatencyUpload)
+                    }
+                }
+                .appCard(padding: 14)
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+
+    private func latencyValue(title: LocalizedStringKey, milliseconds: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .appFont(size: 12, weight: .semibold, design: .rounded)
+                .foregroundStyle(AppTheme.secondaryText)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(milliseconds.map { $0.fixed(0) } ?? "--")
+                    .appFont(size: 18, weight: .bold, design: .rounded)
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.ink)
+                Text("ms")
+                    .appFont(size: 10, weight: .semibold, design: .rounded)
+                    .foregroundStyle(AppTheme.tertiaryText)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// Plain-language answer to "what can I do with this connection?".
@@ -700,7 +759,10 @@ struct SpeedTestView: View {
             }
 
             if isNetworkDetailsExpanded {
-                Group {
+                VStack(alignment: .leading, spacing: 18) {
+                    // Comes from the Shortcuts bridge, so it doesn't need location access.
+                    WiFiSignalGroup()
+
                     if wifiInfoManager.hasLocationPermission {
                         VStack(alignment: .leading, spacing: 18) {
                             networkDetailsGroup(title: "WiFi") {
@@ -932,7 +994,9 @@ struct SpeedTestView: View {
             downloadBytesPerSecond: manager.finalDownload,
             uploadBytesPerSecond: manager.finalUpload,
             ping: manager.ping,
-            jitter: manager.jitter
+            jitter: manager.jitter,
+            loadedLatencyDownload: manager.loadedLatencyDownload,
+            loadedLatencyUpload: manager.loadedLatencyUpload
         )
     }
 

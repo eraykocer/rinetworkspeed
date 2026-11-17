@@ -62,13 +62,13 @@
         "en": {
           "stringUnit": {
             "state": "new",
-            "value": "Location access is required by iOS to show the name and details of the Wi-Fi network you are connected to."
+            "value": "Location access lets iOS share the name and details of the Wi-Fi network you are connected to, and places cellular speed tests on your own coverage map. Locations stay on this iPhone."
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "iOS, bağlı olduğunuz Wi-Fi ağının adını ve ayrıntılarını göstermek için konum erişimi gerektirir."
+            "value": "Konum erişimi, iOS'un bağlı olduğunuz Wi-Fi ağının adını ve ayrıntılarını paylaşmasını sağlar ve hücresel hız testlerini kendi kapsama haritanıza yerleştirir. Konumlar bu iPhone'da kalır."
           }
         }
       }

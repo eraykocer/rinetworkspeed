@@ -128,7 +128,9 @@ final class NetworkMapManager: ObservableObject {
         let ip = Self.getLocalIPAddress() ?? ""
         localIP = ip
         subnetBase = Self.subnetBase(for: ip)
-        routerIP = subnetBase.isEmpty ? "" : "\(subnetBase).1"
+        routerIP = subnetBase.isEmpty
+            ? ""
+            : GatewayResolver.defaultGateway(interface: "en0") ?? "\(subnetBase).1"
     }
 
     // MARK: - Public scan()
@@ -160,7 +162,7 @@ final class NetworkMapManager: ObservableObject {
         devices.append(selfDevice)
 
         // Probe gateway/router first
-        let gw = "\(base).1"
+        let gw = routerIP
         if gw != currentIP, let router = await probeHost(ip: gw, forceRouter: true) {
             devices.append(router)
             sortDevices()
@@ -175,7 +177,12 @@ final class NetworkMapManager: ObservableObject {
             Array(toScan[$0..<min($0 + 50, toScan.count)])
         }
 
+        let ownAddress = currentIP
         scanTask = Task {
+            // Bonjour and SSDP announcements are collected during the sweep.
+            let announcements = Task { await DeviceFingerprinter.discoverAnnouncements(interfaceAddress: ownAddress) }
+            defer { announcements.cancel() }
+
             for batch in batches {
                 guard !Task.isCancelled else { break }
                 await withTaskGroup(of: MapDevice?.self) { group in
@@ -195,10 +202,56 @@ final class NetworkMapManager: ObservableObject {
                     }
                 }
             }
+            if !Task.isCancelled {
+                await applyIdentities(announcements: await announcements.value, base: base, ownAddress: ownAddress)
+            }
             isScanning = false
             lastScanDate = Date()
         }
         await scanTask?.value
+    }
+
+    /// Names, kinds and MAC addresses from what devices announce, plus
+    /// devices that answered no probed port but announced themselves.
+    private func applyIdentities(announcements: [String: DeviceIdentity], base: String, ownAddress: String) async {
+        var identities = announcements.filter { $0.key.hasPrefix(base + ".") && $0.key != ownAddress }
+        let addresses = Set(devices.filter { !$0.isCurrentDevice }.map(\.ip)).union(identities.keys)
+        for (address, identity) in await DeviceFingerprinter.identify(addresses: Array(addresses), webAddresses: [:]) {
+            identities[address, default: DeviceIdentity()].merge(identity)
+        }
+        guard !Task.isCancelled else { return }
+
+        for index in devices.indices where !devices[index].isCurrentDevice {
+            guard let identity = identities[devices[index].ip] else { continue }
+            devices[index].hostname = identity.name ?? devices[index].hostname
+            devices[index].macAddress = identity.mac ?? devices[index].macAddress
+            if devices[index].deviceType != .router {
+                devices[index].deviceType = Self.mapType(identity)
+                    ?? Self.guessDeviceType(port: 0, hostname: devices[index].hostname, mac: identity.hasPrivateMAC ? nil : identity.mac)
+            }
+        }
+        let known = Set(devices.map(\.ip))
+        for (address, identity) in identities where !known.contains(address) {
+            devices.append(MapDevice(
+                ip: address,
+                hostname: identity.name,
+                deviceType: Self.mapType(identity) ?? .unknown,
+                macAddress: identity.mac
+            ))
+        }
+        sortDevices()
+    }
+
+    private static func mapType(_ identity: DeviceIdentity) -> MapDeviceType? {
+        switch identity.kind {
+        case .router: return .router
+        case .phone: return .phone
+        case .tablet: return .tablet
+        case .computer, .storage: return .laptop
+        case .tv: return .tv
+        case .speaker, .camera, .smartHome, .printer: return .iot
+        case nil: return nil
+        }
     }
 
     func cancelScan() {

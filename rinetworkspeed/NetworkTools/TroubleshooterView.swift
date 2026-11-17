@@ -122,10 +122,12 @@ final class TroubleshooterViewModel: ObservableObject {
         guard !Task.isCancelled else { return }
 
         // 2. Router (only meaningful on Wi-Fi or wired)
+        var router: (host: String, port: UInt16)?
         if isLocalNetwork, let gateway = WiFiInfoManager.localInterfaceDetails().routerIP {
             update(.router, .running)
-            if let ms = await Self.reachability(host: gateway) {
-                update(.router, .passed, String(localized: "\(gateway) answered in \(ms.fixed(0)) ms."))
+            if let answer = await Self.reachability(host: gateway) {
+                router = (gateway, answer.port)
+                update(.router, .passed, String(localized: "\(gateway) answered in \(answer.milliseconds.fixed(0)) ms."))
             } else {
                 update(.router, .failed, String(localized: "\(gateway) did not answer."))
                 skipRemaining(after: .router)
@@ -182,12 +184,20 @@ final class TroubleshooterViewModel: ObservableObject {
         }
         guard !Task.isCancelled else { return }
 
-        // 5. Latency
+        // 5. Latency, to the internet and (on Wi-Fi) to the router at the
+        // same time, so a problem can be placed before or after the router.
         update(.latency, .running)
         var samples: [Double] = []
         var lost = 0
+        var allInternetSamples: [Double] = []
+        var routerSamples: [Double] = []
+        let routerTarget = router
         for _ in 0..<5 {
-            let ms = await PingMonitor.tcpConnectTime(host: "1.1.1.1", port: 443, timeout: 3)
+            async let internetProbe = PingMonitor.tcpConnectTime(host: "1.1.1.1", port: 443, timeout: 3)
+            async let routerProbe = Self.probeRouter(routerTarget)
+            let ms = await internetProbe
+            if let routerMs = await routerProbe { routerSamples.append(routerMs) }
+            allInternetSamples.append(ms)
             if ms >= 0 { samples.append(ms) } else { lost += 1 }
             guard !Task.isCancelled else { return }
         }
@@ -205,15 +215,39 @@ final class TroubleshooterViewModel: ObservableObject {
         let average = samples.reduce(0, +) / Double(samples.count)
         let deltas = zip(samples.dropFirst(), samples).map { abs($0 - $1) }
         let jitter = deltas.isEmpty ? 0 : deltas.reduce(0, +) / Double(deltas.count)
-        let detail = String(localized: "Average \(average.fixed(0)) ms, jitter \(jitter.fixed(0)) ms, \(lost) of 5 lost.")
+        let routerStats = routerSamples.isEmpty ? nil : LatencyStats(samples: routerSamples)
+        let detail: String
+        if let routerStats {
+            detail = String(localized: "Router \(routerStats.average.fixed(0)) ms, internet \(average.fixed(0)) ms, jitter \(jitter.fixed(0)) ms, \(lost) of 5 lost.")
+        } else {
+            detail = String(localized: "Average \(average.fixed(0)) ms, jitter \(jitter.fixed(0)) ms, \(lost) of 5 lost.")
+        }
+        let split = routerStats.map {
+            LatencyDiagnosis.evaluate(router: $0, internet: LatencyStats(samples: allInternetSamples), minimumSamples: 5)
+        }
 
         if average > 150 || jitter > 30 || lost > 0 {
             update(.latency, .warning, detail)
-            diagnosis = Diagnosis(
-                title: "Connected, but unstable",
-                advice: String(localized: "High or uneven latency can make video calls and games stutter. Move closer to the router, use 5 GHz Wi-Fi if available, or pause large downloads on other devices."),
-                status: .warning
-            )
+            switch split {
+            case .wifi?:
+                diagnosis = Diagnosis(
+                    title: "Your Wi-Fi is unstable",
+                    advice: String(localized: "The router itself answers late or unevenly, so the problem is between this iPhone and the router. Move closer to the router, use 5 GHz Wi-Fi if available, or restart the router."),
+                    status: .warning
+                )
+            case .beyondRouter?:
+                diagnosis = Diagnosis(
+                    title: "Unstable beyond your router",
+                    advice: String(localized: "The router answers quickly and steadily, so your Wi-Fi is fine. The delay or loss starts after the router, usually at your provider. Restart the modem, and contact your provider if it continues."),
+                    status: .warning
+                )
+            default:
+                diagnosis = Diagnosis(
+                    title: "Connected, but unstable",
+                    advice: String(localized: "High or uneven latency can make video calls and games stutter. Move closer to the router, use 5 GHz Wi-Fi if available, or pause large downloads on other devices."),
+                    status: .warning
+                )
+            }
         } else {
             update(.latency, .passed, detail)
             diagnosis = Diagnosis(
@@ -238,49 +272,22 @@ final class TroubleshooterViewModel: ObservableObject {
         }
     }
 
-    /// Time until the host answered on a common port, in ms. A refused
+    /// Port the host answered on and how long it took, in ms. A refused
     /// connection also counts: the device replied, it just has nothing listening.
-    nonisolated private static func reachability(host: String) async -> Double? {
-        for port: UInt16 in [80, 443, 53] {
-            if let ms = await tcpAnswer(host: host, port: port) {
-                return ms
+    nonisolated private static func reachability(host: String) async -> (port: UInt16, milliseconds: Double)? {
+        for port in PingMonitor.routerPorts {
+            let ms = await PingMonitor.tcpConnectTime(host: host, port: port, timeout: 2, countRefusedAsReply: true)
+            if ms >= 0 {
+                return (port, ms)
             }
         }
         return nil
     }
 
-    nonisolated private static func tcpAnswer(host: String, port: UInt16) async -> Double? {
-        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return nil }
-        let connection = NWConnection(host: NWEndpoint.Host(host), port: nwPort, using: .tcp)
-        let queue = DispatchQueue(label: "rinetworkspeed.troubleshooter.tcp")
-
-        return await withCheckedContinuation { continuation in
-            let once = OnceContinuation<Double?>(continuation)
-            let start = DispatchTime.now().uptimeNanoseconds
-            let elapsed = { Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000 }
-
-            connection.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    once.resume(elapsed())
-                    connection.cancel()
-                case .failed(let error), .waiting(let error):
-                    if case .posix(let code) = error, code == .ECONNREFUSED {
-                        once.resume(elapsed())
-                    } else {
-                        once.resume(nil)
-                    }
-                    connection.cancel()
-                default:
-                    break
-                }
-            }
-            connection.start(queue: queue)
-            queue.asyncAfter(deadline: .now() + 2) {
-                once.resume(nil)
-                connection.cancel()
-            }
-        }
+    /// One probe to the router on the port found in the router step; -1 when lost.
+    nonisolated private static func probeRouter(_ router: (host: String, port: UInt16)?) async -> Double? {
+        guard let router else { return nil }
+        return await PingMonitor.tcpConnectTime(host: router.host, port: router.port, timeout: 3, countRefusedAsReply: true)
     }
 
     /// Lookup time in ms, or nil if the name could not be resolved within 5 s.

@@ -57,7 +57,6 @@
 		27BFD4002F87FA26001052F6 /* NetworkWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NetworkWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		27BFD4022F87FA26001052F6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		27BFD4042F87FA26001052F6 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		27BFD4382F88DFD1001052F6 /* rinetworkspeed.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = rinetworkspeed.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -149,7 +148,6 @@
 				27BFD4062F87FA26001052F6 /* NetworkWidget */,
 				27BFD4012F87FA26001052F6 /* Frameworks */,
 				27BFD3C22F87F602001052F6 /* Products */,
-				27BFD4382F88DFD1001052F6 /* rinetworkspeed.entitlements */,
 			);
 			sourceTree = "<group>";
 		};
@@ -533,7 +531,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = RiNetwork;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "RiNetwork connects to devices on your local network to find them, map them and check that your router responds.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access is required by iOS to show the name and details of the Wi-Fi network you are connected to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access lets iOS share the name and details of the Wi-Fi network you are connected to, and places cellular speed tests on your own coverage map. Locations stay on this iPhone.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -587,7 +585,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = RiNetwork;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "RiNetwork connects to devices on your local network to find them, map them and check that your router responds.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access is required by iOS to show the name and details of the Wi-Fi network you are connected to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location access lets iOS share the name and details of the Wi-Fi network you are connected to, and places cellular speed tests on your own coverage map. Locations stay on this iPhone.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_NSSupportsLiveActivitiesFrequentUpdates = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;

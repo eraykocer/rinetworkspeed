@@ -4,39 +4,52 @@
 //
 //  Created by Codex on 10.04.2026.
 //
+//  Real TTL-based traceroute that keeps measuring every hop (MTR style) and
+//  says where lasting packet loss starts.
+//
 
 import SwiftUI
 import Network
 import Darwin
 import Combine
 
-// MARK: - Model
-
-struct TraceHop: Identifiable {
-    let id = UUID()
-    var hopNumber: Int
-    var ip: String
-    var hostname: String?
-    var latency: Double?     // ms — nil means timeout
-    var isTimeout: Bool
-}
-
 // MARK: - ViewModel
 
 @MainActor
 final class TracerouteViewModel: ObservableObject {
-    @Published var hops: [TraceHop] = []
-    @Published var isRunning = false
+    @Published private(set) var hops: [RouteHop] = []
+    @Published private(set) var isRunning = false
     @Published var targetHost: String = "google.com"
-    @Published var errorMessage: String?
+    @Published private(set) var errorMessage: String?
+    @Published private(set) var finding: RouteFinding = .collecting
+    /// Rounds completed in the current trace.
+    @Published private(set) var rounds = 0
+    /// Resolved address of `targetHost` for the current trace.
+    @Published private(set) var targetAddress: String?
+
+    static let maxHops = 30
+    /// A probe without an answer after this long counts as lost.
+    private let roundTimeout: TimeInterval = 1.5
+    /// Shortest time between the starts of two rounds.
+    private let roundInterval: TimeInterval = 1
+    /// Stops on its own after about five minutes.
+    private let maxRounds = 300
 
     private var traceTask: Task<Void, Never>?
+    /// Lookups already started, by address.
+    private var lookedUp: Set<String> = []
+    private var hostnames: [String: String] = [:]
+    private var networks: [String: ASNInfo] = [:]
 
     func start() {
-        let target = targetHost.trimmingCharacters(in: .whitespaces)
+        let target = targetHost.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !target.isEmpty else { return }
+        traceTask?.cancel()
         isRunning = true
         hops = []
+        rounds = 0
+        finding = .collecting
+        targetAddress = nil
         errorMessage = nil
 
         traceTask = Task {
@@ -53,117 +66,89 @@ final class TracerouteViewModel: ObservableObject {
     // MARK: - Trace Pipeline
 
     private func runTrace(target: String) async {
-        // ── Hop 1: Local Gateway ──────────────────────────────────────────
-        let gwHop = await discoverGateway()
-        appendHop(gwHop ?? TraceHop(hopNumber: 1, ip: "* * *", hostname: String(localized: "Local Gateway"),
-                                     latency: nil, isTimeout: true))
-        guard !Task.isCancelled else { return }
-        try? await Task.sleep(for: .milliseconds(250))
+        guard let address = await Self.resolveHost(target) else {
+            errorMessage = String(localized: "Could not resolve \(target)")
+            return
+        }
+        targetAddress = address
 
-        // ── Hop 2: Cloudflare (upstream/ISP boundary) ─────────────────────
-        let cfHop = await probe(ip: "1.1.1.1", hopNumber: 2,
-                                 fallbackLabel: "Cloudflare DNS")
-        appendHop(cfHop)
-        guard !Task.isCancelled else { return }
-        try? await Task.sleep(for: .milliseconds(250))
+        guard let tracer = ICMPTracer(destination: address) else {
+            errorMessage = String(localized: "This device could not open a traceroute socket.")
+            return
+        }
 
-        // ── Hop 3: Google DNS (backbone) ──────────────────────────────────
-        let googleHop = await probe(ip: "8.8.8.8", hopNumber: 3,
-                                     fallbackLabel: "Google DNS")
-        appendHop(googleHop)
-        guard !Task.isCancelled else { return }
-        try? await Task.sleep(for: .milliseconds(250))
+        var table: [Int: RouteHop] = [:]
+        var destinationTTL: Int?
+        var probeLimit = Self.maxHops
 
-        // ── Hop 4: Destination ────────────────────────────────────────────
-        let isIP = target.split(separator: ".").count == 4 &&
-                   target.split(separator: ".").allSatisfy { Int($0) != nil }
-        if isIP {
-            let destHop = await probe(ip: target, hopNumber: 4, fallbackLabel: target)
-            appendHop(destHop)
-        } else {
-            // Resolve then probe
-            if let ip = await Self.resolveHost(target) {
-                let destHop = await probe(ip: ip, hopNumber: 4, fallbackLabel: target)
-                var hop = destHop
-                // Prefer showing target domain as hostname
-                if hop.hostname == nil || hop.hostname == target { hop.hostname = target }
-                appendHop(hop)
-            } else {
-                appendHop(TraceHop(hopNumber: 4, ip: "* * *",
-                                   hostname: target, latency: nil, isTimeout: true))
-                errorMessage = String(localized: "Could not resolve \(target)")
+        for round in 0..<maxRounds {
+            guard !Task.isCancelled else { return }
+            let started = ProcessInfo.processInfo.systemUptime
+
+            let replies = await tracer.round(ttls: 1...probeLimit, timeout: roundTimeout)
+            guard !Task.isCancelled else { return }
+
+            // Every probe past the destination reaches it too, so the lowest
+            // TTL with an echo reply is the destination's distance.
+            if destinationTTL == nil,
+               let reached = replies.filter({ $0.value.reachedDestination }).keys.min() {
+                destinationTTL = reached
+                probeLimit = reached
+                table = table.filter { $0.key <= reached }
+            }
+
+            for ttl in 1...probeLimit {
+                table[ttl, default: RouteHop(ttl: ttl)].record(replies[ttl])
+            }
+
+            let highestAnswered = table.values.filter { $0.received > 0 }.map(\.ttl).max()
+            if destinationTTL == nil, round == 0 {
+                // The destination does not answer: keep probing a little past
+                // the last router that did.
+                probeLimit = min(Self.maxHops, (highestAnswered ?? 0) + 3)
+                table = table.filter { $0.key <= probeLimit }
+            }
+            if highestAnswered == nil, round >= 2 {
+                errorMessage = String(localized: "No hop answered. This network may block traceroute.")
+                hops = []
+                return
+            }
+
+            let displayLimit = destinationTTL ?? min(probeLimit, (highestAnswered ?? 0) + 1)
+            hops = (1...displayLimit).compactMap { table[$0] }.map(applyLookups)
+            rounds = round + 1
+            finding = RouteFinding.evaluate(hops)
+            startLookups(for: hops)
+
+            let elapsed = ProcessInfo.processInfo.systemUptime - started
+            if elapsed < roundInterval {
+                try? await Task.sleep(nanoseconds: UInt64((roundInterval - elapsed) * 1_000_000_000))
             }
         }
     }
 
-    private func appendHop(_ hop: TraceHop) {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
-            hops.append(hop)
-        }
+    // MARK: - Names and networks
+
+    private func applyLookups(_ hop: RouteHop) -> RouteHop {
+        guard let address = hop.address else { return hop }
+        var hop = hop
+        hop.hostname = hostnames[address]
+        hop.asn = networks[address]
+        return hop
     }
 
-    // MARK: - Gateway Discovery
-
-    private func discoverGateway() async -> TraceHop? {
-        let candidates = ["192.168.1.1", "192.168.0.1", "10.0.0.1",
-                          "10.1.1.1", "172.16.0.1", "192.168.2.1"]
-        for ip in candidates {
-            let (ok, ms) = await tcpProbe(ip: ip, port: 80)
-            if ok {
-                let hostname = await IPScannerViewModel.reverseDNS(ip)
-                return TraceHop(hopNumber: 1, ip: ip,
-                                hostname: hostname ?? String(localized: "Local Gateway"),
-                                latency: ms, isTimeout: false)
-            }
-        }
-        return nil
-    }
-
-    // MARK: - Generic Host Probe
-
-    private func probe(ip: String, hopNumber: Int, fallbackLabel: String) async -> TraceHop {
-        // Try twice on different ports for a stable average
-        var collected: [Double] = []
-        for port in [UInt16(80), UInt16(443)] {
-            let (ok, ms) = await tcpProbe(ip: ip, port: port)
-            if ok { collected.append(ms) }
-        }
-
-        if collected.isEmpty {
-            return TraceHop(hopNumber: hopNumber, ip: ip,
-                            hostname: fallbackLabel, latency: nil, isTimeout: true)
-        }
-        let avg = collected.reduce(0, +) / Double(collected.count)
-        let hostname = await IPScannerViewModel.reverseDNS(ip) ?? fallbackLabel
-        return TraceHop(hopNumber: hopNumber, ip: ip,
-                        hostname: hostname, latency: avg, isTimeout: false)
-    }
-
-    // MARK: - TCP Probe
-
-    private func tcpProbe(ip: String, port: UInt16) async -> (Bool, Double) {
-        guard let nwPort = NWEndpoint.Port(rawValue: port) else { return (false, 0) }
-        let conn = NWConnection(host: NWEndpoint.Host(ip), port: nwPort, using: .tcp)
-
-        return await withCheckedContinuation { cont in
-            let box = ResumableBox<(Bool, Double)>(cont)
-            let start = Date()
-
-            conn.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    let ms = Date().timeIntervalSince(start) * 1000
-                    conn.cancel()
-                    box.resume(returning: (true, ms))
-                case .failed, .cancelled:
-                    box.resume(returning: (false, 0))
-                default: break
-                }
-            }
-            conn.start(queue: .global(qos: .userInitiated))
-            DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
-                conn.cancel()
-                box.resume(returning: (false, 0))
+    /// Reverse DNS for every new address and the network operator for public
+    /// ones; results show up from the next round.
+    private func startLookups(for hops: [RouteHop]) {
+        for address in hops.compactMap(\.address) where !lookedUp.contains(address) {
+            lookedUp.insert(address)
+            Task { [weak self] in
+                async let name = IPScannerViewModel.reverseDNS(address)
+                async let network = ASNLookup.lookup(address)
+                let (hostname, asn) = await (name, network)
+                guard let self else { return }
+                if let hostname { self.hostnames[address] = hostname }
+                if let asn { self.networks[address] = asn }
             }
         }
     }
@@ -186,20 +171,6 @@ final class TracerouteViewModel: ObservableObject {
     }
 }
 
-// MARK: - Thread-safe Box
-
-private final class ResumableBox<T: Sendable>: @unchecked Sendable {
-    private let lock = NSLock()
-    private var cont: CheckedContinuation<T, Never>?
-    init(_ cont: CheckedContinuation<T, Never>) { self.cont = cont }
-    func resume(returning value: T) {
-        lock.lock(); defer { lock.unlock() }
-        guard let c = cont else { return }
-        cont = nil
-        c.resume(returning: value)
-    }
-}
-
 // MARK: - Main View
 
 struct TracerouteView: View {
@@ -212,13 +183,16 @@ struct TracerouteView: View {
             VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
                 heroCard
 
-                if !vm.hops.isEmpty || vm.isRunning {
-                    hopsSection
-                }
-
                 if let err = vm.errorMessage {
                     ToolErrorCard(title: "Trace Failed", message: err)
-                } else if vm.hops.isEmpty && !vm.isRunning {
+                } else if !vm.hops.isEmpty {
+                    RouteFindingCard(finding: vm.finding, rounds: vm.rounds)
+                    hopsSection
+                } else if vm.isRunning {
+                    AppSection {
+                        progressRow(Text("Tracing the route…"))
+                    }
+                } else {
                     AppEmptyState(
                         icon: "point.3.connected.trianglepath.dotted",
                         title: "No Trace Yet",
@@ -235,6 +209,7 @@ struct TracerouteView: View {
         .navigationTitle("Traceroute")
         .toolReport(vm) { $0.reportText }
         .navigationBarTitleDisplayMode(.large)
+        .onDisappear { vm.cancel() }
     }
 
     // MARK: - Hero Card
@@ -244,7 +219,7 @@ struct TracerouteView: View {
             ToolHeroHeader(
                 icon: "point.3.connected.trianglepath.dotted",
                 title: "Hop-by-hop path analysis",
-                subtitle: "Probe each hop on the way to a host and measure its latency."
+                subtitle: "Finds every hop to a host and keeps measuring loss and latency at each one."
             )
 
             AppInputField(icon: "globe", placeholder: "Target host (e.g. google.com)", text: $vm.targetHost, showsFavorites: true) {
@@ -272,106 +247,190 @@ struct TracerouteView: View {
     // MARK: - Hops Section
 
     private var hopsSection: some View {
-        AppSection("Route") {
+        AppSection("Route", footer: "Loss at one hop that does not continue at the later hops is normal: many routers answer these probes slowly or not at all.") {
             ForEach(vm.hops) { hop in
-                HopRow(hop: hop, accent: accent)
+                RouteHopRow(hop: hop, accent: accent)
                 if hop.id != vm.hops.last?.id || vm.isRunning {
                     AppRowDivider()
                 }
             }
 
             if vm.isRunning {
-                HStack(spacing: 14) {
-                    ProgressView()
-                        .tint(accent)
-                        .frame(width: 40, height: 40)
-                    Text("Probing next hop…")
-                        .appFont(size: 14, weight: .medium, design: .rounded)
-                        .foregroundStyle(AppTheme.secondaryText)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                progressRow(Text("Round \(vm.rounds)"))
             }
+        }
+    }
+
+    private func progressRow(_ text: Text) -> some View {
+        HStack(spacing: 14) {
+            ProgressView()
+                .tint(accent)
+                .frame(width: 40, height: 40)
+            text
+                .appFont(size: 14, weight: .medium, design: .rounded)
+                .foregroundStyle(AppTheme.secondaryText)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+    }
+}
+
+// MARK: - Finding
+
+private struct RouteFindingCard: View {
+    let finding: RouteFinding
+    let rounds: Int
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            AppIconTile(systemName: icon, tint: tint)
+            VStack(alignment: .leading, spacing: 3) {
+                // `title` and `message` are already `Text`.
+                title
+                    .appFont(size: 16, weight: .semibold, design: .rounded)
+                    .foregroundStyle(AppTheme.primaryText)
+                message
+                    .appFont(size: 13, weight: .regular, design: .rounded)
+                    .foregroundStyle(AppTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .appCard()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var icon: String {
+        switch finding {
+        case .collecting: return "hourglass"
+        case .clean: return "checkmark"
+        case .lossStarts: return "exclamationmark.triangle.fill"
+        case .destinationSilent: return "questionmark"
+        }
+    }
+
+    private var tint: Color {
+        switch finding {
+        case .collecting, .destinationSilent: return AppTheme.ink.opacity(0.35)
+        case .clean: return AppTheme.ping
+        case .lossStarts: return AppTheme.warning
+        }
+    }
+
+    private var title: Text {
+        switch finding {
+        case .collecting:
+            return Text("Measuring… (\(min(rounds, RouteFinding.minimumProbes)) of \(RouteFinding.minimumProbes) rounds)")
+        case .clean:
+            return Text("No lasting packet loss")
+        case .lossStarts(let hop, _):
+            return Text("Packet loss starts at hop \(hop)")
+        case .destinationSilent:
+            return Text("The destination doesn't answer")
+        }
+    }
+
+    private var message: Text {
+        switch finding {
+        case .collecting:
+            return Text("Each round sends one probe to every hop. Loss is judged after 10 rounds.")
+        case .clean:
+            return Text("Probes reach the destination without loss that lasts along the route.")
+        case .lossStarts(_, .homeNetwork):
+            return Text("The loss already starts at your router, so the problem is between this iPhone and the router: the Wi-Fi or the router itself.")
+        case .lossStarts(_, .accessNetwork):
+            return Text("The loss starts at a private address after your router: your provider's access network, or a second router in your home.")
+        case .lossStarts(_, .provider(let network)):
+            if let network {
+                return Text("The loss starts inside your provider's network (\(network.label)). You can share this trace with your provider as evidence.")
+            }
+            return Text("The loss starts after your router, in your provider's network. You can share this trace with your provider as evidence.")
+        case .lossStarts(_, .beyondProvider(let network)):
+            return Text("The loss starts outside your provider's network, in \(network.label). Your provider may not be able to fix it.")
+        case .destinationSilent:
+            return Text("It doesn't reply to these probes, so loss to it can't be measured. The hops on the way are still shown; try 1.1.1.1 to test the route itself.")
         }
     }
 }
 
 // MARK: - Hop Row
 
-private struct HopRow: View {
-    let hop: TraceHop
+private struct RouteHopRow: View {
+    let hop: RouteHop
     let accent: Color
-    @State private var visible = false
 
-    private var latencyColor: Color {
-        guard let ms = hop.latency else { return AppTheme.secondaryText }
-        if ms < 20  { return AppTheme.ping }
-        if ms < 80  { return Color(red: 0.6, green: 0.9, blue: 0.2) }
+    private var answered: Bool { hop.received > 0 }
+
+    private func latencyColor(_ ms: Double) -> Color {
+        if ms < 20 { return AppTheme.ping }
+        if ms < 80 { return Color(red: 0.6, green: 0.9, blue: 0.2) }
         if ms < 200 { return AppTheme.upload }
         return AppTheme.danger
     }
 
-    private var tileFill: AnyShapeStyle {
-        hop.isTimeout
-            ? AnyShapeStyle(AppTheme.ink.opacity(0.06))
-            : AnyShapeStyle(accent)
-    }
-
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            // Hop number tile
-            Text(verbatim: "\(hop.hopNumber)")
+            Text(verbatim: "\(hop.ttl)")
                 .appFont(size: 16, weight: .bold, design: .rounded)
                 .monospacedDigit()
-                .foregroundStyle(hop.isTimeout ? AppTheme.tertiaryText : .white)
+                .foregroundStyle(answered ? .white : AppTheme.tertiaryText)
                 .frame(width: 40, height: 40)
-                .background(tileFill, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                .background(answered ? AnyShapeStyle(accent) : AnyShapeStyle(AppTheme.ink.opacity(0.06)),
+                            in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(hop.isTimeout ? "* * *" : (hop.hostname ?? hop.ip))
+                Text(verbatim: hop.hostname ?? hop.address ?? "* * *")
                     .appFont(size: 15, weight: .semibold, design: .rounded)
-                    .foregroundStyle(hop.isTimeout ? AppTheme.tertiaryText : AppTheme.primaryText)
+                    .foregroundStyle(answered ? AppTheme.primaryText : AppTheme.tertiaryText)
                     .lineLimit(1)
-                if !hop.isTimeout, let host = hop.hostname, host != hop.ip {
-                    Text(hop.ip)
+                    .truncationMode(.middle)
+                if let detail {
+                    Text(verbatim: detail)
                         .appFont(size: 12, weight: .regular, design: .monospaced)
                         .foregroundStyle(AppTheme.secondaryText)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                         .textSelection(.enabled)
                 }
             }
 
             Spacer(minLength: 8)
 
-            if hop.isTimeout {
-                AppPill(text: "Timeout", tint: AppTheme.ink.opacity(0.55))
-            } else if let ms = hop.latency {
-                VStack(alignment: .trailing, spacing: 5) {
-                    Text(ms.fixed(1) + " ms")
+            VStack(alignment: .trailing, spacing: 4) {
+                if let average = hop.average {
+                    Text(verbatim: average.fixed(1) + " ms")
                         .appFont(size: 13, weight: .semibold, design: .monospaced)
-                        .foregroundStyle(latencyColor)
-
-                    // Latency bar (max 300ms mapped to full width)
-                    Capsule()
-                        .fill(latencyColor.opacity(0.22))
-                        .frame(width: 64, height: 4)
-                        .overlay(alignment: .leading) {
-                            Capsule()
-                                .fill(latencyColor)
-                                .frame(width: 64 * min(ms / 300.0, 1.0), height: 4)
-                        }
+                        .foregroundStyle(latencyColor(average))
+                } else {
+                    Text(verbatim: "—")
+                        .appFont(size: 13, weight: .semibold, design: .monospaced)
+                        .foregroundStyle(AppTheme.tertiaryText)
                 }
+                Text(verbatim: hop.lossShare.formatted(.percent.precision(.fractionLength(0))))
+                    .appFont(size: 11, weight: .bold, design: .rounded)
+                    .foregroundStyle(hop.lossShare > 0 ? AppTheme.danger : AppTheme.secondaryText)
+                    .accessibilityLabel(Text("Loss \(hop.lossShare.formatted(.percent.precision(.fractionLength(0))))"))
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .opacity(visible ? 1 : 0)
-        .offset(x: visible ? 0 : -20)
-        .onAppear {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.05 * Double(hop.hopNumber))) {
-                visible = true
-            }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Address (when a name is shown) and network operator.
+    private var detail: String? {
+        var parts: [String] = []
+        if hop.hostname != nil, let address = hop.address {
+            parts.append(address)
         }
+        if hop.addresses.count > 1 {
+            parts.append("+\(hop.addresses.count - 1)")
+        }
+        if let network = hop.asn {
+            parts.append(network.label)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }
 

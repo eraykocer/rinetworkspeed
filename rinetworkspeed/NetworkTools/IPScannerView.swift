@@ -13,21 +13,64 @@ import Combine
 // MARK: - Models
 
 enum DeviceIconType: String {
-    case router   = "wifi.router.fill"
-    case phone    = "iphone"
-    case laptop   = "laptopcomputer"
-    case tv       = "tv.fill"
-    case printer  = "printer.fill"
-    case unknown  = "desktopcomputer"
+    case router    = "wifi.router.fill"
+    case phone     = "iphone"
+    case tablet    = "ipad"
+    case laptop    = "laptopcomputer"
+    case tv        = "tv.fill"
+    case speaker   = "homepod.fill"
+    case printer   = "printer.fill"
+    case camera    = "web.camera.fill"
+    case storage   = "externaldrive.fill"
+    case smartHome = "lightbulb.fill"
+    case unknown   = "desktopcomputer"
+
+    init(_ kind: DeviceKind) {
+        switch kind {
+        case .router: self = .router
+        case .phone: self = .phone
+        case .tablet: self = .tablet
+        case .computer: self = .laptop
+        case .tv: self = .tv
+        case .speaker: self = .speaker
+        case .printer: self = .printer
+        case .camera: self = .camera
+        case .storage: self = .storage
+        case .smartHome: self = .smartHome
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .router: return String(localized: "Router / Gateway")
+        case .phone: return String(localized: "Smartphone")
+        case .tablet: return String(localized: "Tablet")
+        case .laptop: return String(localized: "Laptop / Desktop")
+        case .tv: return String(localized: "Smart TV / Media")
+        case .speaker: return String(localized: "Speaker")
+        case .printer: return String(localized: "Printer")
+        case .camera: return String(localized: "Camera")
+        case .storage: return String(localized: "Network Storage")
+        case .smartHome: return String(localized: "IoT / Smart Device")
+        case .unknown: return String(localized: "Unknown Device")
+        }
+    }
 }
 
 struct NetworkDevice: Identifiable {
     let id = UUID()
     var ip: String
     var hostname: String?
-    var responseTime: Double   // ms
-    var openPort: Int
+    var responseTime: Double   // ms; 0 when found only through its announcements
+    var openPort: Int          // 0 when no probed port answered
     var deviceType: DeviceIconType
+    /// What the device announced about itself (Bonjour, NetBIOS, UPnP, web page).
+    var identity: DeviceIdentity?
+
+    /// The device's own name first, then the reverse DNS name.
+    var displayName: String? {
+        identity?.name ?? hostname
+    }
 }
 
 // MARK: - Resume Box (thread-safe continuation)
@@ -62,6 +105,8 @@ final class IPScannerViewModel: ObservableObject {
     @Published private(set) var newDeviceIdentifiers: Set<String> = []
     /// Set after a completed scan: whether it was the first scan of this network.
     @Published private(set) var isFirstScanOfNetwork: Bool?
+    /// True while names and models are being collected after the port sweep.
+    @Published private(set) var isIdentifying = false
     @Published private(set) var previousScanDate: Date?
 
     private var scanTask: Task<Void, Never>?
@@ -91,6 +136,11 @@ final class IPScannerViewModel: ObservableObject {
 
         scanTask = Task {
             let base = subnetBase
+            let ownAddress = localIP
+            // Bonjour and SSDP announcements are collected during the sweep.
+            let announcements = Task { await DeviceFingerprinter.discoverAnnouncements(interfaceAddress: ownAddress) }
+            defer { announcements.cancel() }
+
             // Scan in batches of 50 for controlled concurrency
             let batches = stride(from: 1, through: 254, by: 50).map { start in
                 (start...min(start + 49, 254)).map { "\(base).\($0)" }
@@ -117,6 +167,12 @@ final class IPScannerViewModel: ObservableObject {
             }
 
             if !Task.isCancelled {
+                isIdentifying = true
+                await identifyDevices(announcements: await announcements.value, base: base, ownAddress: ownAddress)
+                isIdentifying = false
+            }
+
+            if !Task.isCancelled {
                 let network = await KnownDevicesStore.networkKey(subnetBase: base)
                 previousScanDate = KnownDevicesStore.shared.lastScan(on: network)
                 let result = KnownDevicesStore.shared.recordScan(discoveredDevices, on: network)
@@ -125,6 +181,43 @@ final class IPScannerViewModel: ObservableObject {
             }
             isScanning = false
         }
+    }
+
+    /// Adds names, models and MAC addresses, and devices that answered no
+    /// probed port but announced themselves.
+    private func identifyDevices(announcements: [String: DeviceIdentity], base: String, ownAddress: String) async {
+        var identities = announcements.filter { $0.key.hasPrefix(base + ".") && $0.key != ownAddress }
+        let addresses = Set(discoveredDevices.map(\.ip)).union(identities.keys)
+        let web = Dictionary(
+            discoveredDevices
+                .filter { [80, 8080, 443].contains($0.openPort) && identities[$0.ip]?.name == nil }
+                .map { ($0.ip, $0.openPort) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for (address, identity) in await DeviceFingerprinter.identify(addresses: Array(addresses), webAddresses: web) {
+            identities[address, default: DeviceIdentity()].merge(identity)
+        }
+        guard !Task.isCancelled else { return }
+
+        for index in discoveredDevices.indices {
+            guard let identity = identities[discoveredDevices[index].ip] else { continue }
+            discoveredDevices[index].identity = identity
+            if let kind = identity.kind {
+                discoveredDevices[index].deviceType = DeviceIconType(kind)
+            }
+        }
+        let known = Set(discoveredDevices.map(\.ip))
+        for (address, identity) in identities where !known.contains(address) {
+            discoveredDevices.append(NetworkDevice(
+                ip: address,
+                hostname: await Self.reverseDNS(address),
+                responseTime: 0,
+                openPort: 0,
+                deviceType: identity.kind.map(DeviceIconType.init) ?? .unknown,
+                identity: identity
+            ))
+        }
+        discoveredDevices.sort { Self.ipToInt($0.ip) < Self.ipToInt($1.ip) }
     }
 
     func isNew(_ device: NetworkDevice) -> Bool {
@@ -148,7 +241,7 @@ final class IPScannerViewModel: ObservableObject {
                 let dtype = Self.guessDeviceType(port: Int(port), hostname: hostname)
                 return NetworkDevice(ip: ip, hostname: hostname,
                                      responseTime: time, openPort: Int(port),
-                                     deviceType: dtype)
+                                     deviceType: dtype, identity: nil)
             }
         }
         return nil
@@ -358,7 +451,7 @@ struct IPScannerView: View {
 
     private var progressSummary: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(vm.isScanning ? "Scanning…" : "Scan Complete")
+            Text(vm.isIdentifying ? "Identifying devices…" : (vm.isScanning ? "Scanning…" : "Scan Complete"))
                 .appFont(size: 11, weight: .semibold, design: .rounded)
                 .foregroundStyle(AppTheme.ink.opacity(0.65))
                 .textCase(.uppercase)
@@ -416,7 +509,7 @@ struct IPScannerView: View {
 
             AppSection(
                 "\(vm.discoveredDevices.count) devices found",
-                footer: "iOS does not share MAC addresses, so devices are recognized by name, or by IP address when they have no name. A device that gets a new IP address may show up as new."
+                footer: "iOS does not share MAC addresses. Devices that announce one themselves (AirPlay, Windows, Samba) are recognized by it; others by name, or by IP address when they have no name. Such a device may show up as new after getting a new IP address."
             ) {
                 ForEach(vm.discoveredDevices) { device in
                     Button {
@@ -518,10 +611,14 @@ private extension DeviceIconType {
     var tint: Color {
         switch self {
         case .router: Color(red: 0.24, green: 0.45, blue: 0.99)
-        case .phone: AppTheme.accent
+        case .phone, .tablet: AppTheme.accent
         case .laptop: Color(red: 0.20, green: 0.80, blue: 0.65)
         case .tv: AppTheme.upload
+        case .speaker: Color(red: 0.55, green: 0.42, blue: 0.98)
         case .printer: Color(red: 0.93, green: 0.30, blue: 0.60)
+        case .camera: AppTheme.danger
+        case .storage: Color(red: 0.10, green: 0.62, blue: 0.86)
+        case .smartHome: AppTheme.warning
         case .unknown: Color(white: 0.45)
         }
     }
@@ -533,21 +630,30 @@ private struct DeviceRow: View {
     let device: NetworkDevice
     var isNew = false
 
+    /// Address (when a name is shown) and the model when known.
+    private var subtitle: String? {
+        var parts: [String] = []
+        if device.displayName != nil { parts.append(device.ip) }
+        if let detail = device.identity?.detail { parts.append(detail) }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
     var body: some View {
         HStack(spacing: 14) {
             AppIconTile(systemName: device.deviceType.rawValue, tint: device.deviceType.tint)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(device.hostname ?? device.ip)
+                Text(verbatim: device.displayName ?? device.ip)
                     .appFont(size: 16, weight: .semibold, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
-                if device.hostname != nil {
-                    Text(device.ip)
+                if let subtitle {
+                    Text(verbatim: subtitle)
                         .appFont(size: 12, weight: .regular, design: .rounded)
                         .monospacedDigit()
                         .foregroundStyle(AppTheme.secondaryText)
+                        .lineLimit(1)
                 }
             }
 
@@ -557,12 +663,16 @@ private struct DeviceRow: View {
                 if isNew {
                     AppPill(text: "New", tint: AppTheme.warning)
                 }
-                AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
-                    .monospacedDigit()
-                Text(":\(device.openPort)")
-                    .appFont(size: 11, weight: .medium, design: .rounded)
-                    .monospacedDigit()
-                    .foregroundStyle(AppTheme.tertiaryText)
+                if device.responseTime > 0 {
+                    AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
+                        .monospacedDigit()
+                }
+                if device.openPort > 0 {
+                    Text(":\(device.openPort)")
+                        .appFont(size: 11, weight: .medium, design: .rounded)
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.tertiaryText)
+                }
             }
 
             AppChevron()
@@ -588,19 +698,38 @@ struct DeviceDetailSheet: View {
                 VStack(alignment: .leading, spacing: AppTheme.sectionSpacing) {
                     header
 
-                    AppSection("Device Info") {
+                    AppSection("Device Info", footer: identityFooter) {
                         infoRow(label: "IP Address", value: device.ip)
                         AppRowDivider(leadingInset: 16)
+                        if let name = device.identity?.name {
+                            infoRow(label: "Name", value: name)
+                            AppRowDivider(leadingInset: 16)
+                        }
                         if let hostname = device.hostname {
                             infoRow(label: "Hostname", value: hostname)
                             AppRowDivider(leadingInset: 16)
                         }
-                        infoRow(label: "Device Type",
-                                value: device.deviceType.rawValue.replacingOccurrences(of: ".fill", with: "").capitalized)
-                        AppRowDivider(leadingInset: 16)
-                        infoRow(label: "Response Time", value: "\(Int(device.responseTime)) ms")
-                        AppRowDivider(leadingInset: 16)
-                        infoRow(label: "First Open Port", value: "\(device.openPort) (\(serviceName(for: device.openPort)))")
+                        if let model = device.identity?.model {
+                            infoRow(label: "Model", value: model)
+                            AppRowDivider(leadingInset: 16)
+                        }
+                        if let manufacturer = device.identity?.manufacturer {
+                            infoRow(label: "Manufacturer", value: manufacturer)
+                            AppRowDivider(leadingInset: 16)
+                        }
+                        if let mac = device.identity?.mac {
+                            infoRow(label: "MAC Address", value: mac)
+                            AppRowDivider(leadingInset: 16)
+                        }
+                        infoRow(label: "Device Type", value: device.deviceType.displayName)
+                        if device.responseTime > 0 {
+                            AppRowDivider(leadingInset: 16)
+                            infoRow(label: "Response Time", value: "\(Int(device.responseTime)) ms")
+                        }
+                        if device.openPort > 0 {
+                            AppRowDivider(leadingInset: 16)
+                            infoRow(label: "First Open Port", value: "\(device.openPort) (\(serviceName(for: device.openPort)))")
+                        }
                     }
 
                     AppSection("Open Ports") {
@@ -650,7 +779,7 @@ struct DeviceDetailSheet: View {
                 .padding(.bottom, 32)
             }
             .appPageBackground()
-            .navigationTitle(device.hostname ?? device.ip)
+            .navigationTitle(device.displayName ?? device.ip)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -672,12 +801,12 @@ struct DeviceDetailSheet: View {
             AppIconTile(systemName: device.deviceType.rawValue, tint: device.deviceType.tint, size: 52)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(device.hostname ?? device.ip)
+                Text(verbatim: device.displayName ?? device.ip)
                     .appFont(size: 18, weight: .bold, design: .rounded)
                     .monospacedDigit()
                     .foregroundStyle(AppTheme.primaryText)
                     .lineLimit(1)
-                if device.hostname != nil {
+                if device.displayName != nil {
                     Text(device.ip)
                         .appFont(size: 13, weight: .medium, design: .rounded)
                         .monospacedDigit()
@@ -687,10 +816,22 @@ struct DeviceDetailSheet: View {
 
             Spacer(minLength: 8)
 
-            AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
-                .monospacedDigit()
+            if device.responseTime > 0 {
+                AppPill(text: "\(Int(device.responseTime)) ms", tint: AppTheme.ping)
+                    .monospacedDigit()
+            }
         }
         .padding(.top, 8)
+    }
+
+    /// Where the name and details came from, and a note on private addresses.
+    private var identityFooter: LocalizedStringKey? {
+        guard let identity = device.identity, !identity.sources.isEmpty else { return nil }
+        let sources = identity.sources.sorted().joined(separator: ", ")
+        if identity.hasPrivateMAC {
+            return "Found via \(sources). This MAC address is a private (random) Wi-Fi address, so it doesn't reveal the maker."
+        }
+        return "Found via \(sources)."
     }
 
     private func infoRow(label: LocalizedStringKey, value: String) -> some View {

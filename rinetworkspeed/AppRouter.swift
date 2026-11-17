@@ -4,7 +4,8 @@
 //
 //  Single entry point for navigation requests that come from outside the
 //  view hierarchy: notification actions, widget taps, the Control Center
-//  control and deep links (rinetworkspeed://<destination>).
+//  control and deep links (rinetworkspeed://<destination>), plus the answer
+//  of the Wi-Fi signal shortcut (rinetworkspeed://wifi-signal?…).
 //
 
 import Foundation
@@ -62,6 +63,13 @@ final class AppRouter: ObservableObject {
     /// Handles `rinetworkspeed://speedtest`, `rinetworkspeed://usage`, etc.
     @discardableResult
     func handle(url: URL) -> Bool {
+        // Answer of the Wi-Fi signal shortcut: store it and stay on the
+        // current screen, which shows the new values.
+        if url.scheme == Self.urlScheme, url.host()?.lowercased() == WiFiSignalReading.urlHost {
+            guard let reading = WiFiSignalReading(url: url) else { return false }
+            WiFiSignalStore.shared.receive(reading)
+            return true
+        }
         guard url.scheme == Self.urlScheme,
               let host = url.host(),
               let destination = AppDestination(rawValue: host.lowercased()) else {

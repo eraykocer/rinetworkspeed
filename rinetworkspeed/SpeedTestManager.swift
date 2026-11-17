@@ -32,6 +32,16 @@ struct SpeedTestResult: Codable, Identifiable {
     var connection: ConnectionKind?
     var ssid: String?
     var isp: String?
+    /// Median latency (ms) measured on a separate connection while the
+    /// download or upload phase was running. Nil for results recorded before
+    /// latency under load was measured, or when too few probes came back.
+    var loadedLatencyDownload: Double?
+    var loadedLatencyUpload: Double?
+    /// Cellular tests only: "5G", "5G NSA", "4G"… and the place, rounded to
+    /// about 100 m, when location access was granted.
+    var radioTechnology: String?
+    var latitude: Double?
+    var longitude: Double?
 
     init(
         id: UUID = UUID(),
@@ -42,7 +52,12 @@ struct SpeedTestResult: Codable, Identifiable {
         jitter: Double? = nil,
         connection: ConnectionKind? = nil,
         ssid: String? = nil,
-        isp: String? = nil
+        isp: String? = nil,
+        loadedLatencyDownload: Double? = nil,
+        loadedLatencyUpload: Double? = nil,
+        radioTechnology: String? = nil,
+        latitude: Double? = nil,
+        longitude: Double? = nil
     ) {
         self.id = id
         self.date = date
@@ -53,6 +68,11 @@ struct SpeedTestResult: Codable, Identifiable {
         self.connection = connection
         self.ssid = ssid
         self.isp = isp
+        self.loadedLatencyDownload = loadedLatencyDownload
+        self.loadedLatencyUpload = loadedLatencyUpload
+        self.radioTechnology = radioTechnology
+        self.latitude = latitude
+        self.longitude = longitude
     }
 }
 
@@ -217,6 +237,79 @@ nonisolated private final class TransferStream: NSObject, URLSessionDataDelegate
     }
 }
 
+// MARK: - Latency Probe
+
+/// Measures HTTP round trips to the speed test server on a connection of its
+/// own. Idle latency (before the transfers) and latency under load (while
+/// they run) both use it, so the two values are comparable. `@concurrent`
+/// keeps the timing off the main actor, where UI updates would add delay.
+nonisolated private final class LatencyProbe: @unchecked Sendable {
+    /// Seconds before a probe counts as timed out.
+    let timeout: TimeInterval
+    private let session: URLSession
+
+    init(timeout: TimeInterval = 5) {
+        self.timeout = timeout
+        let config = URLSessionConfiguration.ephemeral
+        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        config.urlCache = nil
+        config.httpMaximumConnectionsPerHost = 1
+        session = URLSession(configuration: config)
+    }
+
+    func invalidate() {
+        session.invalidateAndCancel()
+    }
+
+    /// One round trip, in milliseconds.
+    @concurrent func roundTrip() async throws -> Double {
+        guard let url = URL(string: "https://speed.cloudflare.com/__down?bytes=0&measId=\(UUID().uuidString)") else {
+            throw URLError(.badURL)
+        }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = timeout
+
+        let start = ProcessInfo.processInfo.systemUptime
+        _ = try await session.data(for: request)
+        return (ProcessInfo.processInfo.systemUptime - start) * 1000
+    }
+
+    /// Sends probes one after another until the task is cancelled and returns
+    /// the round trips of probes sent at or after `warmUpEnd` (before that the
+    /// link is not saturated yet). A probe that times out counts as the
+    /// timeout, so a badly congested link is not reported as fast.
+    @concurrent func sampleUntilCancelled(warmUpEnd: TimeInterval, interval: TimeInterval) async -> [Double] {
+        var samples: [Double] = []
+
+        // The first request also opens the connection (DNS, TCP, TLS).
+        _ = try? await roundTrip()
+
+        while !Task.isCancelled {
+            let sentAt = ProcessInfo.processInfo.systemUptime
+            let milliseconds: Double
+            do {
+                milliseconds = try await roundTrip()
+            } catch let error as URLError where error.code == .timedOut {
+                milliseconds = timeout * 1000
+            } catch {
+                if Task.isCancelled { break }
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                continue
+            }
+            guard !Task.isCancelled else { break }
+
+            if sentAt >= warmUpEnd {
+                samples.append(milliseconds)
+            }
+            let wait = interval - milliseconds / 1000
+            if wait > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+            }
+        }
+        return samples
+    }
+}
+
 // MARK: - SpeedTestManager
 
 @MainActor
@@ -236,6 +329,9 @@ final class SpeedTestManager: ObservableObject {
     @Published var finalUpload: Double = 0
     @Published var ping: Double = 0
     @Published var jitter: Double = 0
+    /// Median latency (ms) while downloading / uploading; nil until measured.
+    @Published var loadedLatencyDownload: Double?
+    @Published var loadedLatencyUpload: Double?
     /// Mirrors `SpeedTestHistoryStore`, newest first.
     @Published private(set) var history: [SpeedTestResult] = []
 
@@ -254,6 +350,10 @@ final class SpeedTestManager: ObservableObject {
     private let sampleInterval: TimeInterval = 0.1
     /// Window used for the live (needle) speed value.
     private let liveWindowDuration: TimeInterval = 1.0
+    /// Shortest gap between the starts of two latency probes during a phase.
+    private let loadedProbeInterval: TimeInterval = 0.2
+    /// Fewer probes than this are not enough for a latency-under-load value.
+    private let minimumLoadedSamples = 3
 
     // MARK: Private properties
 
@@ -310,7 +410,8 @@ final class SpeedTestManager: ObservableObject {
 
                 // ── Phase 2: Download ──────────────────────────────────
                 self.state = .downloadTesting
-                let download = try await self.runPhase(.download)
+                let (download, downloadLatency) = try await self.runPhase(.download)
+                self.loadedLatencyDownload = downloadLatency
                 self.finalDownload = download
                 self.downloadSpeed = download
                 self.displayDownloadSpeed = download
@@ -325,7 +426,8 @@ final class SpeedTestManager: ObservableObject {
 
                 // ── Phase 4: Upload ────────────────────────────────────
                 self.state = .uploadTesting
-                let upload = try await self.runPhase(.upload)
+                let (upload, uploadLatency) = try await self.runPhase(.upload)
+                self.loadedLatencyUpload = uploadLatency
                 self.finalUpload = upload
                 self.uploadSpeed = upload
                 self.displayUploadSpeed = upload
@@ -394,6 +496,8 @@ final class SpeedTestManager: ObservableObject {
         finalUpload = 0
         ping = 0
         jitter = 0
+        loadedLatencyDownload = nil
+        loadedLatencyUpload = nil
         connectionContext = nil
 
         startDisplayTimer()
@@ -411,27 +515,14 @@ final class SpeedTestManager: ObservableObject {
     /// and TLS setup; the median of the remaining samples is reported.
     /// Median round trip and jitter (mean difference between consecutive samples), in ms.
     private func measurePing() async throws -> (median: Double, jitter: Double) {
-        let config = URLSessionConfiguration.ephemeral
-        config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        config.urlCache = nil
-        let pingSession = URLSession(configuration: config)
-        defer { pingSession.invalidateAndCancel() }
+        let probe = LatencyProbe()
+        defer { probe.invalidate() }
 
         var results: [Double] = []
 
         for attempt in 0..<6 {
             try Task.checkCancellation()
-
-            guard let url = URL(string: "https://speed.cloudflare.com/__down?bytes=0&measId=\(UUID().uuidString)") else {
-                throw URLError(.badURL)
-            }
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 5
-
-            let start = ProcessInfo.processInfo.systemUptime
-            _ = try await pingSession.data(for: request)
-            let elapsed = (ProcessInfo.processInfo.systemUptime - start) * 1000
-
+            let elapsed = try await probe.roundTrip()
             if attempt > 0 {
                 results.append(elapsed)
             }
@@ -448,10 +539,10 @@ final class SpeedTestManager: ObservableObject {
     // MARK: - Private: Transfer Phase
 
     /// Runs one time-boxed transfer phase with several parallel streams.
-    /// Live speed and progress are published every `sampleInterval`; the
-    /// returned value (bytes/second) is the average throughput measured
-    /// after the warm-up period.
-    private func runPhase(_ kind: TransferKind) async throws -> Double {
+    /// Live speed and progress are published every `sampleInterval`. Returns
+    /// the average throughput after the warm-up period (bytes/second) and the
+    /// median latency measured on a separate connection meanwhile (ms).
+    private func runPhase(_ kind: TransferKind) async throws -> (speed: Double, loadedLatency: Double?) {
         let duration = kind == .download ? downloadDuration : uploadDuration
         let streamCount = kind == .download ? downloadStreamCount : uploadStreamCount
 
@@ -467,6 +558,20 @@ final class SpeedTestManager: ObservableObject {
         }
 
         let startTime = ProcessInfo.processInfo.systemUptime
+
+        // Latency under load: probes run on their own connection while the
+        // streams saturate the link.
+        let probe = LatencyProbe()
+        let warmUpEnd = startTime + warmUpDuration
+        let probeInterval = loadedProbeInterval
+        let probeTask = Task.detached {
+            await probe.sampleUntilCancelled(warmUpEnd: warmUpEnd, interval: probeInterval)
+        }
+        defer {
+            probeTask.cancel()
+            probe.invalidate()
+        }
+
         var samples: [(time: TimeInterval, bytes: Int64)] = [(startTime, 0)]
         var warmUpBaseline: (time: TimeInterval, bytes: Int64)?
 
@@ -502,9 +607,21 @@ final class SpeedTestManager: ObservableObject {
                 guard bytes > 0 else { throw URLError(.cannotConnectToHost) }
                 let baseline = warmUpBaseline ?? (startTime, 0)
                 let measuredTime = max(now - baseline.time, 0.001)
-                return Double(bytes - baseline.bytes) / measuredTime
+                let speed = Double(bytes - baseline.bytes) / measuredTime
+
+                probeTask.cancel()
+                let latencies = await probeTask.value
+                let loadedLatency = latencies.count >= minimumLoadedSamples ? Self.median(latencies) : nil
+                return (speed, loadedLatency)
             }
         }
+    }
+
+    private static func median(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        let sorted = values.sorted()
+        let middle = sorted.count / 2
+        return sorted.count.isMultiple(of: 2) ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle]
     }
 
     private func setLive(_ kind: TransferKind, speed: Double, progress: Double) {
@@ -586,7 +703,12 @@ final class SpeedTestManager: ObservableObject {
             jitter: jitter,
             connection: connectionContext?.kind,
             ssid: connectionContext?.ssid,
-            isp: connectionContext?.isp
+            isp: connectionContext?.isp,
+            loadedLatencyDownload: loadedLatencyDownload,
+            loadedLatencyUpload: loadedLatencyUpload,
+            radioTechnology: connectionContext?.radioTechnology,
+            latitude: connectionContext?.location?.latitude,
+            longitude: connectionContext?.location?.longitude
         )
 
         // Compare Wi-Fi with Wi-Fi and cellular with cellular; a cellular test
